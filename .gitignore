@@ -5,3 +5,4 @@ __pycache__/
 data/corpus/*.html
 .claude
 .claude-toolkit
+voice/logs/

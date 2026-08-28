@@ -1,7 +1,6 @@
 python-dotenv
-pipecat-ai
+pipecat-ai[local,google]
 azure-cognitiveservices-speech
-google-generativeai
 psycopg[binary]
 pgvector
 sentence-transformers
