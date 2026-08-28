@@ -1,0 +1,7 @@
+python-dotenv
+pipecat-ai
+azure-cognitiveservices-speech
+google-generativeai
+psycopg[binary]
+pgvector
+sentence-transformers
