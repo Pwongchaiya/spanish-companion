@@ -8,9 +8,10 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-08-28-1457.md — Step 0 done, env fully
-configured (Azure Speech + Gemini + DATABASE_URL), Postgres+pgvector running in
-Docker. Step 1 (voice loop) ready to start, no blockers.
+Projects/spanish-companion/sessions/2026-08-28-1603.md — Step 1 voice loop built
+and debugged live (cold-start timeout, sample-rate speedup, self-echo loop,
+markdown/accent issues each fixed). System prompt scope-adjusted to bilingual
+phrase-teaching. One more clean end-to-end run pending before Step 1 is done.
 
 ---
 
