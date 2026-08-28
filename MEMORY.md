@@ -8,8 +8,9 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-08-28-1427.md — Step 0 (repo scaffold)
-done, toolkit imported, CLAUDE.md/state.md set up.
+Projects/spanish-companion/sessions/2026-08-28-1457.md — Step 0 done, env fully
+configured (Azure Speech + Gemini + DATABASE_URL), Postgres+pgvector running in
+Docker. Step 1 (voice loop) ready to start, no blockers.
 
 ---
 
