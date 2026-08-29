@@ -5,6 +5,29 @@ Postgres (TEST_DATABASE_URL, never DATABASE_URL) with external APIs mocked
 at the Broker boundary. The schema is expected to already be migrated
 (`alembic upgrade head` with TEST_DATABASE_URL as DATABASE_URL) -- this
 fixture only truncates between tests, it does not create tables.
+
+## Broker-level test exclusions
+
+Per CLAUDE.md's note "No tests during build", the integration test plan
+excludes broker-level tests:
+
+**ChunkRepositoryBroker & EmbeddingModelBroker**: Integration tests ARE
+written (in tests/integration/brokers/). These brokers have real infrastructure
+worth verifying: pgvector query correctness and embedding model dimensions.
+
+**FlagBroker & PracticeLogBroker**: Integration tests NOT written. These are
+JSON file I/O brokers with lower risk: no query logic to verify, just
+file read/write round-tripping. File I/O is a platform primitive (not a
+custom implementation), and the tolerance for corrupt/missing/partial files
+is already hardcoded in load_flags() and read_attempts() (return [] on any
+error). The only risk worth preventing is mid-write reads (atomic write
+via os.replace in FlagBroker), which is already implemented. Unit tests
+(not written yet, deferred to later phase) would verify these codepaths if
+needed.
+
+**SubprocessBotProcessBroker**: Integration test exists (test_bot_process.py).
+This broker wraps an OS process and needs real subprocess testing to verify
+signal handling and process lifecycle.
 """
 
 import os
