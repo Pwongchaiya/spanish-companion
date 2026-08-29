@@ -8,16 +8,15 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-08-29-1235.md — Wired the React
-frontend (Conversation + Review views) to the live backend per the
-architecture record's hook-layering spec: api/client.ts, Zustand store,
-useEventSource/useSessionState/useReviewFlow hooks. Verified end-to-end
-against a real Flask backend (start/stop, SSE transcript, flag select,
-RAG-grounded explanation, practice submission). Along the way, found and
-fixed a local dev-DB gap (Alembic migration `0001` had never been applied
-here) and re-ingested the 39-chunk starter corpus. Committed `ae61440`.
-This was the last unassigned Phase 2 build-order item — nothing blocking
-for next session.
+Projects/spanish-companion/sessions/2026-08-29-1552.md — Audited Phase 2's
+actual code against the NL.Core.Entitlements reference "Standard"
+implementation (tagged Findings Ledger, F1-F19), then built a Phase 3
+rebuild plan through a 6-way Haiku extraction + Opus synthesis + verified
+citation pipeline, extended with three targeted investigations (Voice
+Conversation failure modes, frontend/TypeScript error-handling gaps,
+migration/versioning drift risk). Plan approved via Plan Mode; both
+decision records persisted. No code built yet — next session starts with
+Wave 1's SubprocessBotProcessBroker.is_running() returncode fix.
 
 ---
 
