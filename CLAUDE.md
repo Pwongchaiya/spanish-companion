@@ -79,9 +79,13 @@ decision record: `Projects/spanish-companion/decisions/companion-architecture-br
 Phase 2 adopts a simplified **Broker → Service → Controller** layering with
 constructor-based dependency injection (`typing.Protocol` abstractions, no
 DI framework), applied per-feature across six features: Session Lifecycle,
-Voice Conversation, Ingestion, Retrieval, Generation, Review. Retrieval
-internally uses a Strategy pattern for hybrid search (dense now, lexical as
-a deferred seam). The frontend is being redesigned as React + TypeScript
+Voice Conversation, Ingestion, Retrieval, Generation, Review — split across
+two top-level packages, `api` (Session Lifecycle, Voice Conversation,
+Review) and `rag` (Ingestion, Retrieval, Generation), with `api` depending
+on `rag` and never the reverse. Both packages are laid out layer-first,
+then feature (`brokers/`, `models/`, `services/<feature>/`,
+`controllers/<feature>/`). Retrieval internally uses a Strategy pattern for
+hybrid search (dense now, lexical as a deferred seam). The frontend is being redesigned as React + TypeScript
 (Vite static build, same-origin, no Next.js) with the same layering
 expressed as hooks. Phase 1's code is not being patched — findings from a
 four-agent Phase 1 review (code, design, security, live UI) feed Phase 2's
@@ -107,6 +111,7 @@ Two runtime modes (unchanged across both phases):
 
 ## Testing Standards
 
+**Phase 1 (historical — shipped code, not being retrofitted):**
 - Voice pipeline (Steps 1-2): manual verification is primary — latency and
   conversational feel can't be unit tested. Log flags to file/console and
   inspect by hand before building anything on top.
@@ -116,6 +121,26 @@ Two runtime modes (unchanged across both phases):
 - Review Mode (Step 4+): unit tests for the flag-selection → retrieval →
   explanation flow are reasonable once the shape stabilizes; don't write them
   ahead of the code.
+
+**Phase 2 (pytest, three tiers) — the standing rule for all new test code.**
+Modeled on the user's `NL.Core.Entitlements` .NET project ("The Standard"
+testing conventions); full detail in the decision record's "Resolved:
+Phase 2 test strategy" section.
+- **Unit** (`tests/unit/services|controllers/<feature>/`): every Broker
+  mocked (`unittest.mock.Mock(spec=BrokerProtocol)`), split into
+  `test_<method>_logic.py` / `_validation.py` / `_exceptions.py` per
+  method, strict call-count verification on every mock touched,
+  deterministic data only (no live `datetime.now()` or untracked
+  randomness).
+- **Integration** (`tests/integration/services/<feature>/`): real test
+  Postgres, external APIs (Azure Speech, Gemini) mocked at the Broker
+  boundary.
+- **Acceptance** (`tests/acceptance/apis/<feature>/`): full Flask app
+  in-process (`app.test_client()`), real test Postgres, external APIs
+  mocked, self-cleaning HTTP round-trips (create → assert → delete).
+- No new test dependencies — stdlib `unittest.mock` and plain `assert` on
+  dataclasses cover everything Moq/FluentAssertions did in the reference
+  project.
 
 ---
 
