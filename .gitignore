@@ -6,3 +6,4 @@ data/corpus/*.html
 .claude
 .claude-toolkit
 voice/logs/
+review/logs/

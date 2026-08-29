@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review & Practice - Spanish Learning Companion</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            font-size: 20px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .flags-list {
+            list-style: none;
+        }
+
+        .flag-item {
+            padding: 15px;
+            margin-bottom: 10px;
+            background: #f9f9f9;
+            border-left: 4px solid #007bff;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .flag-item.error {
+            border-left-color: #dc3545;
+        }
+
+        .flag-content {
+            flex: 1;
+        }
+
+        .flag-category {
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .flag-text {
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .flag-said {
+            color: #999;
+            text-decoration: line-through;
+        }
+
+        .flag-corrected {
+            color: #28a745;
+            font-weight: 500;
+        }
+
+        .flag-form {
+            display: inline;
+        }
+
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .no-errors {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+
+        .no-errors p {
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        .explanation-section {
+            background: #f0f8ff;
+            border-left: 4px solid #007bff;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        .explanation-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .explanation-text {
+            font-size: 15px;
+            line-height: 1.7;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .explanation-source {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .explanation-source a {
+            color: #007bff;
+            text-decoration: none;
+        }
+
+        .explanation-source a:hover {
+            text-decoration: underline;
+        }
+
+        .flag-review {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .flag-review-row {
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .flag-review-label {
+            font-weight: 600;
+            color: #666;
+            margin-right: 10px;
+        }
+
+        .flag-review-value {
+            color: #333;
+        }
+
+        .practice-form {
+            margin-top: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        textarea, input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+        }
+
+        textarea:focus, input[type="text"]:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+        }
+
+        textarea {
+            min-height: 80px;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .form-actions button {
+            flex: 1;
+        }
+
+        .success-message {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 20px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .success-message h3 {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        .success-message p {
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .footer a {
+            display: inline-block;
+            margin: 0 10px;
+            color: #007bff;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Review & Practice</h1>
+            <p class="subtitle">Revisit flagged grammar errors and practice the corrections</p>
+        </header>
+
+        <div class="content">
+            <!-- Error message display (if any) -->
+            {% if error %}
+            <div class="error-message">
+                {{ error }}
+            </div>
+            {% endif %}
+
+            <!-- Stage: List of flags -->
+            {% if stage == 'list' %}
+                {% if flags %}
+                    <h2>Flagged Errors ({{ flags|length }})</h2>
+                    <ul class="flags-list">
+                        {% for flag in flags %}
+                        <li class="flag-item">
+                            <div class="flag-content">
+                                <div class="flag-category">{{ flag.category }}</div>
+                                <div class="flag-text">
+                                    <span class="flag-said">{{ flag.said }}</span>
+                                    <span> → </span>
+                                    <span class="flag-corrected">{{ flag.corrected }}</span>
+                                </div>
+                            </div>
+                            <form class="flag-form" method="POST" action="/review/select">
+                                <input type="hidden" name="flag_index" value="{{ loop.index0 }}">
+                                <button type="submit" class="btn-primary">Review</button>
+                            </form>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="no-errors">
+                        <p>No flagged errors yet!</p>
+                        <p style="font-size: 14px;">Run a conversation and some grammar corrections will appear here.</p>
+                        <div class="footer">
+                            <a href="/">Back to Conversation</a>
+                        </div>
+                    </div>
+                {% endif %}
+
+            <!-- Stage: Practice form (after selecting a flag) -->
+            {% elif stage == 'practice' %}
+                <h2>Review Correction</h2>
+
+                <div class="flag-review">
+                    <div class="flag-review-row">
+                        <span class="flag-review-label">Category:</span>
+                        <span class="flag-review-value">{{ flag.category }}</span>
+                    </div>
+                    <div class="flag-review-row">
+                        <span class="flag-review-label">You said:</span>
+                        <span class="flag-review-value">{{ flag.said }}</span>
+                    </div>
+                    <div class="flag-review-row">
+                        <span class="flag-review-label">Correct:</span>
+                        <span class="flag-review-value" style="color: #28a745; font-weight: 500;">{{ flag.corrected }}</span>
+                    </div>
+                </div>
+
+                <div class="explanation-section">
+                    <div class="explanation-label">Explanation</div>
+                    <div class="explanation-text">{{ explanation }}</div>
+                    {% if source_url %}
+                    <div class="explanation-source">
+                        <strong>Source:</strong> <a href="{{ source_url }}" target="_blank">RAE Grammar Reference</a>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <form method="POST" action="/review/practice" class="practice-form">
+                    <input type="hidden" name="flag_index" value="{{ flag_index }}">
+
+                    <div class="form-group">
+                        <label for="attempt">Now try saying the corrected form:</label>
+                        <textarea id="attempt" name="attempt_text" placeholder="Type the correction..."></textarea>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn-success">Record Practice</button>
+                        <a href="/review" class="btn-secondary" style="flex: 1; text-align: center; text-decoration: none; display: flex; align-items: center; justify-content: center;">Back to List</a>
+                    </div>
+                </form>
+
+            <!-- Stage: Confirmation (after recording practice) -->
+            {% elif stage == 'done' %}
+                <div class="success-message">
+                    <h3>Practice Recorded!</h3>
+                    <p>Great work! Your practice attempt has been saved.</p>
+                </div>
+
+                <div class="footer">
+                    <a href="/review">Review Another Error</a>
+                    <a href="/">Back to Conversation</a>
+                </div>
+
+            <!-- Stage: Error -->
+            {% elif stage == 'error' %}
+                <div style="text-align: center; padding: 20px;">
+                    <p>Something went wrong.</p>
+                    <div class="footer">
+                        <a href="/review">Back to List</a>
+                        <a href="/">Back to Conversation</a>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

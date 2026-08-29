@@ -5,8 +5,10 @@ conversational before building anything on top. See spanish-companion-mvp-scope.
 Section 7 (Build Order).
 """
 
+import asyncio
 import json
 import os
+import signal
 from datetime import datetime
 from pathlib import Path
 
@@ -165,6 +167,7 @@ SYSTEM_PROMPT = (
 
 
 LOG_DIR = Path(__file__).parent / "logs"
+LIVE_TRANSCRIPT_PATH = LOG_DIR / "live_transcript.jsonl"
 
 
 def _message_text(content) -> str:
@@ -222,8 +225,65 @@ def save_session_log(context: LLMContext, flags: list[dict[str, str]]) -> Path |
     return log_path
 
 
+def save_flags_json(flags: list[dict[str, str]]) -> None:
+    """Write the session's flagged errors to a fixed JSON file for Review Mode.
+
+    Always writes, even an empty list — Review Mode always reads this as "the
+    most recent session's flags"; skipping the write on a flag-free session
+    would leave a stale prior session's errors looking current."""
+    LOG_DIR.mkdir(exist_ok=True)
+    flags_path = LOG_DIR / "latest_flags.json"
+    flags_path.write_text(json.dumps(flags, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+async def _write_live_transcript(context: LLMContext, flags: list[dict[str, str]]) -> None:
+    """Background task that periodically appends new conversation turns to a live
+    JSONL transcript file, and re-saves flags.json, for Review Mode.
+
+    Re-saving flags.json here (not just in run()'s finally block) matters: on
+    Windows, a stop request delivered via CTRL_BREAK_EVENT (the Flask UI's
+    /stop route) can leave pipecat's pipeline cancellation hanging indefinitely
+    once the audio pipeline is fully active (verified: still hadn't completed
+    after a 30s wait) — the process ends up hard-killed, skipping the finally
+    block entirely. Saving flags every second here means Review Mode data
+    survives that even when a graceful shutdown doesn't."""
+    written_turn_count = 0
+    while True:
+        await asyncio.sleep(1.0)
+        # Get all current turns (user + assistant messages), using same filter as save_session_log
+        current_turns = [
+            msg for msg in context.messages
+            if isinstance(msg, dict) and msg["role"] in ("user", "assistant")
+        ]
+
+        # Append any new turns since last check
+        for turn in current_turns[written_turn_count:]:
+            line = json.dumps(
+                {"role": turn["role"], "text": _message_text(turn["content"])},
+                ensure_ascii=False,
+            )
+            with open(LIVE_TRANSCRIPT_PATH, "a", encoding="utf-8") as f:
+                f.write(line + "\n")
+            written_turn_count += 1
+
+        save_flags_json(flags)
+
+
 async def run() -> None:
     load_dotenv()
+
+    # Windows has no default handler for CTRL_BREAK_EVENT (SIGBREAK) — unlike
+    # SIGINT/Ctrl+C, which Python auto-converts to KeyboardInterrupt, an
+    # unhandled SIGBREAK just kills the process outright, skipping the
+    # try/finally below entirely (verified: session log/flags never got
+    # written). This lets a parent process (the Flask UI's /stop route)
+    # request the same graceful shutdown Ctrl+C already gets interactively.
+    if hasattr(signal, "SIGBREAK"):
+
+        def _handle_sigbreak(signum, frame) -> None:
+            raise KeyboardInterrupt
+
+        signal.signal(signal.SIGBREAK, _handle_sigbreak)
 
     gemini_model = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
     # Multilingual voice — speaks both the Spanish phrases and the English
@@ -303,6 +363,10 @@ async def run() -> None:
 
     flag_aggregator.on_pattern_match(FLAG_TYPE, on_error_flag)
 
+    # Initialize live transcript file for Review Mode
+    LOG_DIR.mkdir(exist_ok=True)
+    LIVE_TRANSCRIPT_PATH.write_text("", encoding="utf-8")
+
     pipeline = Pipeline(
         [
             transport.input(),
@@ -332,6 +396,17 @@ async def run() -> None:
     runner = WorkerRunner()
     await runner.add_workers(worker)
 
+    # Start background task to write live transcript. Reference kept as a
+    # local (alive for run()'s lifetime, same as the pipeline) — an
+    # unreferenced task risks being garbage-collected mid-execution.
+    live_transcript_task = asyncio.create_task(_write_live_transcript(context, session_flags))
+
+    # ponytail: a stop signal arriving before this point (during audio device
+    # /pipeline setup, a few seconds) skips the finally below entirely —
+    # verified via direct testing. Narrow window, unlikely in real usage
+    # (start, talk, then stop) — accepted rather than wrapping all of run()'s
+    # setup in try/finally too, which risks touching already-verified code
+    # for a startup race a real user is unlikely to hit.
     logger.info("Voice loop starting — talk into your mic. Ctrl+C to stop.")
     try:
         await runner.run()
@@ -339,6 +414,7 @@ async def run() -> None:
         log_path = save_session_log(context, session_flags)
         if log_path:
             logger.info(f"Session log saved to {log_path}")
+        save_flags_json(session_flags)
 
 
 if __name__ == "__main__":

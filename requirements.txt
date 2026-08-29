@@ -4,3 +4,7 @@ azure-cognitiveservices-speech
 psycopg[binary]
 pgvector
 sentence-transformers
+requests
+beautifulsoup4
+google-genai
+flask
