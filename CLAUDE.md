@@ -175,6 +175,60 @@ the six features named in the Phase 2 decision record. The Planner Agent
 owns session continuity via `/session-start` / `/session-end` in both
 phases, reading and writing `Projects/spanish-companion/state.md`.
 
+### Phase 2 Layer-Agent Mapping & Waivers
+
+Full rationale, build order, and open-question resolution:
+`Projects/spanish-companion/decisions/phase-2-agent-workflow.md` (Obsidian).
+This section is the enforceable summary — every layer agent (Broker,
+Foundation, Orchestration, Exposer, Auditor) reads CLAUDE.md automatically
+and MUST apply these waivers without re-litigating them per invocation.
+
+**Why waivers exist at all:** the `.claude-toolkit/` agent roster enforces
+Hassan Habib's Standard six-layer rules (Broker → Foundation → Processing →
+Orchestration → Aggregation → Exposer). This project's Phase 2 architecture
+deliberately collapsed to three layers (Broker → Service → Controller,
+see Architecture above). Run against the toolkit unmodified, 4 of 6
+features fail the Auditor (Ingestion, Retrieval, Voice Conversation, Review
+all have Services with 2+ broker/dependency counts — rejected by FND-003 /
+ORC-001 / ORC-002). The mapping and waivers below resolve that mismatch.
+
+**Layer-agent mapping:**
+
+| Layer | Agent | Features | Waiver |
+|---|---|---|---|
+| Broker | Broker Agent | All six | None — SQLAlchemy + Alembic **adopted** (toolkit default kept, not waived). Output paths pinned per the `api`/`rag` layout, not the toolkit's `brokers/storage/` default. |
+| Service, 1 broker | Foundation Agent | Session Lifecycle, Generation | Waive the 9-class default exception hierarchy — pin the actual exception list per feature at build time (this system only names one, `GenerationError`, in the whole architecture record) |
+| Service, 2+ broker/deps | Orchestration Agent | Ingestion, Retrieval, Review | Waive ORC-001 (Florance dep-count limit) and ORC-002 (no direct broker deps) — this project has no Foundation layer beneath these, so direct broker deps are correct, not a violation |
+| Processing | **Not used** | — | Its contract requires exactly one Foundation service beneath it; no such shape exists here |
+| Aggregation | **Not used** | — | Its trigger is "Exposer needs >1 Orchestration service"; every controller here calls exactly one service |
+| Controller, HTTP + in-process | Exposer Agent | Session Lifecycle, Review, Retrieval, Generation | Waive `/api/V1.0/` versioning (routes are unversioned: `/start`, `/stop`, `/status`, `/review*`); turn off React output (frontend is separately scaffolded in `frontend/`); for the two in-process controllers (`RetrievalController`, `GenerationController`) waive HTTP status-code mapping — there is no HTTP response to map |
+| Controller, CLI/subprocess | **Hand-written, no agent** | Ingestion CLI, Voice Conversation `main()` | Not worth the waivers for ~20 lines of argparse/entrypoint code |
+| Broker interfaces | — | All | `typing.Protocol`, not `ABC` — waive `python-adaptations-skill`'s ABC default and BRK-004 ("no local interface defined") |
+
+**Voice Conversation: no agent, any layer.** Fully manual, supervised port
+of Phase 1's `voice/bot.py`. Carries four hardware-verified fixes no agent
+can discover or test (no agent has a microphone): echo suppression via
+`AlwaysUserMuteStrategy`, the 44100/24000Hz sample-rate mismatch fix,
+Windows SIGBREAK handling, periodic flag persistence. Gate on a manual
+hardware/mic test, same method as Phase 1.
+
+**Build order:** Session Lifecycle (full B/S/C loop, validates this waiver
+approach cheaply) → shared broker wave, built once with both consumers'
+method surfaces pinned up front (`ChunkRepositoryBroker`,
+`EmbeddingModelBroker`, `GenerationBroker`, `FlagBroker`, `Flag` model,
+`PracticeLogBroker`) → Ingestion / Retrieval / Generation in parallel →
+Voice Conversation (manual, wall-clock parallel) → Review (depends on
+Retrieval + Generation Controllers and the `Flag` model) → `app.py`
+integration (factory, controller wiring, `/api/events` SSE, Origin/Referer
+check, serve `frontend/dist` — owned by the main session, no single
+feature/agent owns it) → frontend per feature.
+
+**Status of these waivers is unverified until step 1 runs.** If the
+Auditor Agent does not honor a CLAUDE.md-only waiver in practice, escalate
+to a local `.claude/agents/*.md` patch (gitignored, machine-local, but
+guaranteed to be read since it IS the agent's instructions) rather than
+repeatedly overriding per-invocation.
+
 ### Slash Commands
 
 | Command | Purpose |
