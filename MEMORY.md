@@ -8,21 +8,20 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-08-28-2222.md — Ran a four-agent
-review of the shipped Phase 1 MVP (code audit, design critique, security
-probe, live Playwright UI critique), surfacing ~14 findings including a
-critical live-tested bug (page reload during an active session desyncs the
-UI and traps the user). Rather than patch Phase 1, the user chose to hold
-all fixes and design a Phase 2 rebuild instead: Broker → Service →
-Controller with constructor DI, six features, a hybrid-retrieval Strategy
-pattern, and a React + TypeScript + Vite frontend (not Next.js — that would
-reopen the exact dual-process fragility already flagged). Architecture
-pinned and written to `decisions/companion-architecture-broker-service-controller.md`,
-visualized in an Obsidian canvas and a published artifact, and reflected in
-CLAUDE.md's Architecture/Tech Stack/Agent Coordination sections. Several
-items remain open before Phase 2 build starts (see state.md Pending Work) —
-most notably the migration plan (incremental refactor vs. rewrite), not yet
-decided.
+Projects/spanish-companion/sessions/2026-08-29-0003.md — Closed out every
+remaining Phase 2 architecture question. Resolved the `api`/`rag` package
+split (two top-level packages, `api` depends on `rag`, never the reverse)
+and corrected the internal layout to layer-first-then-feature
+(`brokers/`, `models/`, `services/<feature>/`, `controllers/<feature>/`),
+matching the user's `NL.Core.Entitlements` .NET reference project exactly.
+Resolved the Phase 2 test strategy: pytest, three tiers (unit fully mocked,
+integration real DB + mocked external APIs, acceptance full in-process
+Flask app), modeled on that same reference project's "The Standard" testing
+conventions, stdlib `unittest.mock` only. Committed the previously-untracked
+`frontend/` Vite scaffold and created empty `api`/`rag`/`tests` directory
+skeletons on disk. Nothing remains open before Phase 2 build starts — next
+session should register the first entity (Session Lifecycle) via
+`/new-entity`.
 
 ---
 
