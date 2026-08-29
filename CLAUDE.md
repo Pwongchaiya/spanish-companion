@@ -43,7 +43,7 @@ with the user. Never invent field names, data types, or relationships.
 | STT + TTS | Azure Speech |
 | LLM | Gemini Flash-Lite — both conversation and RAG generation |
 | Database | Postgres + pgvector |
-| Embeddings | sentence-transformers, BGE-small |
+| Embeddings | sentence-transformers, paraphrase-multilingual-MiniLM-L12-v2 (384-dim; BGE-small-en dropped — English-only, couldn't embed Spanish queries) |
 | Corpus source | RAE grammar pages (MVP: 3-5 starter topics) |
 | UI | Flask — minimal server, plain HTML/vanilla JS, no build tooling |
 | Config | python-dotenv — single `.env` at repo root |
