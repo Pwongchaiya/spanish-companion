@@ -8,15 +8,16 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-08-28-1947.md — Steps 3-6 built via
-the opus(orchestrator)/sonnet(auditor)/haiku(worker) delegation model:
-RAE corpus ingestion (rag/), RAG-grounded Review Mode (review/), minimal
-Flask UI (ui/). User confirmed the full app works end-to-end via real manual
-mic testing. Found and fixed 4 real bugs beyond what code review alone
-caught (English-only embedding model, stale flags file, no Windows
-CTRL_BREAK_EVENT handler, Flask debug-mode orphaning the subprocess). Step 6
-reassessment open: 3 latency issues found in real use, fixes proposed,
-awaiting user go-ahead to build.
+Projects/spanish-companion/sessions/2026-08-28-2026.md — Adopted repowise
+(codebase-intelligence MCP tool) proactively, before the repo grows large.
+Installed isolated via pipx after a direct pip install into the project venv
+downgraded google-genai/rich and risked breaking the working voice pipeline;
+restored those versions, reinstalled via pipx instead. Ran keyless init (no
+LLM key, no CLAUDE.md touch) — 18 files indexed, 16 wiki pages, MCP wired
+into Claude Code/VS Code. Kept repowise's hooks global (user's explicit
+choice) despite rag-bench's own prior repowise decision going the opposite
+way after a global-registration leak. Step 6 latency-fix reassessment from
+the prior session is still open and untouched, awaiting user go-ahead.
 
 ---
 
