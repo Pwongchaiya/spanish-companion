@@ -5,6 +5,7 @@ conversational before building anything on top. See spanish-companion-mvp-scope.
 Section 7 (Build Order).
 """
 
+import json
 import os
 from datetime import datetime
 from pathlib import Path
@@ -13,6 +14,7 @@ from dotenv import load_dotenv
 from loguru import logger
 
 from pipecat.audio.vad.silero import SileroVADAnalyzer
+from pipecat.frames.frames import BotStartedSpeakingFrame, BotStoppedSpeakingFrame, InputAudioRawFrame
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.worker import PipelineParams, PipelineWorker
 from pipecat.processors.aggregators.llm_context import LLMContext
@@ -20,6 +22,9 @@ from pipecat.processors.aggregators.llm_response_universal import (
     LLMContextAggregatorPair,
     LLMUserAggregatorParams,
 )
+from pipecat.processors.aggregators.llm_text_processor import LLMTextProcessor
+from pipecat.processors.filters.function_filter import FunctionFilter
+from pipecat.utils.text.pattern_pair_aggregator import MatchAction, PatternMatch, PatternPairAggregator
 from pipecat.services.azure.stt import AudioConfig, AudioStreamFormat, AzureSTTService, PushAudioInputStream
 from pipecat.services.azure.tts import AzureTTSService
 from pipecat.services.google.llm import GoogleLLMService
@@ -35,6 +40,11 @@ from azure.cognitiveservices.speech import (
 )
 
 BILINGUAL_STT_LANGUAGES = ["es-ES", "en-US"]
+
+FLAG_START = "<flag>"
+FLAG_END = "</flag>"
+FLAG_TYPE = "error_flag"
+FLAG_KEYS = ("said", "corrected", "category")
 
 
 class BilingualAzureSTTService(AzureSTTService):
@@ -82,6 +92,44 @@ class BilingualAzureSTTService(AzureSTTService):
             )
 
 
+class _MicGate:
+    """Drops mic audio while the bot is speaking.
+
+    LocalAudioTransport has no acoustic echo cancellation, so without this the
+    mic hears the bot's own TTS output through the speakers and streams it to
+    Azure STT. AlwaysUserMuteStrategy alone doesn't stop that: it filters
+    downstream of STT, but Azure's cloud endpointing finalizes a "recognized"
+    transcript of the echo the instant TTS audio stops, landing right as that
+    mute window closes. Gating here, before STT ever sees the audio, removes
+    the echo transcript instead of racing to drop it after the fact.
+
+    Only gates InputAudioRawFrame — everything else passes through untouched.
+    Needs filter_system_frames=True on the FunctionFilter wrapping this:
+    InputAudioRawFrame is a SystemFrame, and FunctionFilter auto-passes those
+    through by default, which otherwise makes this a no-op.
+    """
+
+    def __init__(self):
+        self._bot_speaking = False
+
+    async def __call__(self, frame) -> bool:
+        if isinstance(frame, BotStartedSpeakingFrame):
+            self._bot_speaking = True
+        elif isinstance(frame, BotStoppedSpeakingFrame):
+            self._bot_speaking = False
+        if isinstance(frame, InputAudioRawFrame):
+            return not self._bot_speaking
+        return True
+
+
+# ponytail: flag emission is prompt-compliance-only, no API-level guarantee.
+# Verified via text-mode probe (2026-08-28): "Ayer yo como una manzana" got
+# silently corrected in the spoken reply ("ayer comí una manzana") but no
+# <flag> was emitted for the preterite-conjugation error — the model noticed
+# but skipped the flag step. Accepted per scope doc's "log everything
+# flagged, unfiltered" — under-flagging is a known gap, not a bug to chase.
+# Upgrade path if manual review shows this misses too much: response_schema
+# via settings.extra (see Step 2 plan), trading away streamed TTS latency.
 SYSTEM_PROMPT = (
     "You are a warm, friendly bilingual companion helping a native English "
     "speaker learn to speak Spanish, by voice. Walk them through Spanish "
@@ -92,9 +140,27 @@ SYSTEM_PROMPT = (
     "short, since this is a real-time spoken conversation.\n\n"
     "This is spoken aloud by a text-to-speech engine, not displayed as text. "
     "Never use markdown, asterisks, quotation marks, or any other formatting "
-    "— those symbols get read aloud literally. Say each Spanish phrase as "
-    "its own plain sentence, not tucked inside parentheses or quotes in the "
-    "middle of an English sentence."
+    "— those symbols get read aloud literally. The voice picks one language "
+    "per sentence and reads the whole sentence in it — so a Spanish word or "
+    "phrase sharing a sentence with English, in ANY way (comma-spliced, "
+    "parenthesized, quoted, or otherwise), gets read aloud with an English "
+    "accent instead of Spanish. Every Spanish phrase must be its own "
+    "complete, standalone sentence with nothing English in it, and every "
+    "English sentence must have nothing Spanish in it. Always write Spanish "
+    "with its correct accents and punctuation — é, í, ó, ú, á, ñ, ¿, ¡ — "
+    "never drop them (tú, not tu; cómo, not como, when it means how).\n\n"
+    "Separately from what you say aloud, watch for mistakes the learner makes "
+    "in Spanish — grammar, verb conjugation, gender agreement, or word choice. "
+    "When you notice one, append a flag at the very END of your reply, after "
+    "everything you say aloud, in exactly this form:\n"
+    "<flag>{\"said\": \"what they actually said\", \"corrected\": \"the corrected "
+    "Spanish\", \"category\": \"short label\"}</flag>\n"
+    "One flag block per mistake; emit several blocks if there were several. "
+    "Use short category labels like ser vs estar, preterite vs imperfect, "
+    "gender agreement, subjunctive, vocabulary. Emit nothing if there was no "
+    "mistake — most turns will have none. Never mention the flag, never read "
+    "it aloud, never correct the learner out loud; the flag is silent and is "
+    "reviewed after the conversation. Nothing may follow the closing tag."
 )
 
 
@@ -115,21 +181,44 @@ def _message_text(content) -> str:
     return str(content)
 
 
-def save_session_log(context: LLMContext) -> Path | None:
+def parse_flag(content: str) -> dict[str, str] | None:
+    """Parse one <flag> block's JSON payload. Returns None (and warns) if the
+    model emitted something unparseable — a dropped flag is fine, a crashed
+    voice loop is not."""
+    try:
+        flag = json.loads(content)
+    except json.JSONDecodeError:
+        logger.warning(f"Dropped unparseable error flag: {content!r}")
+        return None
+    if not isinstance(flag, dict) or not all(isinstance(flag.get(key), str) for key in FLAG_KEYS):
+        logger.warning(f"Dropped malformed error flag: {content!r}")
+        return None
+    return {key: flag[key] for key in FLAG_KEYS}
+
+
+def save_session_log(context: LLMContext, flags: list[dict[str, str]]) -> Path | None:
     """Write the session's conversation turns to a timestamped file under
     voice/logs/, for manual review per this step's testing standard (no
     automated transcript checks yet — see CLAUDE.md Testing Standards)."""
     turns = [
         f"[{message['role']}] {_message_text(message['content'])}"
         for message in context.messages
-        if message["role"] in ("user", "assistant")
+        if isinstance(message, dict) and message["role"] in ("user", "assistant")
     ]
     if not turns:
         return None
 
+    output_lines = turns[:]
+    if flags:
+        output_lines.append("--- flags ---")
+        for flag in flags:
+            output_lines.append(
+                f"[{flag['category']}] said: \"{flag['said']}\" -> corrected: \"{flag['corrected']}\""
+            )
+
     LOG_DIR.mkdir(exist_ok=True)
     log_path = LOG_DIR / f"{datetime.now():%Y-%m-%d-%H%M%S}.log"
-    log_path.write_text("\n".join(turns) + "\n", encoding="utf-8")
+    log_path.write_text("\n".join(output_lines) + "\n", encoding="utf-8")
     return log_path
 
 
@@ -148,7 +237,16 @@ async def run() -> None:
 
     stt = BilingualAzureSTTService(
         api_key=os.environ["AZURE_SPEECH_KEY"],
-        region=os.environ["AZURE_SPEECH_REGION"],
+        # Continuous LID requires a SpeechConfig built from an explicit endpoint
+        # rather than region= (Microsoft's documented requirement) — this is
+        # pipecat's only hook for that, despite the Private-Link-flavored name.
+        # URL is the standard real-time STT endpoint for the region, per
+        # https://learn.microsoft.com/azure/ai-services/speech-service/get-started-speech-to-text
+        # (same endpoint region= builds internally; nothing else changes).
+        private_endpoint=(
+            f"wss://{os.environ['AZURE_SPEECH_REGION']}.stt.speech.microsoft.com"
+            "/speech/recognition/conversation/cognitiveservices/v1"
+        ),
         settings=AzureSTTService.Settings(language=Language.ES_ES),
     )
 
@@ -164,6 +262,12 @@ async def run() -> None:
             model=gemini_model,
             system_instruction=SYSTEM_PROMPT,
         ),
+        # A slow first chunk (network blip, API-side latency) otherwise drops
+        # the turn silently with no assistant reply ever recorded — the user
+        # just keeps talking into what looks like silence, and each unanswered
+        # turn piles onto a growing, non-alternating context that makes the
+        # next request slower too. One retry breaks that spiral.
+        retry_on_timeout=True,
     )
 
     context = LLMContext()
@@ -180,12 +284,33 @@ async def run() -> None:
         ),
     )
 
+    session_flags: list[dict[str, str]] = []
+
+    flag_aggregator = PatternPairAggregator()
+    flag_aggregator.add_pattern(
+        type=FLAG_TYPE,
+        start_pattern=FLAG_START,
+        end_pattern=FLAG_END,
+        action=MatchAction.REMOVE,
+    )
+
+    async def on_error_flag(match: PatternMatch) -> None:
+        flag = parse_flag(match.text)
+        if flag is None:
+            return
+        session_flags.append(flag)
+        logger.info(f"FLAG {flag['category']}: {flag['said']!r} -> {flag['corrected']!r}")
+
+    flag_aggregator.on_pattern_match(FLAG_TYPE, on_error_flag)
+
     pipeline = Pipeline(
         [
             transport.input(),
+            FunctionFilter(filter=_MicGate(), filter_system_frames=True),
             stt,
             user_aggregator,
             llm,
+            LLMTextProcessor(text_aggregator=flag_aggregator),
             tts,
             transport.output(),
             assistant_aggregator,
@@ -211,7 +336,7 @@ async def run() -> None:
     try:
         await runner.run()
     finally:
-        log_path = save_session_log(context)
+        log_path = save_session_log(context, session_flags)
         if log_path:
             logger.info(f"Session log saved to {log_path}")
 
