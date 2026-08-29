@@ -45,6 +45,7 @@ with the user. Never invent field names, data types, or relationships.
 | Database | Postgres + pgvector |
 | Embeddings | sentence-transformers, BGE-small |
 | Corpus source | RAE grammar pages (MVP: 3-5 starter topics) |
+| UI | Flask — minimal server, plain HTML/vanilla JS, no build tooling |
 | Config | python-dotenv — single `.env` at repo root |
 
 ---
