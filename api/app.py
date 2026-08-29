@@ -52,7 +52,14 @@ FRONTEND_DIST = REPO_ROOT / "frontend" / "dist"
 # full auth system.
 ALLOWED_ORIGINS: Tuple[str, ...] = tuple(
     origin.strip()
-    for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:5000,http://localhost:5173").split(",")
+    for origin in os.getenv(
+        "ALLOWED_ORIGINS",
+        # Both hostname forms are needed: Flask's dev server accepts either,
+        # and which one a browser sends as Origin/Referer depends on how the
+        # user navigated there (typed "localhost" vs "127.0.0.1", or a link
+        # using one or the other) — missing either form 403s real requests.
+        "http://localhost:5000,http://localhost:5173,http://127.0.0.1:5000,http://127.0.0.1:5173",
+    ).split(",")
     if origin.strip()
 )
 
