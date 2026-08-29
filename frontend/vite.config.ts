@@ -12,6 +12,7 @@ export default defineConfig({
       '/stop': 'http://localhost:5000',
       '/status': 'http://localhost:5000',
       '/api': 'http://localhost:5000',
+      '/review': 'http://localhost:5000',
     },
   },
 })
