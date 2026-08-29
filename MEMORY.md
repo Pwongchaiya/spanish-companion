@@ -8,16 +8,21 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-08-28-2026.md — Adopted repowise
-(codebase-intelligence MCP tool) proactively, before the repo grows large.
-Installed isolated via pipx after a direct pip install into the project venv
-downgraded google-genai/rich and risked breaking the working voice pipeline;
-restored those versions, reinstalled via pipx instead. Ran keyless init (no
-LLM key, no CLAUDE.md touch) — 18 files indexed, 16 wiki pages, MCP wired
-into Claude Code/VS Code. Kept repowise's hooks global (user's explicit
-choice) despite rag-bench's own prior repowise decision going the opposite
-way after a global-registration leak. Step 6 latency-fix reassessment from
-the prior session is still open and untouched, awaiting user go-ahead.
+Projects/spanish-companion/sessions/2026-08-28-2222.md — Ran a four-agent
+review of the shipped Phase 1 MVP (code audit, design critique, security
+probe, live Playwright UI critique), surfacing ~14 findings including a
+critical live-tested bug (page reload during an active session desyncs the
+UI and traps the user). Rather than patch Phase 1, the user chose to hold
+all fixes and design a Phase 2 rebuild instead: Broker → Service →
+Controller with constructor DI, six features, a hybrid-retrieval Strategy
+pattern, and a React + TypeScript + Vite frontend (not Next.js — that would
+reopen the exact dual-process fragility already flagged). Architecture
+pinned and written to `decisions/companion-architecture-broker-service-controller.md`,
+visualized in an Obsidian canvas and a published artifact, and reflected in
+CLAUDE.md's Architecture/Tech Stack/Agent Coordination sections. Several
+items remain open before Phase 2 build starts (see state.md Pending Work) —
+most notably the migration plan (incremental refactor vs. rewrite), not yet
+decided.
 
 ---
 
