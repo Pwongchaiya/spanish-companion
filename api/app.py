@@ -7,19 +7,22 @@ it"). Constructs every broker/service/controller exactly once here — the
 composition root — and injects the finished objects into each feature's
 Blueprint factory.
 
-Partial build: `/api/events` SSE is not implemented yet. It depends on
-Voice Conversation's transcript/flag file contract, which hasn't been
-built (Voice Conversation is a fully manual, supervised port — see
-CLAUDE.md). Everything else below is independent of Voice Conversation
-and is wired now so Session Lifecycle and Review are actually runnable.
+`/api/events` reads the transcript file by its own env var (not by
+importing api.services.voice_conversation) so this process never pulls in
+Voice Conversation's pipecat/Azure/Google dependencies — Voice Conversation
+runs as a separate subprocess precisely to keep those out of the Flask
+process (see BotProcessBroker).
 """
 
+import json
 import os
+import time
+from dataclasses import asdict
 from pathlib import Path
 from typing import Optional, Tuple
 
 from dotenv import load_dotenv
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, Response, jsonify, request, send_from_directory
 
 from api.brokers.bot_process import SubprocessBotProcessBroker
 from api.brokers.flag import JsonFileFlagBroker
@@ -63,6 +66,24 @@ ALLOWED_ORIGINS: Tuple[str, ...] = tuple(
     if origin.strip()
 )
 
+# Same path/env-var as api/services/voice_conversation.py's TRANSCRIPT_FILE_PATH
+# — duplicated as a constant, not imported, to keep pipecat/Azure/Google out of
+# this process (see module docstring).
+TRANSCRIPT_FILE_PATH = Path(os.getenv("TRANSCRIPT_FILE_PATH", str(REPO_ROOT / "data" / "live_transcript.jsonl")))
+SSE_POLL_INTERVAL_SECONDS = float(os.getenv("SSE_POLL_INTERVAL_SECONDS", "1"))
+
+
+def _read_transcript() -> list:
+    if not TRANSCRIPT_FILE_PATH.exists():
+        return []
+    turns = []
+    for line in TRANSCRIPT_FILE_PATH.read_text(encoding="utf-8").splitlines():
+        try:
+            turns.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return turns
+
 
 def create_app() -> Flask:
     app = Flask(__name__, static_folder=str(FRONTEND_DIST), static_url_path="")
@@ -85,18 +106,47 @@ def create_app() -> Flask:
     embedding_model = SentenceTransformerEmbeddingModelBroker()
     retrieval_controller = RetrievalController(HybridRetrievalService(embedding_model, chunk_repository))
     generation_controller = GenerationController(GenerationService(GeminiGenerationBroker()))
+    flag_broker = JsonFileFlagBroker()
     review_orchestrator = ReviewOrchestrator(
-        flag_broker=JsonFileFlagBroker(),
+        flag_broker=flag_broker,
         practice_log_broker=JsonLinesPracticeLogBroker(),
         retrieval_controller=retrieval_controller,
         generation_controller=generation_controller,
     )
     app.register_blueprint(make_review_blueprint(review_orchestrator))
 
-    # TODO(voice-conversation): /api/events SSE — needs Voice Conversation's
-    # transcript/flag file contract settled first. Push three event types
-    # (status, transcript, flags) per the architecture decision record's
-    # "Resolved: /api/events SSE event schema".
+    # --- /api/events SSE — status/transcript/flags, per the architecture
+    # decision record's "Resolved: /api/events SSE event schema". status is
+    # pushed only on change (frontend gets the initial value via /status);
+    # transcript/flags each carry their full current list on every push they
+    # do occur on, matching how the source files themselves are read (whole
+    # file, not appended deltas).
+    @app.route("/api/events")
+    def events():
+        def stream():
+            last_status = last_transcript = last_flags = None
+            while True:
+                status = asdict(session_service.get_status())
+                if status != last_status:
+                    yield f"data: {json.dumps({'type': 'status', 'status': status})}\n\n"
+                    last_status = status
+
+                transcript = _read_transcript()
+                if transcript != last_transcript:
+                    yield f"data: {json.dumps({'type': 'transcript', 'turns': transcript})}\n\n"
+                    last_transcript = transcript
+
+                flags = [
+                    asdict(flag) | {"timestamp": flag.timestamp.isoformat()}
+                    for flag in flag_broker.load_flags()
+                ]
+                if flags != last_flags:
+                    yield f"data: {json.dumps({'type': 'flags', 'flags': flags})}\n\n"
+                    last_flags = flags
+
+                time.sleep(SSE_POLL_INTERVAL_SECONDS)
+
+        return Response(stream(), mimetype="text/event-stream", headers={"Cache-Control": "no-cache"})
 
     @app.route("/")
     def index():
