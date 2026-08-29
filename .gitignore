@@ -8,3 +8,4 @@ data/corpus/*.html
 voice/logs/
 review/logs/
 .repowise/
+.playwright-mcp

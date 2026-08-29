@@ -45,18 +45,24 @@ with the user. Never invent field names, data types, or relationships.
 | Database | Postgres + pgvector |
 | Embeddings | sentence-transformers, paraphrase-multilingual-MiniLM-L12-v2 (384-dim; BGE-small-en dropped — English-only, couldn't embed Spanish queries) |
 | Corpus source | RAE grammar pages (MVP: 3-5 starter topics) |
-| UI | Flask — minimal server, plain HTML/vanilla JS, no build tooling |
+| UI | Flask — minimal server, plain HTML/vanilla JS, no build tooling (Phase 1, shipped) |
 | Config | python-dotenv — single `.env` at repo root |
+
+**Phase 2 (planned, not yet built):** React + TypeScript, Vite static
+build, Zustand, Server-Sent Events — replaces the plain HTML/vanilla JS UI
+row above. Flask remains the server, now serving Vite's static output
+instead of Jinja templates. See the Phase 2 decision record linked in
+Architecture below.
 
 ---
 
 ## Architecture
 
-**Not entity/layer-based.** This project does not follow The Standard's
-Broker → Foundation → Processing → Orchestration → Aggregation → Exposer
-build sequence — there's no CRUD entity registry here. The build instead
-follows the staged MVP plan tracked in `Projects/spanish-companion/state.md`
-(Pending Work), mirrored from `spanish-companion-mvp-scope.md` Section 7:
+**Phase 1 (Steps 0-5) shipped and was not entity/layer-based.** It did not
+follow The Standard's Broker → Foundation → Processing → Orchestration →
+Aggregation → Exposer build sequence — no CRUD entity registry, staged MVP
+plan instead, tracked in `Projects/spanish-companion/state.md` (Pending
+Work), mirrored from `spanish-companion-mvp-scope.md` Section 7:
 
 1. Voice loop (Pipecat + Azure STT/TTS + Gemini), no flagging, no RAG.
 2. Live error-flagging as a byproduct of the same generation call.
@@ -64,12 +70,24 @@ follows the staged MVP plan tracked in `Projects/spanish-companion/state.md`
 4. Review Mode v0: flagged list → selection → RAG-grounded explanation →
    single practice attempt.
 5. Minimal UI over the above.
-6. Reassess the Out-of-Scope list only after 1-5 work end-to-end.
 
-Never build a later stage before the earlier one works — verify each stage
-manually (per the scope doc's Build Order) before moving on.
+All five steps are done and verified end-to-end by the user via real
+hardware/mic testing.
 
-Two runtime modes:
+**Phase 2 (in design, not yet built) reverses this** — see the full
+decision record: `Projects/spanish-companion/decisions/companion-architecture-broker-service-controller.md`.
+Phase 2 adopts a simplified **Broker → Service → Controller** layering with
+constructor-based dependency injection (`typing.Protocol` abstractions, no
+DI framework), applied per-feature across six features: Session Lifecycle,
+Voice Conversation, Ingestion, Retrieval, Generation, Review. Retrieval
+internally uses a Strategy pattern for hybrid search (dense now, lexical as
+a deferred seam). The frontend is being redesigned as React + TypeScript
+(Vite static build, same-origin, no Next.js) with the same layering
+expressed as hooks. Phase 1's code is not being patched — findings from a
+four-agent Phase 1 review (code, design, security, live UI) feed Phase 2's
+design directly instead of landing as fixes on the shipped code.
+
+Two runtime modes (unchanged across both phases):
 - **Conversation Mode** — real-time voice loop, no RAG calls, no spoken
   corrections.
 - **Review Mode** — untimed, RAG-grounded explanation + single practice pass.
@@ -125,9 +143,12 @@ All secrets/config in `.env` at repo root. Never hardcode, never commit.
 
 ## Agent Coordination
 
-No Standard entity/layer build sequence for this project (see Architecture).
-The Planner Agent still owns session continuity via `/session-start` /
-`/session-end`, reading and writing `Projects/spanish-companion/state.md`.
+Phase 1 had no Standard entity/layer build sequence (see Architecture).
+Phase 2 does — entities will be registered via `/new-entity` once Phase 2
+build work starts, using the Broker/Service/Controller layer agents against
+the six features named in the Phase 2 decision record. The Planner Agent
+owns session continuity via `/session-start` / `/session-end` in both
+phases, reading and writing `Projects/spanish-companion/state.md`.
 
 ### Slash Commands
 
