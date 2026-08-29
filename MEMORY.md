@@ -8,16 +8,16 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-08-29-1054.md — Committed the
-stop-flag polling fix (hardware-verified prior session, replacing the
-unreliable Windows SIGBREAK graceful-stop mechanism), then built and
-verified the last blocked piece of `app.py`: the `/api/events` SSE
-endpoint (status/transcript/flags, per the architecture record's event
-schema). Phase 2 build is now complete across all six features plus
-`app.py` integration. Next session should start with the deferred test
-pass (Ingestion, Retrieval, Generation, Review, Session Lifecycle HTTP
-layer) plus adding `pytest` to `requirements.txt`, then frontend wiring
-per feature.
+Projects/spanish-companion/sessions/2026-08-29-1235.md — Wired the React
+frontend (Conversation + Review views) to the live backend per the
+architecture record's hook-layering spec: api/client.ts, Zustand store,
+useEventSource/useSessionState/useReviewFlow hooks. Verified end-to-end
+against a real Flask backend (start/stop, SSE transcript, flag select,
+RAG-grounded explanation, practice submission). Along the way, found and
+fixed a local dev-DB gap (Alembic migration `0001` had never been applied
+here) and re-ingested the 39-chunk starter corpus. Committed `ae61440`.
+This was the last unassigned Phase 2 build-order item — nothing blocking
+for next session.
 
 ---
 
