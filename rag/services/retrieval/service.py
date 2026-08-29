@@ -18,12 +18,17 @@ from typing import List, Optional, Sequence
 
 from rag.brokers.chunk_repository import ChunkRepositoryBroker
 from rag.brokers.embedding_model import EmbeddingModelBroker
+from rag.errors import RagError
 from rag.models.retrieval import ScoredChunk
 from rag.services.retrieval.strategies.dense import DenseVectorStrategy, RetrievalStrategy
 from rag.services.retrieval.strategies.filters import CategoryBoostFilter, ResultFilter
 from rag.services.retrieval.strategies.fusion import PassThroughRankFusion, RankFusionStrategy
 
 logger = logging.getLogger(__name__)
+
+
+class RetrievalUnavailableError(RagError):
+    """Raised when the chunk store or embedding model is unreachable."""
 
 
 class HybridRetrievalService:
@@ -70,10 +75,8 @@ class HybridRetrievalService:
 
         Raises:
             ValueError: blank query, or top_k < 1.
-
-        Broker failures (SQLAlchemy/pgvector, model load) propagate unwrapped:
-        this feature names no exception type of its own, and inventing one
-        would be a contract decision, not an implementation detail.
+            RetrievalUnavailableError: the chunk store or embedding model is
+                unreachable.
         """
         if not query or not query.strip():
             raise ValueError("query is required")
@@ -83,7 +86,10 @@ class HybridRetrievalService:
         # Query text at DEBUG only (user speech); ids and counts at INFO.
         logger.debug("retrieve query=%r top_k=%d category=%r", query, top_k, category)
 
-        query_embedding = self._embedding_model.embed([query])[0]
+        try:
+            query_embedding = self._embedding_model.embed([query])[0]
+        except Exception as e:
+            raise RetrievalUnavailableError(str(e)) from e
 
         # ponytail: each strategy is asked for exactly top_k, so a chunk the
         # category boost would have floated to rank 1 is invisible if dense
@@ -91,9 +97,26 @@ class HybridRetrievalService:
         # chunks). Upgrade path if Review Mode explanations cite the wrong
         # page: over-fetch here (top_k * a small factor) and keep the final
         # [:top_k] slice below exactly as it is.
-        candidate_lists = [strategy.search(query_embedding, top_k) for strategy in self._strategies]
+        try:
+            candidate_lists = [strategy.search(query_embedding, top_k) for strategy in self._strategies]
+        except Exception as e:
+            raise RetrievalUnavailableError(str(e)) from e
 
         fused = self._fusion.fuse(candidate_lists)
+
+        # Cheap mismatch detection: if any chunk was ingested with a different
+        # embedding model than the one currently configured, log a warning. This
+        # is read-only signal (not an error), but flags potential stale corpus
+        # issues for the user to investigate. ponytail: a single log line, not a
+        # new validation layer.
+        configured_model = self._embedding_model.model_name
+        mismatched = [c for c in fused if c.embedding_model_version and c.embedding_model_version != configured_model]
+        if mismatched:
+            logger.warning(
+                "embedding_model mismatch: configured=%r found_in_corpus=%s",
+                configured_model,
+                set(c.embedding_model_version for c in mismatched),
+            )
 
         # Configured filters first, then the per-call category boost — the
         # caller's hint for this specific query gets the final say on order.

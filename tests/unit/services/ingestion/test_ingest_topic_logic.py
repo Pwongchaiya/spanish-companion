@@ -6,7 +6,7 @@ or source_url, and the strict-zip length mismatch).
 
 from unittest.mock import call
 
-from rag.services.ingestion import CHUNKING_STRATEGY_VERSION, CHUNK_SIZE, EMBEDDING_MODEL_VERSION
+from rag.services.ingestion import CHUNKING_STRATEGY_VERSION, CHUNK_SIZE
 
 TOPIC = "preterite-vs-imperfect"
 SOURCE_URL = "https://www.rae.es/gram/preterito"
@@ -22,6 +22,7 @@ class TestIngestionServiceIngestTopicLogic:
         second_chunk = "bbb"
         text = first_chunk + second_chunk
         mock_embedding_model.embed.return_value = [[0.1, 0.2], [0.3, 0.4]]
+        mock_embedding_model.model_name = "sentence-transformers/test-model"
 
         # when
         rows_inserted = service.ingest_topic(topic=TOPIC, source_url=SOURCE_URL, text=text)
@@ -36,7 +37,7 @@ class TestIngestionServiceIngestTopicLogic:
                 source_url=SOURCE_URL,
                 content=first_chunk,
                 embedding=[0.1, 0.2],
-                embedding_model_version=EMBEDDING_MODEL_VERSION,
+                embedding_model_version="sentence-transformers/test-model",
                 chunking_strategy_version=CHUNKING_STRATEGY_VERSION,
             ),
             call(
@@ -44,7 +45,7 @@ class TestIngestionServiceIngestTopicLogic:
                 source_url=SOURCE_URL,
                 content=second_chunk,
                 embedding=[0.3, 0.4],
-                embedding_model_version=EMBEDDING_MODEL_VERSION,
+                embedding_model_version="sentence-transformers/test-model",
                 chunking_strategy_version=CHUNKING_STRATEGY_VERSION,
             ),
         ]
@@ -78,6 +79,7 @@ class TestIngestionServiceIngestTopicLogic:
         # which dict.fromkeys collapses to one before anything is embedded or inserted
         chunk = "a" * CHUNK_SIZE
         mock_embedding_model.embed.return_value = [[0.1, 0.2]]
+        mock_embedding_model.model_name = "sentence-transformers/test-model"
 
         # when
         rows_inserted = service.ingest_topic(topic=TOPIC, source_url=SOURCE_URL, text=chunk * 2)
@@ -90,6 +92,6 @@ class TestIngestionServiceIngestTopicLogic:
             source_url=SOURCE_URL,
             content=chunk,
             embedding=[0.1, 0.2],
-            embedding_model_version=EMBEDDING_MODEL_VERSION,
+            embedding_model_version="sentence-transformers/test-model",
             chunking_strategy_version=CHUNKING_STRATEGY_VERSION,
         )

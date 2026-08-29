@@ -60,9 +60,30 @@ from azure.cognitiveservices.speech import (
 )
 
 from api.brokers.flag import FlagBroker
+from api.errors import ApiError
 from api.models.flag import Flag
 
 load_dotenv()
+
+
+class VoiceConversationConfigError(ApiError):
+    """Raised when voice conversation fails due to missing or invalid configuration.
+
+    Covers missing Azure Speech or Gemini API credentials, invalid audio device
+    settings, or other startup configuration issues.
+    """
+
+    pass
+
+
+class VoiceConversationPipelineError(ApiError):
+    """Raised when the voice conversation pipeline fails at runtime.
+
+    Covers audio device initialization failures, pipeline setup timeouts,
+    unrecoverable LLM failures after retry, or other pipeline-level issues.
+    """
+
+    pass
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -272,127 +293,146 @@ class ConversationOrchestrator:
         self._flag_broker = flag_broker
 
     async def run(self) -> None:
-        gemini_model = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
-        # Multilingual voice — speaks both the Spanish phrases and the English
-        # explanations naturally, instead of an English accent on a Spanish-only voice.
-        azure_voice = os.getenv("AZURE_TTS_VOICE", "es-ES-XimenaMultilingualNeural")
-        audio_out_sample_rate = int(os.getenv("AUDIO_OUT_SAMPLE_RATE", "24000"))
+        try:
+            gemini_model = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
+            # Multilingual voice — speaks both the Spanish phrases and the English
+            # explanations naturally, instead of an English accent on a Spanish-only voice.
+            azure_voice = os.getenv("AZURE_TTS_VOICE", "es-ES-XimenaMultilingualNeural")
+            audio_out_sample_rate = int(os.getenv("AUDIO_OUT_SAMPLE_RATE", "24000"))
 
-        transport = LocalAudioTransport(
-            LocalAudioTransportParams(audio_in_enabled=True, audio_out_enabled=True)
-        )
-
-        stt = BilingualAzureSTTService(
-            api_key=os.environ["AZURE_SPEECH_KEY"],
-            # Continuous LID requires a SpeechConfig built from an explicit endpoint
-            # rather than region= (Microsoft's documented requirement) — this is
-            # pipecat's only hook for that, despite the Private-Link-flavored name.
-            # URL is the standard real-time STT endpoint for the region, per
-            # https://learn.microsoft.com/azure/ai-services/speech-service/get-started-speech-to-text
-            # (same endpoint region= builds internally; nothing else changes).
-            private_endpoint=(
-                f"wss://{os.environ['AZURE_SPEECH_REGION']}.stt.speech.microsoft.com"
-                "/speech/recognition/conversation/cognitiveservices/v1"
-            ),
-            settings=AzureSTTService.Settings(language=Language.ES_ES),
-        )
-
-        tts = AzureTTSService(
-            api_key=os.environ["AZURE_SPEECH_KEY"],
-            region=os.environ["AZURE_SPEECH_REGION"],
-            settings=AzureTTSService.Settings(voice=azure_voice, language=Language.ES_ES),
-        )
-
-        llm = GoogleLLMService(
-            api_key=os.environ["GEMINI_API_KEY"],
-            settings=GoogleLLMService.Settings(
-                model=gemini_model,
-                system_instruction=SYSTEM_PROMPT,
-            ),
-            # A slow first chunk (network blip, API-side latency) otherwise drops
-            # the turn silently with no assistant reply ever recorded — the user
-            # just keeps talking into what looks like silence, and each unanswered
-            # turn piles onto a growing, non-alternating context that makes the
-            # next request slower too. One retry breaks that spiral.
-            retry_on_timeout=True,
-        )
-
-        context = LLMContext()
-        user_aggregator, assistant_aggregator = LLMContextAggregatorPair(
-            context,
-            # AlwaysUserMuteStrategy drops user audio/transcription frames while the
-            # bot is speaking. Without it, LocalAudioTransport has no acoustic echo
-            # cancellation, so the mic hears the bot's own voice through the
-            # speakers, Azure STT transcribes it, and the bot ends up replying to
-            # itself in a loop.
-            user_params=LLMUserAggregatorParams(
-                vad_analyzer=SileroVADAnalyzer(),
-                user_mute_strategies=[AlwaysUserMuteStrategy()],
-            ),
-        )
-
-        session_flags: List[Flag] = []
-
-        flag_aggregator = PatternPairAggregator()
-        flag_aggregator.add_pattern(
-            type=FLAG_TYPE,
-            start_pattern=FLAG_START,
-            end_pattern=FLAG_END,
-            action=MatchAction.REMOVE,
-        )
-
-        async def on_error_flag(match: PatternMatch) -> None:
-            parsed = parse_flag(match.text)
-            if parsed is None:
-                return
-            flag = Flag(
-                id=uuid.uuid4().hex,
-                said=parsed["said"],
-                corrected=parsed["corrected"],
-                category=parsed["category"],
-                timestamp=datetime.now(),
+            transport = LocalAudioTransport(
+                LocalAudioTransportParams(audio_in_enabled=True, audio_out_enabled=True)
             )
-            session_flags.append(flag)
-            logger.info(f"FLAG {flag.category}: {flag.said!r} -> {flag.corrected!r}")
 
-        flag_aggregator.on_pattern_match(FLAG_TYPE, on_error_flag)
+            stt = BilingualAzureSTTService(
+                api_key=os.environ["AZURE_SPEECH_KEY"],
+                # Continuous LID requires a SpeechConfig built from an explicit endpoint
+                # rather than region= (Microsoft's documented requirement) — this is
+                # pipecat's only hook for that, despite the Private-Link-flavored name.
+                # URL is the standard real-time STT endpoint for the region, per
+                # https://learn.microsoft.com/azure/ai-services/speech-service/get-started-speech-to-text
+                # (same endpoint region= builds internally; nothing else changes).
+                private_endpoint=(
+                    f"wss://{os.environ['AZURE_SPEECH_REGION']}.stt.speech.microsoft.com"
+                    "/speech/recognition/conversation/cognitiveservices/v1"
+                ),
+                settings=AzureSTTService.Settings(language=Language.ES_ES),
+            )
 
-        # Initialize live transcript file for Review Mode / later SSE
-        TRANSCRIPT_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
-        TRANSCRIPT_FILE_PATH.write_text("", encoding="utf-8")
+            tts = AzureTTSService(
+                api_key=os.environ["AZURE_SPEECH_KEY"],
+                region=os.environ["AZURE_SPEECH_REGION"],
+                settings=AzureTTSService.Settings(voice=azure_voice, language=Language.ES_ES),
+            )
 
-        # Clear any stale stop-flag file left by a prior hard-killed run —
-        # otherwise this run would see it and end immediately.
-        STOP_SIGNAL_FILE_PATH.unlink(missing_ok=True)
+            llm = GoogleLLMService(
+                api_key=os.environ["GEMINI_API_KEY"],
+                settings=GoogleLLMService.Settings(
+                    model=gemini_model,
+                    system_instruction=SYSTEM_PROMPT,
+                ),
+                # A slow first chunk (network blip, API-side latency) otherwise drops
+                # the turn silently with no assistant reply ever recorded — the user
+                # just keeps talking into what looks like silence, and each unanswered
+                # turn piles onto a growing, non-alternating context that makes the
+                # next request slower too. One retry breaks that spiral.
+                retry_on_timeout=True,
+            )
 
-        pipeline = Pipeline(
-            [
-                transport.input(),
-                FunctionFilter(filter=_MicGate(), filter_system_frames=True),
-                stt,
-                user_aggregator,
-                llm,
-                LLMTextProcessor(text_aggregator=flag_aggregator),
-                tts,
-                transport.output(),
-                assistant_aggregator,
-            ]
-        )
+            context = LLMContext()
+            user_aggregator, assistant_aggregator = LLMContextAggregatorPair(
+                context,
+                # AlwaysUserMuteStrategy drops user audio/transcription frames while the
+                # bot is speaking. Without it, LocalAudioTransport has no acoustic echo
+                # cancellation, so the mic hears the bot's own voice through the
+                # speakers, Azure STT transcribes it, and the bot ends up replying to
+                # itself in a loop.
+                user_params=LLMUserAggregatorParams(
+                    vad_analyzer=SileroVADAnalyzer(),
+                    user_mute_strategies=[AlwaysUserMuteStrategy()],
+                ),
+            )
 
-        # ponytail: cold Windows start (AV scanning fresh native DLLs: Azure Speech
-        # SDK, ONNX runtime, scikit-learn via NLTK warm-up) can blow the default
-        # 20s setup window; bump it rather than chase per-processor timing.
-        #
-        # AUDIO_OUT_SAMPLE_RATE should match your output device's native rate
-        # (query via PyAudio's get_default_output_device_info) — MME doesn't
-        # reliably resample, so a mismatch plays back sped up and cut short.
-        worker = PipelineWorker(
-            pipeline,
-            params=PipelineParams(audio_out_sample_rate=audio_out_sample_rate),
-            setup_timeout_secs=60.0,
-        )
-        runner = WorkerRunner()
-        await runner.add_workers(worker)
+            session_flags: List[Flag] = []
+
+            flag_aggregator = PatternPairAggregator()
+            flag_aggregator.add_pattern(
+                type=FLAG_TYPE,
+                start_pattern=FLAG_START,
+                end_pattern=FLAG_END,
+                action=MatchAction.REMOVE,
+            )
+
+            async def on_error_flag(match: PatternMatch) -> None:
+                parsed = parse_flag(match.text)
+                if parsed is None:
+                    return
+                flag = Flag(
+                    id=uuid.uuid4().hex,
+                    said=parsed["said"],
+                    corrected=parsed["corrected"],
+                    category=parsed["category"],
+                    timestamp=datetime.now(),
+                )
+                session_flags.append(flag)
+                logger.info(f"FLAG {flag.category}: {flag.said!r} -> {flag.corrected!r}")
+
+            flag_aggregator.on_pattern_match(FLAG_TYPE, on_error_flag)
+
+            # Initialize live transcript file for Review Mode / later SSE
+            TRANSCRIPT_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
+            TRANSCRIPT_FILE_PATH.write_text("", encoding="utf-8")
+
+            # Clear any stale stop-flag file left by a prior hard-killed run —
+            # otherwise this run would see it and end immediately.
+            STOP_SIGNAL_FILE_PATH.unlink(missing_ok=True)
+
+            pipeline = Pipeline(
+                [
+                    transport.input(),
+                    FunctionFilter(filter=_MicGate(), filter_system_frames=True),
+                    stt,
+                    user_aggregator,
+                    llm,
+                    LLMTextProcessor(text_aggregator=flag_aggregator),
+                    tts,
+                    transport.output(),
+                    assistant_aggregator,
+                ]
+            )
+
+            # ponytail: cold Windows start (AV scanning fresh native DLLs: Azure Speech
+            # SDK, ONNX runtime, scikit-learn via NLTK warm-up) can blow the default
+            # 20s setup window; bump it rather than chase per-processor timing.
+            #
+            # AUDIO_OUT_SAMPLE_RATE should match your output device's native rate
+            # (query via PyAudio's get_default_output_device_info) — MME doesn't
+            # reliably resample, so a mismatch plays back sped up and cut short.
+            # ponytail: known gap — pipecat's setup-timeout path (worker.py's
+            # _setup_within_timeout) swallows its own asyncio.wait_for TimeoutError
+            # internally and just returns False; add_workers() doesn't wait for
+            # setup to finish anyway (schedules worker.run() as a background task
+            # and returns after asyncio.sleep(0)). Nothing raises here on timeout,
+            # so it can't be caught with a try/except around this call. Catching
+            # it for real means hooking `@worker.event_handler("on_setup_timeout")`
+            # on the worker below and raising VoiceConversationPipelineError from
+            # that handler instead — bigger change than this fix pass covers.
+            worker = PipelineWorker(
+                pipeline,
+                params=PipelineParams(audio_out_sample_rate=audio_out_sample_rate),
+                setup_timeout_secs=60.0,
+            )
+            runner = WorkerRunner()
+            await runner.add_workers(worker)
+
+        except KeyError as e:
+            raise VoiceConversationConfigError(
+                f"Missing required configuration: {e}"
+            ) from e
+        except OSError as e:
+            raise VoiceConversationPipelineError(
+                f"Audio device initialization failed: {e}"
+            ) from e
 
         # Start background task to write live transcript. Reference kept as a
         # local (alive for run()'s lifetime, same as the pipeline) — an
@@ -417,7 +457,10 @@ class ConversationOrchestrator:
             log_path = save_session_log(context, session_flags)
             if log_path:
                 logger.info(f"Session log saved to {log_path}")
-            self._flag_broker.save_flags(session_flags)
+            try:
+                self._flag_broker.save_flags(session_flags)
+            except OSError as e:
+                logger.error(f"Failed to persist flags at session end: {e}")
 
     async def _watch_for_stop_signal(self, runner: WorkerRunner) -> None:
         """Poll for BotProcessBroker's stop-flag file and end the pipeline
@@ -464,4 +507,7 @@ class ConversationOrchestrator:
                     f.write(line + "\n")
                 written_turn_count += 1
 
-            self._flag_broker.save_flags(flags)
+            try:
+                self._flag_broker.save_flags(flags)
+            except OSError as e:
+                logger.error(f"Failed to persist flags to disk: {e}")

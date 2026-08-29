@@ -101,6 +101,8 @@ class SqlAlchemyChunkRepositoryBroker:
                 source_url=chunk.source_url,
                 content=chunk.content,
                 score=score,
+                embedding_model_version=chunk.embedding_model_version,
+                chunking_strategy_version=chunk.chunking_strategy_version,
             )
             for chunk, score in rows
         ]

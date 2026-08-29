@@ -10,7 +10,7 @@ mismatch inserts zero rows, not some.
 
 import pytest
 
-from rag.services.ingestion import CHUNK_SIZE
+from rag.services.ingestion import CHUNK_SIZE, IngestionValidationError
 
 TOPIC = "preterite-vs-imperfect"
 SOURCE_URL = "https://www.rae.es/gram/preterito"
@@ -24,7 +24,7 @@ class TestIngestionServiceIngestTopicValidation:
         self, service, mock_chunk_repository, mock_embedding_model, blank_topic
     ):
         # when / then
-        with pytest.raises(ValueError):
+        with pytest.raises(IngestionValidationError):
             service.ingest_topic(topic=blank_topic, source_url=SOURCE_URL, text=TEXT)
 
         mock_embedding_model.embed.assert_not_called()
@@ -35,7 +35,7 @@ class TestIngestionServiceIngestTopicValidation:
         self, service, mock_chunk_repository, mock_embedding_model, blank_source_url
     ):
         # when / then
-        with pytest.raises(ValueError):
+        with pytest.raises(IngestionValidationError):
             service.ingest_topic(topic=TOPIC, source_url=blank_source_url, text=TEXT)
 
         mock_embedding_model.embed.assert_not_called()
@@ -50,7 +50,7 @@ class TestIngestionServiceIngestTopicValidation:
         mock_embedding_model.embed.return_value = [[0.1, 0.2]]
 
         # when / then
-        with pytest.raises(ValueError):
+        with pytest.raises(IngestionValidationError):
             service.ingest_topic(topic=TOPIC, source_url=SOURCE_URL, text=text)
 
         mock_embedding_model.embed.assert_called_once_with(["a" * CHUNK_SIZE, "bbb"])
@@ -64,7 +64,7 @@ class TestIngestionServiceIngestTopicValidation:
         mock_embedding_model.embed.return_value = [[0.1, 0.2], [0.3, 0.4]]
 
         # when / then
-        with pytest.raises(ValueError):
+        with pytest.raises(IngestionValidationError):
             service.ingest_topic(topic=TOPIC, source_url=SOURCE_URL, text=TEXT)
 
         mock_embedding_model.embed.assert_called_once_with([TEXT])

@@ -24,6 +24,15 @@ _DEFAULT_MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-
 class EmbeddingModelBroker(Protocol):
     """External-resource boundary for text embedding."""
 
+    @property
+    def model_name(self) -> str:
+        """The model name this broker is configured to use.
+
+        Used for versioning and mismatch detection: ingestion tags chunks with
+        this value, and retrieval checks for consistency at query time.
+        """
+        ...
+
     def embed(self, texts: List[str]) -> List[List[float]]:
         """One 384-dim vector per text, same order.
 
@@ -44,6 +53,11 @@ class SentenceTransformerEmbeddingModelBroker:
     def __init__(self, model_name: Optional[str] = None) -> None:
         env_model_name = os.getenv("EMBEDDING_MODEL_NAME", _DEFAULT_MODEL_NAME)
         self._model_name = model_name if model_name is not None else env_model_name
+
+    @property
+    def model_name(self) -> str:
+        """The model name this broker is configured to use."""
+        return self._model_name
 
     @cached_property
     def _model(self) -> SentenceTransformer:

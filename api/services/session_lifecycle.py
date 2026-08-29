@@ -19,6 +19,7 @@ from typing import Callable, Optional
 from dotenv import load_dotenv
 
 from api.brokers.bot_process import BotProcessBroker
+from api.errors import ApiError
 from api.models.session_status import SessionStatus
 
 load_dotenv()
@@ -41,7 +42,7 @@ TERMINATE_TIMEOUT_SECONDS = float(os.getenv("SESSION_TERMINATE_TIMEOUT_SECONDS",
 READY_WARMUP_SECONDS = float(os.getenv("SESSION_READY_WARMUP_SECONDS", "16"))
 
 
-class SessionAlreadyRunningException(Exception):
+class SessionAlreadyRunningException(ApiError):
     """Raised by start() when a session is already active.
 
     BotProcessBroker.start() has no such guard by design (see its
@@ -52,7 +53,7 @@ class SessionAlreadyRunningException(Exception):
         super().__init__("A conversation session is already running")
 
 
-class SessionNotRunningException(Exception):
+class SessionNotRunningException(ApiError):
     """Raised by stop() when there is no active session to stop.
 
     Deliberately fail-fast rather than a silent no-op: symmetric with
@@ -114,7 +115,12 @@ class ConversationSessionService:
             and self._started_at is not None
             and self._time_source() - self._started_at >= READY_WARMUP_SECONDS
         )
-        return SessionStatus(running=running, ready=ready, graceful=self._last_stop_graceful)
+        # If process was started but is no longer running and stop() wasn't called,
+        # it crashed unexpectedly. If never started, graceful remains None.
+        graceful = self._last_stop_graceful
+        if not running and self._last_stop_graceful is None and self._started_at is not None:
+            graceful = False
+        return SessionStatus(running=running, ready=ready, graceful=graceful)
 
     def _wait_quietly(self, timeout: float) -> bool:
         """Wait up to `timeout` seconds for the process to exit.

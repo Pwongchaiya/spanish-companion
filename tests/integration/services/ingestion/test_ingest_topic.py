@@ -36,6 +36,7 @@ SECOND_CHUNK = "El imperfecto describe acciones habituales."
 def mock_embedding_model():
     broker = Mock(spec=EmbeddingModelBroker)
     broker.embed.return_value = [FIRST_EMBEDDING, SECOND_EMBEDDING]
+    broker.model_name = "sentence-transformers/test-model"
     return broker
 
 

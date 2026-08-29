@@ -30,6 +30,7 @@ from dotenv import load_dotenv
 
 from api.brokers.flag import FlagBroker
 from api.brokers.practice_log import PracticeAttempt, PracticeLogBroker
+from api.errors import ApiError
 from api.models.flag import Flag
 from rag.controllers.generation import GenerationController
 from rag.controllers.retrieval import RetrievalController
@@ -45,7 +46,7 @@ logger = logging.getLogger(__name__)
 RETRIEVAL_TOP_K = int(os.getenv("RETRIEVAL_TOP_K", "3"))
 
 
-class FlagNotFoundException(Exception):
+class FlagNotFoundException(ApiError):
     """Raised when no flag in the current list has the requested id.
 
     The only exception this feature names. Deliberately not a hierarchy --

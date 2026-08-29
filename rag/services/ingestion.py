@@ -22,6 +22,7 @@ from dotenv import load_dotenv
 
 from rag.brokers.chunk_repository import ChunkRepositoryBroker
 from rag.brokers.embedding_model import EmbeddingModelBroker
+from rag.errors import RagError
 
 load_dotenv()
 
@@ -32,19 +33,16 @@ CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "800"))
 
 # Version tags stamped on every row this service writes. Bump CHUNKING_STRATEGY_VERSION
 # whenever chunk_text's algorithm changes (size, overlap, splitting rule) and
-# EMBEDDING_MODEL_VERSION whenever the embedding model changes — otherwise rows written
-# by different algorithms become indistinguishable in the `chunks` table and a
-# targeted re-ingest of just the stale ones is impossible. Per the architecture
-# record's "track a chunking-strategy version alongside the embedding-model version".
+# read EMBEDDING_MODEL_VERSION from the broker instance, so the tag records the model
+# that actually produced the vectors. Otherwise rows written by different algorithms
+# become indistinguishable in the `chunks` table and a targeted re-ingest of just the
+# stale ones is impossible. Per the architecture record's "track a chunking-strategy
+# version alongside the embedding-model version".
 CHUNKING_STRATEGY_VERSION = "v1"
 
-# Mirrors SentenceTransformerEmbeddingModelBroker's own env var and default exactly,
-# so the tag records the model that actually produced the vectors. Caveat: a broker
-# constructed with an explicit model_name= argument overrides its env default and this
-# tag would then be wrong — pass the matching value here if that ever happens.
-EMBEDDING_MODEL_VERSION = os.getenv(
-    "EMBEDDING_MODEL_NAME", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-)
+
+class IngestionValidationError(RagError):
+    """Raised when ingestion input fails validation."""
 
 
 def chunk_text(text: str) -> list[str]:
@@ -74,16 +72,16 @@ class IngestionService:
         Empty or whitespace-only `text` yields zero chunks and returns 0 without
         touching either broker.
 
-        Raises ValueError if `topic` or `source_url` is missing or blank.
+        Raises IngestionValidationError if `topic` or `source_url` is missing or blank.
         """
         # Writes to `chunks` are one-way — ChunkRepositoryBroker has no delete path —
         # and a blank string is not NULL, so it sails past the column's NOT NULL
         # constraint and lands in the corpus permanently. Guard here, before anything
         # is embedded or inserted.
         if not topic or not topic.strip():
-            raise ValueError("topic is required")
+            raise IngestionValidationError("topic is required")
         if not source_url or not source_url.strip():
-            raise ValueError("source_url is required")
+            raise IngestionValidationError("source_url is required")
 
         # ponytail: dict.fromkeys is stdlib order-preserving dedupe. Scoped to
         # THIS call only — repeated boilerplate (nav text, a repeated legal
@@ -102,7 +100,7 @@ class IngestionService:
         # rollback (ChunkRepositoryBroker has no delete path), so a mismatch must fail
         # before any row is inserted, not after the loop has already written some.
         if len(embeddings) != len(chunks):
-            raise ValueError(f"embedding count {len(embeddings)} does not match chunk count {len(chunks)}")
+            raise IngestionValidationError(f"embedding count {len(embeddings)} does not match chunk count {len(chunks)}")
 
         for chunk, embedding in zip(chunks, embeddings):
             self._chunk_repository.insert_chunk(
@@ -110,7 +108,7 @@ class IngestionService:
                 source_url=source_url,
                 content=chunk,
                 embedding=embedding,
-                embedding_model_version=EMBEDDING_MODEL_VERSION,
+                embedding_model_version=self._embedding_model.model_name,
                 chunking_strategy_version=CHUNKING_STRATEGY_VERSION,
             )
 

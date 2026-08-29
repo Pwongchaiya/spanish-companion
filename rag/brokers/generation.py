@@ -13,12 +13,14 @@ from typing import Optional, Protocol
 
 import google.genai as genai
 
+from rag.errors import RagError
+
 # Matches voice/bot.py's and review/review.py's existing default exactly —
 # Gemini Flash-Lite, per CLAUDE.md tech stack.
 _DEFAULT_MODEL_NAME = "gemini-flash-lite-latest"
 
 
-class GenerationError(Exception):
+class GenerationError(RagError):
     """Client failure or an empty/None response — the only exception this feature has."""
 
 

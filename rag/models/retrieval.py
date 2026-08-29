@@ -7,6 +7,7 @@ narrow it or split it into a separate broker-only type.
 """
 
 from dataclasses import dataclass
+from typing import Optional
 
 
 @dataclass
@@ -16,3 +17,5 @@ class ScoredChunk:
     source_url: str
     content: str
     score: float
+    embedding_model_version: Optional[str] = None
+    chunking_strategy_version: Optional[str] = None

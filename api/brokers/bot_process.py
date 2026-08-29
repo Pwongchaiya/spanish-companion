@@ -74,6 +74,14 @@ class BotProcessBroker(Protocol):
         """Poll process state. Non-blocking."""
         ...
 
+    def get_last_return_code(self) -> Optional[int]:
+        """Get the return code of the last process exit, if any.
+
+        Returns None if the process is still running or has never started.
+        Lets the service distinguish crashed exits from graceful ones.
+        """
+        ...
+
 
 class SubprocessBotProcessBroker:
     """BotProcessBroker backed by subprocess.Popen.
@@ -94,6 +102,7 @@ class SubprocessBotProcessBroker:
         self._cwd = cwd if cwd is not None else REPO_ROOT
         self._stop_signal_path = stop_signal_path if stop_signal_path is not None else STOP_SIGNAL_FILE_PATH
         self._process: Optional[subprocess.Popen] = None
+        self._last_return_code: Optional[int] = None
 
     def start(self) -> None:
         self._process = subprocess.Popen(self._command, cwd=str(self._cwd))
@@ -112,4 +121,12 @@ class SubprocessBotProcessBroker:
         self._process.wait(timeout=timeout)
 
     def is_running(self) -> bool:
-        return self._process is not None and self._process.poll() is None
+        if self._process is None:
+            return False
+        return_code = self._process.poll()
+        if return_code is not None:
+            self._last_return_code = return_code
+        return return_code is None
+
+    def get_last_return_code(self) -> Optional[int]:
+        return self._last_return_code
