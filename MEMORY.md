@@ -8,17 +8,16 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-08-29-0953.md — Pinned the
-shared broker method surfaces, registered all six Phase 2 features, then
-built nearly the entire backend via a parallel multi-agent orchestration
-(Opus-designed 7-wave dependency graph): SessionLifecycle, Ingestion,
-Retrieval, Generation, and Review are all Broker/Service/Controller
-complete, `app.py` wires Session Lifecycle + Review (verified via Flask's
-test client), and Voice Conversation's code (manual port) is written but
-NOT hardware/mic verified. Auditor passes caught real bugs at every wave;
-one bug (`ALLOWED_ORIGINS` missing `127.0.0.1`) was caught live by the
-user. Testing was explicitly deferred mid-build across all six features.
-Next session should start with the Voice Conversation hardware/mic test.
+Projects/spanish-companion/sessions/2026-08-29-1054.md — Committed the
+stop-flag polling fix (hardware-verified prior session, replacing the
+unreliable Windows SIGBREAK graceful-stop mechanism), then built and
+verified the last blocked piece of `app.py`: the `/api/events` SSE
+endpoint (status/transcript/flags, per the architecture record's event
+schema). Phase 2 build is now complete across all six features plus
+`app.py` integration. Next session should start with the deferred test
+pass (Ingestion, Retrieval, Generation, Review, Session Lifecycle HTTP
+layer) plus adding `pytest` to `requirements.txt`, then frontend wiring
+per feature.
 
 ---
 
