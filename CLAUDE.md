@@ -142,6 +142,13 @@ Phase 2 test strategy" section.
   dataclasses cover everything Moq/FluentAssertions did in the reference
   project.
 
+**Frontend (vitest + @testing-library/react, added Phase 3).** Pairs with the
+already-installed Vite, no new build tooling. Scope deliberately minimal —
+covers newly-fixed logic (e.g. `useSessionState.ts`'s start/stop/getStatus
+success, failure-with-rollback, and error-surfaced paths), not a
+full-coverage push across the frontend. `npm test` (alias for `vitest`) from
+`frontend/`.
+
 ---
 
 ## Git Workflow
@@ -197,13 +204,13 @@ ORC-001 / ORC-002). The mapping and waivers below resolve that mismatch.
 | Layer | Agent | Features | Waiver |
 |---|---|---|---|
 | Broker | Broker Agent | All six | None — SQLAlchemy + Alembic **adopted** (toolkit default kept, not waived). Output paths pinned per the `api`/`rag` layout, not the toolkit's `brokers/storage/` default. |
-| Service, 1 broker | Foundation Agent | Session Lifecycle, Generation | Waive the 9-class default exception hierarchy — pin the actual exception list per feature at build time (this system only names one, `GenerationError`, in the whole architecture record) |
-| Service, 2+ broker/deps | Orchestration Agent | Ingestion, Retrieval, Review | Waive ORC-001 (Florance dep-count limit) and ORC-002 (no direct broker deps) — this project has no Foundation layer beneath these, so direct broker deps are correct, not a violation |
+| Service, 1 broker | Foundation Agent | Session Lifecycle, Generation | Waive the 9-class default exception hierarchy — pin the actual exception list per feature at build time, verified non-empty for every feature that can fail in more than one way. As built: Session Lifecycle names 2 (`SessionAlreadyRunningException`, `SessionNotRunningException`), Generation names 1 (`GenerationError`) — all three inherit the shared `ApiError`/`RagError` marker base ([[Projects/spanish-companion/decisions/phase-2-vs-reference-architecture-audit\|F3, F6, F7]]) |
+| Service, 2+ broker/deps | Orchestration Agent | Ingestion, Retrieval, Review | Waive ORC-001 (Florance dep-count limit) and ORC-002 (no direct broker deps) — this project has no Foundation layer beneath these, so direct broker deps are correct, not a violation. The same "pin the actual list, verified non-empty" rule extends here too — this row was silently never covered by the original waiver, which is what left Ingestion/Retrieval at zero custom exceptions through Phase 2. As built: Ingestion names `IngestionValidationError`, Retrieval names `RetrievalUnavailableError` (store/model-unreachable, distinct from an empty result list), Review names `FlagNotFoundException` — all inherit `ApiError`/`RagError` ([[Projects/spanish-companion/decisions/phase-2-vs-reference-architecture-audit\|F1, F4, F5]]) |
 | Processing | **Not used** | — | Its contract requires exactly one Foundation service beneath it; no such shape exists here |
 | Aggregation | **Not used** | — | Its trigger is "Exposer needs >1 Orchestration service"; every controller here calls exactly one service |
 | Controller, HTTP + in-process | Exposer Agent | Session Lifecycle, Review, Retrieval, Generation | Waive `/api/V1.0/` versioning (routes are unversioned: `/start`, `/stop`, `/status`, `/review*`); turn off React output (frontend is separately scaffolded in `frontend/`); for the two in-process controllers (`RetrievalController`, `GenerationController`) waive HTTP status-code mapping — there is no HTTP response to map |
 | Controller, CLI/subprocess | **Hand-written, no agent** | Ingestion CLI, Voice Conversation `main()` | Not worth the waivers for ~20 lines of argparse/entrypoint code |
-| Broker interfaces | — | All | `typing.Protocol`, not `ABC` — waive `python-adaptations-skill`'s ABC default and BRK-004 ("no local interface defined") |
+| Broker interfaces | — | All | `typing.Protocol`, not `ABC` — waive `python-adaptations-skill`'s ABC default and BRK-004 ("no local interface defined"). Reframed post-audit: this doesn't diverge from the reference `NL.Core.Entitlements` project, it matches it — `IEntitlementService.cs` sits next to `EntitlementService.cs` there too, interfaces co-located with implementation. The toolkit's ABC/BRK-004 default is the outlier, not this waiver ([[Projects/spanish-companion/decisions/phase-2-vs-reference-architecture-audit\|F18]]) |
 
 **Voice Conversation: no agent, any layer.** Fully manual, supervised port
 of Phase 1's `voice/bot.py`. Carries four hardware-verified fixes no agent
@@ -211,6 +218,26 @@ can discover or test (no agent has a microphone): echo suppression via
 `AlwaysUserMuteStrategy`, the 44100/24000Hz sample-rate mismatch fix,
 Windows SIGBREAK handling, periodic flag persistence. Gate on a manual
 hardware/mic test, same method as Phase 1.
+
+**Voice Conversation's exception policy, resolved (Phase 3, 2026-08-29):** the
+zero-exception state through Phase 2 was a deferred gap, not a deliberate
+minimal choice — `bot_process.py` carried an explicit `ponytail` comment
+saying so. Names two exceptions, both `ApiError`: `VoiceConversationConfigError`
+(missing/invalid Azure Speech or Gemini credentials, audio device setup) and
+`VoiceConversationPipelineError` (audio device init failure, unrecoverable
+Gemini failure after retry). A third candidate category — pipeline setup
+exceeding its 60s timeout — is a known, deliberately unclosed gap: pipecat
+1.8.1's `PipelineWorker` swallows its own setup timeout internally (fires
+`on_setup_timeout`, never raises) and does so inside a detached background
+task, so nothing at the `run()` call site can catch it today. Closing it
+requires hooking `@worker.event_handler("on_setup_timeout")` and raising
+`VoiceConversationPipelineError` from inside the handler — left as a
+`ponytail:` comment at the call site rather than half-implemented via a
+try/except that would never fire. Separately, `SubprocessBotProcessBroker`
+now captures and exposes the subprocess's actual return code
+(`get_last_return_code()`), letting `ConversationSessionService.get_status()`
+distinguish a crash from a graceful stop instead of collapsing both into one
+`running=False` signal ([[Projects/spanish-companion/decisions/phase-2-vs-reference-architecture-audit\|F20, F21, F22]]).
 
 **Build order:** Session Lifecycle (full B/S/C loop, validates this waiver
 approach cheaply) → shared broker wave, built once with both consumers'
