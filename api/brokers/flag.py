@@ -63,7 +63,13 @@ class JsonFileFlagBroker:
     def save_flags(self, flags: list[Flag]) -> None:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         payload = [{**asdict(flag), "timestamp": flag.timestamp.isoformat()} for flag in flags]
-        self._path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        # Atomic write (temp file + os.replace) so a concurrent load_flags()
+        # never observes a truncated/partial file mid-write — write_text()
+        # alone truncates then writes, a real window given Voice Conversation
+        # rewrites this file every ~1s while Review could, in principle, read it.
+        tmp_path = self._path.with_suffix(".tmp")
+        tmp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        os.replace(tmp_path, self._path)
 
     def load_flags(self) -> list[Flag]:
         # ponytail: tolerant parsing is the spec, not error-hiding — mirrors

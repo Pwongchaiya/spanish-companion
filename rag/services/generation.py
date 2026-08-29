@@ -7,11 +7,14 @@ fallback string instead of mapping it into a local exception hierarchy (see
 CLAUDE.md's Foundation waiver for Generation).
 """
 
+import logging
 from typing import Protocol
 
 from rag.brokers.generation import GenerationBroker, GenerationError
 from rag.models.generation import Explanation
 from rag.models.retrieval import ScoredChunk
+
+logger = logging.getLogger(__name__)
 
 
 class FlagLike(Protocol):
@@ -33,7 +36,12 @@ class GenerationService:
         prompt = self._build_prompt(flag, chunk)
         try:
             text = self._broker.generate(prompt)
-        except GenerationError:
+        except GenerationError as e:
+            # Load-bearing log: this is the only signal distinguishing "Gemini
+            # failed" from Review's own "no corpus match" fallback (same string,
+            # api/services/review.py) — without it the two failure modes are
+            # indistinguishable from logs alone.
+            logger.info("generation failed, using fallback: %s", e)
             # Phase 1's exact fallback string, review/review.py:107 — preserve verbatim
             text = "I'm not certain on that one."
         return Explanation(explanation=text, source_url=chunk.source_url)
