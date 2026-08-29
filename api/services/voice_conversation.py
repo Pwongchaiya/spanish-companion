@@ -2,10 +2,13 @@
 
 Fully manual, supervised port of Phase 1's `voice/bot.py`. No agent built
 any part of this file (see CLAUDE.md's Phase 2 Layer-Agent Mapping): it
-carries four hardware-verified fixes no agent can discover or test —
-echo suppression, the 44100/24000Hz sample-rate mismatch, Windows SIGBREAK
-handling, and periodic flag persistence — gated on a real mic/hardware
-test, same method as Phase 1.
+carries three hardware-verified fixes no agent can discover or test —
+echo suppression, the 44100/24000Hz sample-rate mismatch, and periodic
+flag persistence — gated on a real mic/hardware test, same method as
+Phase 1. Graceful stop on `/stop` uses a polled stop-flag file (see
+`_watch_for_stop_signal`), not Phase 1's Windows SIGBREAK port — that
+mechanism was confirmed broken via isolated repro, 2026-08-29 (see
+api/brokers/bot_process.py's module docstring).
 
 Per the architecture decision record, this is the one feature where
 Pipecat's own STT/LLM/TTS service objects ARE the Broker layer — they are
@@ -76,6 +79,7 @@ FLAG_KEYS = ("said", "corrected", "category")
 # Phase 1's voice/logs/ — these are new paths, not a port of the old ones.
 SESSION_LOG_DIR = Path(os.getenv("SESSION_LOG_DIR", str(REPO_ROOT / "data" / "session_logs")))
 TRANSCRIPT_FILE_PATH = Path(os.getenv("TRANSCRIPT_FILE_PATH", str(REPO_ROOT / "data" / "live_transcript.jsonl")))
+STOP_SIGNAL_FILE_PATH = Path(os.getenv("STOP_SIGNAL_FILE_PATH", str(REPO_ROOT / "data" / "stop_signal")))
 
 
 class BilingualAzureSTTService(AzureSTTService):
@@ -353,6 +357,10 @@ class ConversationOrchestrator:
         TRANSCRIPT_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
         TRANSCRIPT_FILE_PATH.write_text("", encoding="utf-8")
 
+        # Clear any stale stop-flag file left by a prior hard-killed run —
+        # otherwise this run would see it and end immediately.
+        STOP_SIGNAL_FILE_PATH.unlink(missing_ok=True)
+
         pipeline = Pipeline(
             [
                 transport.input(),
@@ -388,6 +396,7 @@ class ConversationOrchestrator:
         live_transcript_task = asyncio.create_task(
             self._write_live_transcript(context, session_flags)
         )
+        stop_watch_task = asyncio.create_task(self._watch_for_stop_signal(runner))
 
         # ponytail: a stop signal arriving before this point (during audio device
         # /pipeline setup, a few seconds) skips the finally below entirely —
@@ -400,23 +409,39 @@ class ConversationOrchestrator:
             await runner.run()
         finally:
             live_transcript_task.cancel()
+            stop_watch_task.cancel()
             log_path = save_session_log(context, session_flags)
             if log_path:
                 logger.info(f"Session log saved to {log_path}")
             self._flag_broker.save_flags(session_flags)
+
+    async def _watch_for_stop_signal(self, runner: WorkerRunner) -> None:
+        """Poll for BotProcessBroker's stop-flag file and end the pipeline
+        gracefully when it appears.
+
+        Replaces a Windows CTRL_BREAK_EVENT/SIGBREAK port that looked correct
+        but wasn't: confirmed via isolated repro (2026-08-29, no pipecat
+        involved) that a parent process programmatically signaling a child it
+        spawned doesn't reliably raise KeyboardInterrupt in that child on
+        Windows/Python 3 — see api/brokers/bot_process.py's module docstring.
+        A polled file has no such platform dependency."""
+        while True:
+            await asyncio.sleep(1.0)
+            if STOP_SIGNAL_FILE_PATH.exists():
+                STOP_SIGNAL_FILE_PATH.unlink(missing_ok=True)
+                runner.end("stop requested")
+                return
 
     async def _write_live_transcript(self, context: LLMContext, flags: List[Flag]) -> None:
         """Background task that periodically appends new conversation turns to a
         live JSONL transcript file, and re-saves flags via FlagBroker, for
         Review Mode.
 
-        Re-saving flags here (not just in run()'s finally block) matters: on
-        Windows, a stop request delivered via CTRL_BREAK_EVENT (the Flask UI's
-        /stop route) can leave pipecat's pipeline cancellation hanging
-        indefinitely once the audio pipeline is fully active (verified in
-        Phase 1: still hadn't completed after a 30s wait) — the process ends
-        up hard-killed, skipping the finally block entirely. Saving flags
-        every second here means Review Mode data survives that even when a
+        Re-saving flags here (not just in run()'s finally block) matters: if
+        a stop request (via the stop-flag file) can't end the pipeline within
+        the Service's graceful-timeout window, it escalates to terminate()/
+        kill(), skipping the finally block entirely. Saving flags every
+        second here means Review Mode data survives that even when a
         graceful shutdown doesn't."""
         written_turn_count = 0
         while True:

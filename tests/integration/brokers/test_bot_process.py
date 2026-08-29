@@ -18,15 +18,26 @@ import pytest
 
 from api.brokers.bot_process import SubprocessBotProcessBroker
 
-SLEEP_COMMAND = [sys.executable, "-c", "import time; time.sleep(30)"]
-WAIT_TIMEOUT_SECONDS = 5  # well below SLEEP_COMMAND's duration, so a dishonoured
-# signal (process still alive) raises TimeoutExpired instead of the natural
-# sleep-exit happening to coincide with the wait deadline and passing anyway.
+WAIT_TIMEOUT_SECONDS = 5  # well below the fixture command's natural duration
+# (it loops until killed), so a dishonoured signal (process still alive)
+# raises TimeoutExpired instead of the process exiting for an unrelated reason.
 
 
 @pytest.fixture
-def broker():
-    broker = SubprocessBotProcessBroker(command=SLEEP_COMMAND)
+def broker(tmp_path):
+    # Polls for the same stop-flag file send_graceful_signal() touches —
+    # exercises the real graceful-shutdown contract instead of a plain
+    # sleep, which has no way to react to it.
+    stop_signal_path = tmp_path / "stop_signal"
+    poll_command = [
+        sys.executable,
+        "-c",
+        "import pathlib, time\n"
+        f"p = pathlib.Path(r'{stop_signal_path}')\n"
+        "while not p.exists():\n"
+        "    time.sleep(0.05)\n",
+    ]
+    broker = SubprocessBotProcessBroker(command=poll_command, stop_signal_path=stop_signal_path)
     yield broker
     if broker.is_running():  # cleanup — no leftover process if a test fails mid-way
         broker.kill()

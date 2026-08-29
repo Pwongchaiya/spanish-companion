@@ -9,16 +9,19 @@ double-start refusal and the graceful/terminate/kill escalation policy
 primitives below. This broker only wraps subprocess.Popen calls; it does
 not decide when to use them.
 
-Windows signal mechanics ported as-is from the hardware-verified Phase 1
-fix in `ui/app.py` (`_start_voice_process` / `_stop_voice_process`):
-CREATE_NEW_PROCESS_GROUP lets the parent later send CTRL_BREAK_EVENT
-(SIGBREAK), which the child subprocess converts to KeyboardInterrupt to run
-its shutdown `finally` block (flag persistence). Unlike SIGINT, Windows has
-no default handler for it, and an unhandled SIGBREAK kills the child
-outright, skipping that cleanup — this is why the signal dance exists.
+Graceful shutdown uses a stop-flag file, not a Windows console signal.
+Phase 1's approach (CTRL_BREAK_EVENT / SIGBREAK) was ported here first, but
+hardware-verified via a real terminal keystroke, not this process's actual
+usage — a separate parent process programmatically calling
+Popen.send_signal(CTRL_BREAK_EVENT) on a child it spawned. That specific
+pattern was confirmed broken via isolated repro (2026-08-29, no pipecat
+involved): GenerateConsoleCtrlEvent's console-attachment requirements make
+it unreliable outside a real interactive console, and even a real terminal
+didn't rescue it. A polled stop-flag file has no such dependency and works
+identically cross-platform.
 """
 
-import signal
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -26,6 +29,7 @@ from typing import List, Optional, Protocol
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BOT_COMMAND = [sys.executable, "-m", "api.controllers.voice_conversation"]
+STOP_SIGNAL_FILE_PATH = Path(os.getenv("STOP_SIGNAL_FILE_PATH", str(REPO_ROOT / "data" / "stop_signal")))
 
 # ponytail: no double-start exception type here — that's
 # ConversationSessionService vocabulary (it owns the refusal decision), and
@@ -46,8 +50,8 @@ class BotProcessBroker(Protocol):
         ...
 
     def send_graceful_signal(self) -> None:
-        """Send the platform graceful-shutdown signal (SIGBREAK on Windows,
-        SIGTERM elsewhere). Does not wait for exit."""
+        """Request graceful shutdown via the stop-flag file the child polls
+        for. Does not wait for exit."""
         ...
 
     def terminate(self) -> None:
@@ -80,25 +84,23 @@ class SubprocessBotProcessBroker:
     a mic, Azure credentials, or the (not-yet-built) controller module.
     """
 
-    def __init__(self, command: Optional[List[str]] = None, cwd: Optional[Path] = None) -> None:
+    def __init__(
+        self,
+        command: Optional[List[str]] = None,
+        cwd: Optional[Path] = None,
+        stop_signal_path: Optional[Path] = None,
+    ) -> None:
         self._command = command if command is not None else BOT_COMMAND
         self._cwd = cwd if cwd is not None else REPO_ROOT
+        self._stop_signal_path = stop_signal_path if stop_signal_path is not None else STOP_SIGNAL_FILE_PATH
         self._process: Optional[subprocess.Popen] = None
 
     def start(self) -> None:
-        # ponytail: Windows-only creationflags kwarg is mechanically required
-        # for CTRL_BREAK_EVENT delivery in send_graceful_signal(); no
-        # cross-platform stdlib equivalent exists, so this stays.
-        creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0
-        self._process = subprocess.Popen(
-            self._command,
-            cwd=str(self._cwd),
-            creationflags=creationflags,
-        )
+        self._process = subprocess.Popen(self._command, cwd=str(self._cwd))
 
     def send_graceful_signal(self) -> None:
-        graceful_signal = signal.CTRL_BREAK_EVENT if sys.platform == "win32" else signal.SIGTERM
-        self._process.send_signal(graceful_signal)
+        self._stop_signal_path.parent.mkdir(parents=True, exist_ok=True)
+        self._stop_signal_path.touch()
 
     def terminate(self) -> None:
         self._process.terminate()

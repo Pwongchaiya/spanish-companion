@@ -5,6 +5,8 @@ __pycache__/
 data/corpus/*.html
 data/flags.json
 data/practice_log.jsonl
+data/live_transcript.jsonl
+data/session_logs/
 .claude
 .claude-toolkit
 voice/logs/
