@@ -25,6 +25,19 @@ session should register the first entity (Session Lifecycle) via
 
 ---
 
+## Entity Manifest
+
+| Feature | Path |
+| --- | --- |
+| SessionLifecycle | Projects/spanish-companion/entities/session-lifecycle.md |
+| VoiceConversation | Projects/spanish-companion/entities/voice-conversation.md |
+| Ingestion | Projects/spanish-companion/entities/ingestion.md |
+| Retrieval | Projects/spanish-companion/entities/retrieval.md |
+| Generation | Projects/spanish-companion/entities/generation.md |
+| Review | Projects/spanish-companion/entities/review.md |
+
+---
+
 ## Vault Structure Reference
 
 | Location | Path | What lives there |
