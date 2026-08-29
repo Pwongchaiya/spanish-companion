@@ -15,8 +15,12 @@ rebuild plan through a 6-way Haiku extraction + Opus synthesis + verified
 citation pipeline, extended with three targeted investigations (Voice
 Conversation failure modes, frontend/TypeScript error-handling gaps,
 migration/versioning drift risk). Plan approved via Plan Mode; both
-decision records persisted. No code built yet — next session starts with
-Wave 1's SubprocessBotProcessBroker.is_running() returncode fix.
+decision records persisted. Also formalized that pipeline as a general
+Hierarchical Agent Delegation convention (Opus plan/orchestrate, Sonnet
+audit/build — unchanged, Haiku worker fan-out), added to CLAUDE.md
+(commit 721d307) with full rationale in its own decision record. No code
+built yet — next session starts with Wave 1's
+SubprocessBotProcessBroker.is_running() returncode fix.
 
 ---
 
