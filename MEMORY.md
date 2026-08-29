@@ -8,10 +8,11 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-08-28-1603.md — Step 1 voice loop built
-and debugged live (cold-start timeout, sample-rate speedup, self-echo loop,
-markdown/accent issues each fixed). System prompt scope-adjusted to bilingual
-phrase-teaching. One more clean end-to-end run pending before Step 1 is done.
+Projects/spanish-companion/sessions/2026-08-28-1738.md — Step 2 live
+error-flagging built via a multi-model plan→build→audit pipeline (Opus/Haiku/
+Sonnet), code-verified (6/6 tests, live-model text-mode probe). Also fixed:
+continuous-LID endpoint config, Spanish/English sentence-mixing in TTS prompt,
+Gemini retry_on_timeout. Live mic verification still pending for all of it.
 
 ---
 
