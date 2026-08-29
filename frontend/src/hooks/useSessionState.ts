@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { apiClient } from "../api/client";
 import type { ServerEvent } from "../api/types";
 import { useSessionStore } from "../state/store";
@@ -10,9 +10,13 @@ export function useSessionState() {
   const setStatus = useSessionStore((s) => s.setStatus);
   const applyEvent = useSessionStore((s) => s.applyEvent);
   const { data, connectionStatus } = useEventSource<ServerEvent>("/api/events");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    apiClient.getStatus().then(setStatus);
+    apiClient
+      .getStatus()
+      .then(setStatus)
+      .catch((e) => setError((e as Error).message));
   }, [setStatus]);
 
   useEffect(() => {
@@ -20,13 +24,25 @@ export function useSessionState() {
   }, [data, applyEvent]);
 
   async function start() {
+    setError(null);
+    const previousStatus = status;
     setStatus({ running: true, ready: false, graceful: null });
-    await apiClient.startSession();
+    try {
+      await apiClient.startSession();
+    } catch (e) {
+      setStatus(previousStatus);
+      setError((e as Error).message);
+    }
   }
 
   async function stop() {
-    await apiClient.stopSession();
+    setError(null);
+    try {
+      await apiClient.stopSession();
+    } catch (e) {
+      setError((e as Error).message);
+    }
   }
 
-  return { status, transcript, connectionStatus, start, stop };
+  return { status, transcript, connectionStatus, error, start, stop };
 }

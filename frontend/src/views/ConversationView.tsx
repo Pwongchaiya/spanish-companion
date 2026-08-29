@@ -6,10 +6,11 @@ function stateLabel(running: boolean, ready: boolean): string {
 }
 
 export function ConversationView() {
-  const { status, transcript, connectionStatus, start, stop } = useSessionState();
+  const { status, transcript, connectionStatus, error, start, stop } = useSessionState();
 
   return (
     <div className="view">
+      {error && <p className="conn-error">{error}</p>}
       <div className="status-row">
         <span className={`status-dot ${status.running ? (status.ready ? "ready" : "warming") : "stopped"}`} />
         <span>{stateLabel(status.running, status.ready)}</span>

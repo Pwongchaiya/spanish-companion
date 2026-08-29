@@ -1,9 +1,18 @@
 import type { Explanation, Flag, PracticeAttempt, SessionStatus } from "./types";
 
+export type ApiClientError = Error & { status?: number };
+
+function createApiClientError(message: string, status?: number): ApiClientError {
+  const error = new Error(message) as ApiClientError;
+  error.status = status;
+  return error;
+}
+
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error((body as { error?: string }).error ?? `Request failed: ${res.status}`);
+    const message = (body as { error?: string }).error ?? `Request failed: ${res.status}`;
+    throw createApiClientError(message, res.status);
   }
   return res.json() as Promise<T>;
 }
