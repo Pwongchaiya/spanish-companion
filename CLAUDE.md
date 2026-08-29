@@ -229,6 +229,32 @@ to a local `.claude/agents/*.md` patch (gitignored, machine-local, but
 guaranteed to be read since it IS the agent's instructions) rather than
 repeatedly overriding per-invocation.
 
+### Hierarchical Agent Delegation
+
+A general convention for any multi-step work that splits into judgment work plus
+bounded mechanical work at meaningful scale (roughly 3+ independent, parallelizable
+sub-tasks) — not limited to Standard layer builds. Established from the audit +
+Phase 3 planning pipeline that produced
+`decisions/phase-3-architectural-foundation-rebuild.md`. Full rationale and worked
+example: `Projects/spanish-companion/decisions/hierarchical-agent-delegation.md`
+(Obsidian).
+
+| Tier | Model | Role | Use for |
+|---|---|---|---|
+| Plan/Orchestrate | Opus | Task decomposition, wave/dependency ordering, synthesizing parallel worker output, verification-bounce decisions | Any judgment call needing the whole picture — no single worker sees the full dependency graph |
+| Audit/Build | Sonnet | The existing Broker/Foundation/Processing/Orchestration/Aggregation/Exposer Agents, and the Auditor Agent | Unchanged from current practice — actual code generation and Standard-rule checking |
+| Worker | Haiku | Bounded, mechanical, no-judgment sub-tasks against a fully self-contained input | Parallel fan-out extraction/transformation — each sub-task independent, no synthesis required |
+
+**Verification-bounce protocol** (mirrors the existing Auditor Agent convention): a
+Plan/Orchestrate-tier pass checks Worker or Audit/Build output against its source
+input before accepting it. On failure, bounce back to the originating tier for
+correction — cap at 3 cycles, then escalate to the user rather than looping
+indefinitely.
+
+**Do not apply this for its own sake.** A single bug fix, a small sequential task, or
+work with no natural judgment/mechanical split doesn't need tiering — dispatch
+directly.
+
 ### Slash Commands
 
 | Command | Purpose |
