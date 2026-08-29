@@ -7,3 +7,4 @@ data/corpus/*.html
 .claude-toolkit
 voice/logs/
 review/logs/
+.repowise/
