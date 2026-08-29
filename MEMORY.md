@@ -8,20 +8,17 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-08-29-0003.md — Closed out every
-remaining Phase 2 architecture question. Resolved the `api`/`rag` package
-split (two top-level packages, `api` depends on `rag`, never the reverse)
-and corrected the internal layout to layer-first-then-feature
-(`brokers/`, `models/`, `services/<feature>/`, `controllers/<feature>/`),
-matching the user's `NL.Core.Entitlements` .NET reference project exactly.
-Resolved the Phase 2 test strategy: pytest, three tiers (unit fully mocked,
-integration real DB + mocked external APIs, acceptance full in-process
-Flask app), modeled on that same reference project's "The Standard" testing
-conventions, stdlib `unittest.mock` only. Committed the previously-untracked
-`frontend/` Vite scaffold and created empty `api`/`rag`/`tests` directory
-skeletons on disk. Nothing remains open before Phase 2 build starts — next
-session should register the first entity (Session Lifecycle) via
-`/new-entity`.
+Projects/spanish-companion/sessions/2026-08-29-0953.md — Pinned the
+shared broker method surfaces, registered all six Phase 2 features, then
+built nearly the entire backend via a parallel multi-agent orchestration
+(Opus-designed 7-wave dependency graph): SessionLifecycle, Ingestion,
+Retrieval, Generation, and Review are all Broker/Service/Controller
+complete, `app.py` wires Session Lifecycle + Review (verified via Flask's
+test client), and Voice Conversation's code (manual port) is written but
+NOT hardware/mic verified. Auditor passes caught real bugs at every wave;
+one bug (`ALLOWED_ORIGINS` missing `127.0.0.1`) was caught live by the
+user. Testing was explicitly deferred mid-build across all six features.
+Next session should start with the Voice Conversation hardware/mic test.
 
 ---
 
