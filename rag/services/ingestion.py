@@ -98,9 +98,13 @@ class IngestionService:
 
         embeddings = self._embedding_model.embed(chunks)
 
-        # strict=True: a short embeddings list would otherwise truncate silently, dropping
-        # rows while the function still returns len(chunks) — a count that never happened.
-        for chunk, embedding in zip(chunks, embeddings, strict=True):
+        # Checked up front, not via zip(strict=True) inside the loop: writes have no
+        # rollback (ChunkRepositoryBroker has no delete path), so a mismatch must fail
+        # before any row is inserted, not after the loop has already written some.
+        if len(embeddings) != len(chunks):
+            raise ValueError(f"embedding count {len(embeddings)} does not match chunk count {len(chunks)}")
+
+        for chunk, embedding in zip(chunks, embeddings):
             self._chunk_repository.insert_chunk(
                 topic=topic,
                 source_url=source_url,

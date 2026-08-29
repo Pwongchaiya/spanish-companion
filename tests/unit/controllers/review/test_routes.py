@@ -1,0 +1,178 @@
+"""Unit tests for the Review blueprint's HTTP mapping.
+
+Per CLAUDE.md's Phase 2 test strategy and the Exposer Agent's waivers: this
+tier verifies HTTP mapping only (status codes, JSON shape, isoformat
+timestamps, FlagNotFoundException -> 404, attempt_text validation -> 400
+before the orchestrator is ever called) -- never Review's actual flow logic.
+ReviewOrchestrator is mocked via unittest.mock.Mock(spec=ReviewOrchestrator);
+tests/unit/services/review/ (a parallel dispatch) covers the real logic.
+"""
+
+from datetime import datetime
+from unittest.mock import Mock
+
+import pytest
+from flask import Flask
+
+from api.brokers.practice_log import PracticeAttempt
+from api.controllers.review import make_review_blueprint
+from api.models.flag import Flag
+from api.services.review import FlagNotFoundException, ReviewOrchestrator
+from rag.models.generation import Explanation
+
+
+@pytest.fixture
+def mock_orchestrator():
+    return Mock(spec=ReviewOrchestrator)
+
+
+@pytest.fixture
+def client(mock_orchestrator):
+    app = Flask(__name__)
+    app.register_blueprint(make_review_blueprint(mock_orchestrator))
+    return app.test_client()
+
+
+@pytest.fixture
+def flag():
+    return Flag(
+        id="flag-1",
+        said="yo soy tener",
+        corrected="yo tengo",
+        category="verb_conjugation",
+        timestamp=datetime(2026, 8, 1, 12, 0, 0),
+    )
+
+
+class TestListFlags:
+
+    def test_should_return_200_with_isoformat_timestamp_when_flags_exist(self, client, mock_orchestrator, flag):
+        # given
+        mock_orchestrator.list_flags.return_value = [flag]
+
+        # when
+        response = client.get("/review/flags")
+
+        # then
+        assert response.status_code == 200
+        body = response.get_json()
+        assert body == [
+            {
+                "id": "flag-1",
+                "said": "yo soy tener",
+                "corrected": "yo tengo",
+                "category": "verb_conjugation",
+                "timestamp": "2026-08-01T12:00:00",
+            }
+        ]
+        assert isinstance(body[0]["timestamp"], str)
+        mock_orchestrator.list_flags.assert_called_once_with()
+
+    def test_should_return_200_with_empty_list_when_no_flags(self, client, mock_orchestrator):
+        # given
+        mock_orchestrator.list_flags.return_value = []
+
+        # when
+        response = client.get("/review/flags")
+
+        # then
+        assert response.status_code == 200
+        assert response.get_json() == []
+
+
+class TestExplainFlag:
+
+    def test_should_return_200_with_explanation_when_flag_found(self, client, mock_orchestrator):
+        # given
+        mock_orchestrator.explain_flag.return_value = Explanation(
+            explanation="Use 'tengo' for the first person present of tener.",
+            source_url="https://rae.es/some-topic",
+        )
+
+        # when
+        response = client.get("/review/flags/flag-1/explain")
+
+        # then
+        assert response.status_code == 200
+        assert response.get_json() == {
+            "explanation": "Use 'tengo' for the first person present of tener.",
+            "source_url": "https://rae.es/some-topic",
+        }
+        mock_orchestrator.explain_flag.assert_called_once_with("flag-1")
+
+    def test_should_return_404_with_error_body_when_flag_not_found(self, client, mock_orchestrator):
+        # given
+        mock_orchestrator.explain_flag.side_effect = FlagNotFoundException("flag-1")
+
+        # when
+        response = client.get("/review/flags/flag-1/explain")
+
+        # then
+        assert response.status_code == 404
+        assert response.get_json() == {"error": "No flag found with id 'flag-1'"}
+
+
+class TestRecordPractice:
+
+    def test_should_return_201_with_isoformat_timestamp_when_practice_recorded(self, client, mock_orchestrator):
+        # given
+        mock_orchestrator.record_practice.return_value = PracticeAttempt(
+            flag_id="flag-1",
+            attempt_text="yo tengo",
+            timestamp=datetime(2026, 8, 1, 12, 5, 0),
+        )
+
+        # when
+        response = client.post("/review/flags/flag-1/practice", json={"attempt_text": "yo tengo"})
+
+        # then
+        assert response.status_code == 201
+        body = response.get_json()
+        assert body == {
+            "flag_id": "flag-1",
+            "attempt_text": "yo tengo",
+            "timestamp": "2026-08-01T12:05:00",
+        }
+        assert isinstance(body["timestamp"], str)
+        mock_orchestrator.record_practice.assert_called_once_with("flag-1", "yo tengo")
+
+    def test_should_return_404_with_error_body_when_flag_not_found(self, client, mock_orchestrator):
+        # given
+        mock_orchestrator.record_practice.side_effect = FlagNotFoundException("flag-1")
+
+        # when
+        response = client.post("/review/flags/flag-1/practice", json={"attempt_text": "yo tengo"})
+
+        # then
+        assert response.status_code == 404
+        assert response.get_json() == {"error": "No flag found with id 'flag-1'"}
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {},  # missing attempt_text entirely
+            {"attempt_text": None},  # explicit null
+            {"attempt_text": "   "},  # blank string
+            {"attempt_text": 42},  # non-string
+        ],
+        ids=["missing", "null", "blank", "non-string"],
+    )
+    def test_should_return_400_without_calling_orchestrator_when_attempt_text_invalid(
+        self, client, mock_orchestrator, body
+    ):
+        # when
+        response = client.post("/review/flags/flag-1/practice", json=body)
+
+        # then
+        assert response.status_code == 400
+        assert response.get_json() == {"error": "attempt_text is required"}
+        mock_orchestrator.record_practice.assert_not_called()
+
+    def test_should_return_400_not_500_when_no_json_body_sent(self, client, mock_orchestrator):
+        # when -- no json=, no data=, no Content-Type at all
+        response = client.post("/review/flags/flag-1/practice")
+
+        # then
+        assert response.status_code == 400
+        assert response.get_json() == {"error": "attempt_text is required"}
+        mock_orchestrator.record_practice.assert_not_called()
