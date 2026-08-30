@@ -9,15 +9,15 @@ this service unwrapped" guarantee.
 
 Three wrapper tiers, one more than Session Lifecycle collapsed to, because
 Review has a genuine dependency-failure category that Session Lifecycle
-lacks: RetrievalUnavailableError from RetrievalController.retrieve()
-(rag/services/retrieval/service.py:76-84).
+lacks: RetrievalOrchestrationDependencyException from
+RetrievalController.retrieve().
 
 Two cited omissions from the reference's tier set:
 
 1. No DependencyValidation tier (Exeptions.cs:29-52 /
    CreateAndLogDependencyValidationException, Exeptions.cs:100-110).
-   RetrievalUnavailableError is an infrastructure outage, not a rejected
-   input, so nothing validation-shaped would ever reach that tier.
+   Retrieval's dependency failure is an infrastructure outage, not a
+   rejected input, so nothing validation-shaped would ever reach that tier.
 2. No Generation dependency catch. GenerationError is handled inside
    GenerationService.explain() (rag/services/generation.py:37-46) and
    replaced with a fallback string; it never propagates to
@@ -40,7 +40,7 @@ from api.models.review.exceptions import (
     ReviewOrchestrationServiceException,
     ReviewOrchestrationValidationException,
 )
-from rag.services.retrieval.service import RetrievalUnavailableError
+from rag.models.retrieval.exceptions import RetrievalOrchestrationDependencyException
 
 T = TypeVar("T")
 
@@ -58,7 +58,7 @@ class ReviewOrchestratorExceptions:
             raise self._create_and_log_validation_exception(e) from e
         except NotFoundFlagException as e:
             raise self._create_and_log_validation_exception(e) from e
-        except RetrievalUnavailableError as e:
+        except RetrievalOrchestrationDependencyException as e:
             raise self._create_and_log_dependency_exception(e) from e
         except Exception as e:
             failed = FailedReviewOrchestrationServiceException(inner_exception=e)
@@ -77,12 +77,20 @@ class ReviewOrchestratorExceptions:
     ) -> ReviewOrchestrationDependencyException:
         """Mirrors CreateAndLogDependencyException, Exeptions.cs:112-122.
 
-        Cited divergence: the reference unwraps one level
-        (`exception.InnerException as Xeption`, Exeptions.cs:117) because
-        what it catches is itself already a wrapper from the Processing
-        service beneath it. Review catches RetrievalUnavailableError
-        directly -- it IS the leaf -- so it is carried through whole rather
-        than unwrapped into None.
+        What arrives here is RetrievalOrchestrationDependencyException --
+        already wrapped by Retrieval's own Orchestration tier
+        (rag/services/retrieval/retrieval_service_exceptions.py), which is
+        what holds the RetrievalUnavailableError leaf. That is the
+        reference's own cross-service shape, Exeptions.cs:53-76: the outer
+        service catches the *wrapper* types the service beneath it raises,
+        never that service's raw leaves.
+
+        Cited divergence retained from the reference: it unwraps one level
+        (`exception.InnerException as Xeption`, Exeptions.cs:117). Review
+        carries the wrapper through whole instead, so the leaf stays
+        reachable as `.inner_exception.inner_exception` rather than being
+        flattened -- same call already made for
+        FailedReviewOrchestrationServiceException.
         """
         dependency_exception = ReviewOrchestrationDependencyException(inner_exception=exception)
         self._logging_broker.log_error(dependency_exception)

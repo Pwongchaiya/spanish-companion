@@ -9,7 +9,7 @@ there is no HTTP response to map.
 from typing import List, Optional
 
 from rag.models.retrieval import ScoredChunk
-from rag.services.retrieval.service import HybridRetrievalService
+from rag.services.retrieval import HybridRetrievalService
 
 
 class RetrievalController:

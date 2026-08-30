@@ -23,7 +23,7 @@ import pytest
 
 from rag.brokers.chunk_repository import EMBEDDING_DIM
 from rag.brokers.embedding_model import EmbeddingModelBroker
-from rag.services.retrieval.service import HybridRetrievalService
+from rag.services.retrieval import HybridRetrievalService
 
 EMBEDDING_MODEL_VERSION = "test-model-v1"
 CHUNKING_STRATEGY_VERSION = "test-chunking-v1"

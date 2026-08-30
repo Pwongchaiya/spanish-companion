@@ -11,9 +11,13 @@ hand-written per the same mapping) fetches page text and hands it in. That
 keeps `requests`/BeautifulSoup out of the service layer and makes ingest_topic
 a pure text -> rows operation.
 
-Broker exceptions (SQLAlchemy, pgvector, model load) propagate unwrapped: the
-architecture record names no ingestion-specific exception, and inventing a
-hierarchy for zero named cases is the exception-hierarchy waiver's whole point.
+Split into a base logic file plus Validations/Exceptions mixins (this file,
+ingestion_service_validations.py, ingestion_service_exceptions.py), combined
+into the concrete IngestionService in __init__.py — mirrors C#'s `partial
+class` merging EntitlementCodesOrchestrationService.cs /
+.Validations.cs / .Exeptions.cs into one class, the same
+multi-inheritance-merge already used for Session Lifecycle and Review in this
+codebase.
 """
 
 import os
@@ -22,12 +26,13 @@ from dotenv import load_dotenv
 
 from rag.brokers.chunk_repository import ChunkRepositoryBroker
 from rag.brokers.embedding_model import EmbeddingModelBroker
-from rag.errors import RagError
+from rag.brokers.logging import LoggingBroker, StdlibLoggingBroker
+from rag.models.ingestion.exceptions import IngestionUnavailableError
 
 load_dotenv()
 
 # ponytail: one knob -> plain os.getenv at import time, same pattern as
-# rag/ingest.py and api/services/session_lifecycle.py. Same env var and same
+# rag/ingest.py and api/services/session_lifecycle/. Same env var and same
 # default as Phase 1's chunker, so re-ingesting produces identical chunks.
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "800"))
 
@@ -38,11 +43,10 @@ CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "800"))
 # become indistinguishable in the `chunks` table and a targeted re-ingest of just the
 # stale ones is impossible. Per the architecture record's "track a chunking-strategy
 # version alongside the embedding-model version".
+#
+# No reference-project analog: this and chunk_text() below are pure MVP business
+# logic, carried through this rebuild byte-identical.
 CHUNKING_STRATEGY_VERSION = "v1"
-
-
-class IngestionValidationError(RagError):
-    """Raised when ingestion input fails validation."""
 
 
 def chunk_text(text: str) -> list[str]:
@@ -59,29 +63,42 @@ def chunk_text(text: str) -> list[str]:
     return chunks
 
 
-class IngestionService:
-    """Chunks, embeds, and persists corpus text for one topic."""
+class _IngestionServiceBase:
+    """Chunks, embeds, and persists corpus text for one topic.
 
-    def __init__(self, chunk_repository: ChunkRepositoryBroker, embedding_model: EmbeddingModelBroker) -> None:
+    The public method delegates to a private `_ingest_topic` through
+    `_try_catch` (defined in the Exceptions mixin), mirroring
+    EntitlementCodesOrchestrationService.cs:36-65's
+    `RedeemEntitlementCodeForUserAsync(...) => TryCatch(async () => {...})`.
+    Validation checks are named methods (defined in the Validations mixin)
+    rather than inlined, mirroring its sibling .Validations.cs:12-17.
+    """
+
+    def __init__(
+        self,
+        chunk_repository: ChunkRepositoryBroker,
+        embedding_model: EmbeddingModelBroker,
+        logging_broker: LoggingBroker = StdlibLoggingBroker(),
+    ) -> None:
         self._chunk_repository = chunk_repository
         self._embedding_model = embedding_model
+        # Mirrors the `ILoggingBroker loggingBroker` constructor parameter on
+        # EntitlementCodesOrchestrationService.cs:22-33 — every
+        # _create_and_log_* method logs through it before raising. Defaulted
+        # (unlike the reference's required DI parameter) so the hand-written
+        # CLI at rag/controllers/ingestion.py:82 keeps working unchanged;
+        # CLAUDE.md's waiver table forbids reshaping that file.
+        self._logging_broker = logging_broker
 
     def ingest_topic(self, topic: str, source_url: str, text: str) -> int:
-        """Chunk `text`, embed the chunks in one batch, insert each. Returns rows inserted.
+        return self._try_catch(lambda: self._ingest_topic(topic, source_url, text))
 
-        Empty or whitespace-only `text` yields zero chunks and returns 0 without
-        touching either broker.
-
-        Raises IngestionValidationError if `topic` or `source_url` is missing or blank.
-        """
+    def _ingest_topic(self, topic: str, source_url: str, text: str) -> int:
         # Writes to `chunks` are one-way — ChunkRepositoryBroker has no delete path —
         # and a blank string is not NULL, so it sails past the column's NOT NULL
         # constraint and lands in the corpus permanently. Guard here, before anything
         # is embedded or inserted.
-        if not topic or not topic.strip():
-            raise IngestionValidationError("topic is required")
-        if not source_url or not source_url.strip():
-            raise IngestionValidationError("source_url is required")
+        self._validate_ingest_topic_input(topic, source_url)
 
         # ponytail: dict.fromkeys is stdlib order-preserving dedupe. Scoped to
         # THIS call only — repeated boilerplate (nav text, a repeated legal
@@ -94,22 +111,33 @@ class IngestionService:
         if not chunks:
             return 0
 
-        embeddings = self._embedding_model.embed(chunks)
+        # Broker failures (sentence-transformers model load, SQLAlchemy,
+        # pgvector) are wrapped into one named leaf here, then into
+        # IngestionOrchestrationDependencyException by _try_catch. Same two
+        # wrap sites, same `raise X(str(e)) from e` shape, as
+        # RetrievalUnavailableError in
+        # rag/services/retrieval/retrieval_service.py:121-124 and :132-135.
+        try:
+            embeddings = self._embedding_model.embed(chunks)
+        except Exception as e:
+            raise IngestionUnavailableError(str(e)) from e
 
         # Checked up front, not via zip(strict=True) inside the loop: writes have no
         # rollback (ChunkRepositoryBroker has no delete path), so a mismatch must fail
         # before any row is inserted, not after the loop has already written some.
-        if len(embeddings) != len(chunks):
-            raise IngestionValidationError(f"embedding count {len(embeddings)} does not match chunk count {len(chunks)}")
+        self._validate_embeddings_match_chunks(embeddings, chunks)
 
-        for chunk, embedding in zip(chunks, embeddings):
-            self._chunk_repository.insert_chunk(
-                topic=topic,
-                source_url=source_url,
-                content=chunk,
-                embedding=embedding,
-                embedding_model_version=self._embedding_model.model_name,
-                chunking_strategy_version=CHUNKING_STRATEGY_VERSION,
-            )
+        try:
+            for chunk, embedding in zip(chunks, embeddings):
+                self._chunk_repository.insert_chunk(
+                    topic=topic,
+                    source_url=source_url,
+                    content=chunk,
+                    embedding=embedding,
+                    embedding_model_version=self._embedding_model.model_name,
+                    chunking_strategy_version=CHUNKING_STRATEGY_VERSION,
+                )
+        except Exception as e:
+            raise IngestionUnavailableError(str(e)) from e
 
         return len(chunks)

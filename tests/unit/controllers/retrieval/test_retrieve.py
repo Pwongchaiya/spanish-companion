@@ -10,7 +10,7 @@ import pytest
 
 from rag.controllers.retrieval import RetrievalController
 from rag.models.retrieval import ScoredChunk
-from rag.services.retrieval.service import HybridRetrievalService
+from rag.services.retrieval import HybridRetrievalService
 
 
 @pytest.fixture

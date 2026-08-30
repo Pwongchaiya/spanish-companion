@@ -19,7 +19,7 @@ import pytest
 from rag.brokers.chunk_repository import ChunkRepositoryBroker
 from rag.brokers.embedding_model import EmbeddingModelBroker
 from rag.models.retrieval import ScoredChunk
-from rag.services.retrieval.service import HybridRetrievalService
+from rag.services.retrieval import HybridRetrievalService
 from rag.services.retrieval.strategies.dense import RetrievalStrategy
 from rag.services.retrieval.strategies.fusion import PassThroughRankFusion
 

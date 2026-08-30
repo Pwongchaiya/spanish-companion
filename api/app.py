@@ -38,7 +38,7 @@ from rag.brokers.generation import GeminiGenerationBroker
 from rag.controllers.generation import GenerationController
 from rag.controllers.retrieval import RetrievalController
 from rag.services.generation import GenerationService
-from rag.services.retrieval.service import HybridRetrievalService
+from rag.services.retrieval import HybridRetrievalService
 
 load_dotenv()
 
@@ -115,8 +115,12 @@ def create_app() -> Flask:
     # --- Review (composes Retrieval + Generation via rag's controllers) ---
     chunk_repository = SqlAlchemyChunkRepositoryBroker(connection_string=os.environ["DATABASE_URL"])
     embedding_model = SentenceTransformerEmbeddingModelBroker()
-    retrieval_controller = RetrievalController(HybridRetrievalService(embedding_model, chunk_repository))
-    generation_controller = GenerationController(GenerationService(GeminiGenerationBroker()))
+    retrieval_controller = RetrievalController(
+        HybridRetrievalService(embedding_model, chunk_repository, logging_broker=logging_broker)
+    )
+    generation_controller = GenerationController(
+        GenerationService(GeminiGenerationBroker(), logging_broker=logging_broker)
+    )
     flag_broker = JsonFileFlagBroker()
     review_orchestrator = ReviewOrchestrator(
         flag_broker=flag_broker,

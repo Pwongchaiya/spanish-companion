@@ -11,6 +11,20 @@ placeholders — see strategies/fusion.py and strategies/filters.py.
 Per the CLAUDE.md Phase 2 waiver this service depends on brokers directly:
 there is no Foundation layer beneath it, so ORC-001 (dep count) and ORC-002
 (no direct broker deps) do not apply.
+
+Split into this base logic file plus an Exceptions mixin
+(retrieval_service_exceptions.py), combined into the concrete
+HybridRetrievalService in __init__.py -- mirrors C#'s `partial class`
+merging EntitlementCodesOrchestrationService.cs /
+EntitlementCodesOrchestrationService.Exeptions.cs into one class, the same
+multi-inheritance-merge already used for Session Lifecycle and Review in
+this codebase.
+
+There is deliberately NO retrieval_service_validations.py sibling to the
+reference's EntitlementCodesOrchestrationService.Validations.cs. Retrieval's
+only input checks raise a bare ValueError and are intentionally left
+unwrapped and inline (see _validate-free guards in retrieve() below), so
+there is no named validation method for such a file to hold.
 """
 
 import logging
@@ -18,8 +32,9 @@ from typing import List, Optional, Sequence
 
 from rag.brokers.chunk_repository import ChunkRepositoryBroker
 from rag.brokers.embedding_model import EmbeddingModelBroker
-from rag.errors import RagError
+from rag.brokers.logging import LoggingBroker, StdlibLoggingBroker
 from rag.models.retrieval import ScoredChunk
+from rag.models.retrieval.exceptions import RetrievalUnavailableError
 from rag.services.retrieval.strategies.dense import DenseVectorStrategy, RetrievalStrategy
 from rag.services.retrieval.strategies.filters import CategoryBoostFilter, ResultFilter
 from rag.services.retrieval.strategies.fusion import PassThroughRankFusion, RankFusionStrategy
@@ -27,17 +42,18 @@ from rag.services.retrieval.strategies.fusion import PassThroughRankFusion, Rank
 logger = logging.getLogger(__name__)
 
 
-class RetrievalUnavailableError(RagError):
-    """Raised when the chunk store or embedding model is unreachable."""
-
-
-class HybridRetrievalService:
+class _HybridRetrievalServiceBase:
     """Finds the corpus chunks that ground a Review Mode explanation.
 
     Direct dependencies are the embedding broker (query embedding) plus the
     pipeline stages it composes. The ChunkRepositoryBroker is passed in only
     to build the default DenseVectorStrategy — that strategy owns it, and
     this service never calls it.
+
+    The public `retrieve` delegates to a private `_retrieve` through
+    `_try_catch` (defined in the Exceptions mixin), mirroring
+    EntitlementCodesOrchestrationService.cs:36-65's
+    `RedeemEntitlementCodeForUserAsync(...) => TryCatch(async () => {...})`.
     """
 
     def __init__(
@@ -47,6 +63,7 @@ class HybridRetrievalService:
         strategies: Optional[Sequence[RetrievalStrategy]] = None,
         fusion: Optional[RankFusionStrategy] = None,
         filters: Optional[Sequence[ResultFilter]] = None,
+        logging_broker: LoggingBroker = StdlibLoggingBroker(),
     ) -> None:
         self._embedding_model = embedding_model
         # Defaults are the whole MVP pipeline, so app.py wires two brokers and
@@ -57,6 +74,9 @@ class HybridRetrievalService:
         )
         self._fusion: RankFusionStrategy = fusion if fusion is not None else PassThroughRankFusion()
         self._filters: Sequence[ResultFilter] = filters if filters is not None else []
+        # Mirrors the `ILoggingBroker loggingBroker` constructor parameter on
+        # EntitlementCodesOrchestrationService.cs:22-33.
+        self._logging_broker = logging_broker
 
     def retrieve(self, query: str, top_k: int, category: Optional[str] = None) -> List[ScoredChunk]:
         """Return up to top_k chunks grounding `query`, best-first.
@@ -74,15 +94,27 @@ class HybridRetrievalService:
             calling Generation.
 
         Raises:
-            ValueError: blank query, or top_k < 1.
-            RetrievalUnavailableError: the chunk store or embedding model is
-                unreachable.
+            ValueError: blank query, or top_k < 1. Raised *before* _try_catch
+                is entered, so it propagates completely raw — see
+                retrieval_service_exceptions.py's module docstring.
+            RetrievalOrchestrationDependencyException: wrapping
+                RetrievalUnavailableError when the chunk store or embedding
+                model is unreachable.
+            RetrievalOrchestrationServiceException: anything else.
         """
+        # Deliberately outside _try_catch: these two are programming errors at
+        # the call site, not conditions a caller handles. Kept inline rather
+        # than extracted into a named validation method, which is why there is
+        # no retrieval_service_validations.py mirroring
+        # EntitlementCodesOrchestrationService.Validations.cs.
         if not query or not query.strip():
             raise ValueError("query is required")
         if top_k < 1:
             raise ValueError(f"top_k must be at least 1, got {top_k}")
 
+        return self._try_catch(lambda: self._retrieve(query, top_k, category))
+
+    def _retrieve(self, query: str, top_k: int, category: Optional[str]) -> List[ScoredChunk]:
         # Query text at DEBUG only (user speech); ids and counts at INFO.
         logger.debug("retrieve query=%r top_k=%d category=%r", query, top_k, category)
 
