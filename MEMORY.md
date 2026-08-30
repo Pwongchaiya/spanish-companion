@@ -8,22 +8,21 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-08-29-1654.md — Built and verified
-all six waves of the Phase 3 rebuild plan via the Hierarchical Agent
-Delegation convention (Opus plan/orchestrate this session, Sonnet streams
-for judgment work, Haiku fan-out for 5 mechanical exception retargets).
-Shared ApiError/RagError bases; every feature's exceptions named;
-is_running() now captures the real subprocess return code; flag-write
-failures no longer silent; ChunkRepositoryBroker/EmbeddingModelBroker
-integration tests added; frontend start/stop/getStatus error handling +
-rollback + vitest (8 tests); embedding-model mismatch warning + broker-
-sourced version tagging + migration runbook; CLAUDE.md waiver table synced;
-4 stray Phase 1 rag/ files deleted (user-approved). 123 backend tests +
-frontend build/vitest green throughout. One real bug caught and fixed
-during verification: a Voice Conversation fix's
-`except subprocess.TimeoutExpired` referenced an unimported module and
-would never have fired (pipecat 1.8.1 swallows its setup timeout
-internally) — bounced back to the stream, fixed, re-verified.
+Projects/spanish-companion/sessions/2026-08-29-1837.md — Rebuilt Session
+Lifecycle's Broker/Foundation/Controller layer against the source-of-truth
+repo NL.Core.Entitlements, file:line cited for every structural choice, in
+two passes: (1) error handling — ApiError gained inner_exception, leaf
+exceptions renamed and now always wrapped into SessionValidationException/
+SessionServiceException before leaving the service, new LoggingBroker,
+controller HTTP remap (not-running now 404, was 409); (2) folder layout —
+brokers/services/models restructured into per-feature subpackages matching
+the reference tree (controllers stay flat, matching source). Corrected 3
+`.claude-toolkit` skills that disagreed with the actual reference project,
+landed as a separate submodule commit. Full backend suite (123 tests) green
+throughout. See
+Projects/spanish-companion/decisions/session-lifecycle-rebuilt-against-source-of-truth.md
+for the full citation-by-citation record. Next: same rebuild for the
+remaining five features (fan-out) — not started.
 
 ---
 
