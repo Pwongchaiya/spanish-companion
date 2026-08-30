@@ -1,6 +1,6 @@
 """Foundation service for the voice-conversation session lifecycle.
 
-Composes BotProcessBroker's raw primitives (api/brokers/bot_process.py) into
+Composes BotProcessBroker's raw primitives (api/brokers/bot_process/) into
 the policy the broker deliberately leaves out: double-start refusal, the
 graceful -> terminate -> kill stop escalation, and the ready-vs-running
 distinction. See BotProcessBroker's docstring for the composition order this
@@ -9,6 +9,14 @@ wait(timeout) -> terminate() -> wait(timeout) -> kill().
 
 Single broker dependency -> Foundation layer, not Orchestration, per
 CLAUDE.md's Phase 2 Layer-Agent Mapping & Waivers.
+
+Split into a base logic file plus Validations/Exceptions mixins (this file,
+session_lifecycle_service_validations.py, session_lifecycle_service_exceptions.py),
+combined into the concrete ConversationSessionService in __init__.py --
+mirrors C#'s `partial class` merging multiple files into one class
+(python-adaptations-skill.md's Architecture Patterns table), the same
+multi-inheritance-merge idea already used for broker packages in this
+codebase.
 """
 
 import os
@@ -19,8 +27,8 @@ from typing import Callable, Optional
 from dotenv import load_dotenv
 
 from api.brokers.bot_process import BotProcessBroker
-from api.errors import ApiError
-from api.models.session_status import SessionStatus
+from api.brokers.logging import LoggingBroker, StdlibLoggingBroker
+from api.models.session_lifecycle.session_status import SessionStatus
 
 load_dotenv()
 
@@ -42,52 +50,41 @@ TERMINATE_TIMEOUT_SECONDS = float(os.getenv("SESSION_TERMINATE_TIMEOUT_SECONDS",
 READY_WARMUP_SECONDS = float(os.getenv("SESSION_READY_WARMUP_SECONDS", "16"))
 
 
-class SessionAlreadyRunningException(ApiError):
-    """Raised by start() when a session is already active.
+class _ConversationSessionServiceBase:
+    """Owns lifecycle policy for the voice-conversation subprocess.
 
-    BotProcessBroker.start() has no such guard by design (see its
-    docstring) -- this service owns the refusal.
+    Public methods delegate to a private `_do_thing` method through
+    `_try_catch` (defined in the Exceptions mixin), per python-adaptations-
+    skill.md's TryCatch translation. Validation checks are named methods
+    (defined in the Validations mixin) rather than inlined, mirroring
+    EntitlementService.cs:31-41.
     """
-
-    def __init__(self) -> None:
-        super().__init__("A conversation session is already running")
-
-
-class SessionNotRunningException(ApiError):
-    """Raised by stop() when there is no active session to stop.
-
-    Deliberately fail-fast rather than a silent no-op: symmetric with
-    start()'s SessionAlreadyRunningException, and a stop() call against a
-    session the caller believes is running but isn't signals a client-side
-    state mismatch worth surfacing immediately rather than swallowing.
-    """
-
-    def __init__(self) -> None:
-        super().__init__("No conversation session is running")
-
-
-class ConversationSessionService:
-    """Owns lifecycle policy for the voice-conversation subprocess."""
 
     def __init__(
         self,
         broker: BotProcessBroker,
         time_source: Callable[[], float] = time.monotonic,
+        logging_broker: LoggingBroker = StdlibLoggingBroker(),
     ) -> None:
         self._broker = broker
         self._time_source = time_source
+        self._logging_broker = logging_broker
         self._started_at: Optional[float] = None
         self._last_stop_graceful: Optional[bool] = None
 
     def start(self) -> None:
-        if self._broker.is_running():
-            raise SessionAlreadyRunningException()
+        self._try_catch(self._start)
+
+    def _start(self) -> None:
+        self._validate_not_already_running()
         self._broker.start()
         self._started_at = self._time_source()
 
     def stop(self) -> None:
-        if not self._broker.is_running():
-            raise SessionNotRunningException()
+        self._try_catch(self._stop)
+
+    def _stop(self) -> None:
+        self._validate_currently_running()
 
         self._broker.send_graceful_signal()
         if self._wait_quietly(GRACEFUL_TIMEOUT_SECONDS):
@@ -103,8 +100,10 @@ class ConversationSessionService:
         # ponytail: SIGKILL/TerminateProcess can't be intercepted or ignored
         # by the child, so this wait is not expected to time out. If it
         # somehow does, that's an OS-level anomaly outside this feature's
-        # two-exception vocabulary -- let subprocess.TimeoutExpired propagate
-        # rather than inventing a third exception type to wrap it.
+        # two-exception vocabulary -- _try_catch's explicit
+        # `except subprocess.TimeoutExpired: raise` clause carves this out
+        # from the generic wrap-and-log path and lets it propagate raw,
+        # rather than inventing a third leaf exception to wrap it.
         self._broker.wait(TERMINATE_TIMEOUT_SECONDS)
         self._last_stop_graceful = False
 

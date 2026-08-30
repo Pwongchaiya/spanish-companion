@@ -13,17 +13,18 @@ import pytest
 from flask import Flask
 
 from api.controllers.session_lifecycle import make_session_lifecycle_blueprint
-from api.models.session_status import SessionStatus
-from api.services.session_lifecycle import (
-    ConversationSessionService,
-    SessionAlreadyRunningException,
-    SessionNotRunningException,
+from api.models.session_lifecycle.exceptions import (
+    AlreadyRunningSessionException,
+    NotRunningSessionException,
+    SessionValidationException,
 )
+from api.models.session_lifecycle.session_status import SessionStatus
+from api.services.session_lifecycle import SessionLifecycleService
 
 
 @pytest.fixture
 def mock_service():
-    return Mock(spec=ConversationSessionService)
+    return Mock(spec=SessionLifecycleService)
 
 
 @pytest.fixture
@@ -51,7 +52,7 @@ class TestSessionLifecycleRoutesStart:
 
     def test_should_return_409_when_session_already_running(self, client, mock_service):
         # given
-        mock_service.start.side_effect = SessionAlreadyRunningException()
+        mock_service.start.side_effect = SessionValidationException(inner_exception=AlreadyRunningSessionException())
 
         # when
         response = client.post("/start")
@@ -78,15 +79,15 @@ class TestSessionLifecycleRoutesStop:
         mock_service.stop.assert_called_once_with()
         mock_service.get_status.assert_called_once_with()
 
-    def test_should_return_409_when_session_not_running(self, client, mock_service):
+    def test_should_return_404_when_session_not_running(self, client, mock_service):
         # given
-        mock_service.stop.side_effect = SessionNotRunningException()
+        mock_service.stop.side_effect = SessionValidationException(inner_exception=NotRunningSessionException())
 
         # when
         response = client.post("/stop")
 
         # then
-        assert response.status_code == 409
+        assert response.status_code == 404
         assert response.get_json() == {"error": "No conversation session is running"}
         mock_service.stop.assert_called_once_with()
         mock_service.get_status.assert_not_called()

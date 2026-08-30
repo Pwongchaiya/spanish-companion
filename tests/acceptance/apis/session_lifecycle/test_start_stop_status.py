@@ -96,5 +96,5 @@ class TestSessionLifecycleAcceptance:
         second_stop_response = client.post("/stop")
 
         # then -- rejected, not running
-        assert second_stop_response.status_code == 409
+        assert second_stop_response.status_code == 404
         assert "error" in second_stop_response.get_json()

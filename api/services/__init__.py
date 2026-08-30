@@ -1,11 +1,9 @@
 from api.services.session_lifecycle import (
     ConversationSessionService,
-    SessionAlreadyRunningException,
-    SessionNotRunningException,
+    SessionLifecycleService,
 )
 
 __all__ = [
     "ConversationSessionService",
-    "SessionAlreadyRunningException",
-    "SessionNotRunningException",
+    "SessionLifecycleService",
 ]

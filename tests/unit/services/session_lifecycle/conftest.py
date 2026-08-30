@@ -9,6 +9,7 @@ import pytest
 from unittest.mock import Mock
 
 from api.brokers.bot_process import BotProcessBroker
+from api.brokers.logging import LoggingBroker
 from api.services.session_lifecycle import ConversationSessionService
 
 
@@ -31,10 +32,15 @@ def mock_broker():
 
 
 @pytest.fixture
+def mock_logging_broker():
+    return Mock(spec=LoggingBroker)
+
+
+@pytest.fixture
 def clock():
     return FakeClock()
 
 
 @pytest.fixture
-def service(mock_broker, clock):
-    return ConversationSessionService(broker=mock_broker, time_source=clock)
+def service(mock_broker, clock, mock_logging_broker):
+    return ConversationSessionService(broker=mock_broker, time_source=clock, logging_broker=mock_logging_broker)
