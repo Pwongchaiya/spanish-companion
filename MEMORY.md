@@ -8,21 +8,29 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-08-29-1837.md — Rebuilt Session
-Lifecycle's Broker/Foundation/Controller layer against the source-of-truth
-repo NL.Core.Entitlements, file:line cited for every structural choice, in
-two passes: (1) error handling — ApiError gained inner_exception, leaf
-exceptions renamed and now always wrapped into SessionValidationException/
-SessionServiceException before leaving the service, new LoggingBroker,
-controller HTTP remap (not-running now 404, was 409); (2) folder layout —
-brokers/services/models restructured into per-feature subpackages matching
-the reference tree (controllers stay flat, matching source). Corrected 3
-`.claude-toolkit` skills that disagreed with the actual reference project,
-landed as a separate submodule commit. Full backend suite (123 tests) green
-throughout. See
-Projects/spanish-companion/decisions/session-lifecycle-rebuilt-against-source-of-truth.md
-for the full citation-by-citation record. Next: same rebuild for the
-remaining five features (fan-out) — not started.
+Projects/spanish-companion/sessions/2026-08-29-2042.md — Completed the
+source-of-truth fan-out: Voice Conversation (folder-layout only, hand-applied)
+then Ingestion/Retrieval/Generation via true-parallel Hierarchical Agent
+Delegation (Opus Plan/Orchestrate confirmed the wave's shape, then 3
+concurrent background agents — Orchestration Agent x2, Foundation Agent x1
+— built each feature, synthesized afterward). Ingestion: 3-tier exception
+hierarchy matching Review's shape, new IngestionUnavailableError leaf.
+Retrieval: 2-tier hierarchy; RetrievalUnavailableError now wraps into
+RetrievalOrchestrationDependencyException before leaving retrieve() — the
+central cross-feature coupling risk, required a coordinated fix to Review's
+review_service_exceptions.py, verified live. Generation: folder layout +
+one new GenerationServiceException safety net; GenerationError's
+swallow-to-fallback behavior untouched. Synthesis-pass fixes after all three
+agents landed: promoted inner_exception onto RagError (matching ApiError),
+consolidated three independently-duplicated LoggingBroker shims into
+rag/brokers/logging/, wired app.py to share its LoggingBroker with all four
+services. 95 passed, 8 failed (Ingestion's pre-existing validation-test
+punch list), 5 collection errors (4 pre-existing Review + 1 stray Phase 1
+file) — no new breakage. All five features now rebuilt against source of
+truth. See
+Projects/spanish-companion/decisions/ingestion-retrieval-generation-rebuilt-against-source-of-truth.md
+for the full citation-by-citation record. Next: the deferred test-writing
+pass — not started.
 
 ---
 
