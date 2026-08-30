@@ -8,29 +8,32 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-08-29-2042.md — Completed the
-source-of-truth fan-out: Voice Conversation (folder-layout only, hand-applied)
-then Ingestion/Retrieval/Generation via true-parallel Hierarchical Agent
-Delegation (Opus Plan/Orchestrate confirmed the wave's shape, then 3
-concurrent background agents — Orchestration Agent x2, Foundation Agent x1
-— built each feature, synthesized afterward). Ingestion: 3-tier exception
-hierarchy matching Review's shape, new IngestionUnavailableError leaf.
-Retrieval: 2-tier hierarchy; RetrievalUnavailableError now wraps into
-RetrievalOrchestrationDependencyException before leaving retrieve() — the
-central cross-feature coupling risk, required a coordinated fix to Review's
-review_service_exceptions.py, verified live. Generation: folder layout +
-one new GenerationServiceException safety net; GenerationError's
-swallow-to-fallback behavior untouched. Synthesis-pass fixes after all three
-agents landed: promoted inner_exception onto RagError (matching ApiError),
-consolidated three independently-duplicated LoggingBroker shims into
-rag/brokers/logging/, wired app.py to share its LoggingBroker with all four
-services. 95 passed, 8 failed (Ingestion's pre-existing validation-test
-punch list), 5 collection errors (4 pre-existing Review + 1 stray Phase 1
-file) — no new breakage. All five features now rebuilt against source of
-truth. See
-Projects/spanish-companion/decisions/ingestion-retrieval-generation-rebuilt-against-source-of-truth.md
-for the full citation-by-citation record. Next: the deferred test-writing
-pass — not started.
+Projects/spanish-companion/sessions/2026-08-29-2126.md — Planned (not yet
+built) Voice Conversation's internal Broker/Service split:
+voice_conversation_service.py (513 lines, mixed responsibilities) is being
+broken up to match this project's real Broker convention — every existing
+Broker (FlagBroker, LoggingBroker, BotProcessBroker) is a typing.Protocol
+interface + concrete impl in its own per-feature subfolder, confirmed by
+reading them directly. Landed on: 3 new Brokers (ISttBroker+AzureSttBroker,
+ISessionLogBroker+TextFileSessionLogBroker, IPromptBroker+TextFilePromptBroker)
+under api/brokers/voice_conversation/; ConversationOrchestrator becomes
+constructor-injected with all 4 Brokers (incl. the existing FlagBroker);
+pipeline_builder.py/flags.py/mic_gate.py stay plain modules (no
+Broker/Service ceremony — pure logic, single caller each). TTS/LLM stay
+unwrapped — Pipecat's own service objects remain the Broker layer per a
+pre-existing decision; investigated pipecat 1.8.1's actual source and kept
+AzureTTSService (SDK, streaming) over the REST AzureHttpTTSService after a
+latency trade-off (STT can't move off its SDK either way, so REST wouldn't
+even remove the native-dependency cost). Wrote 6 draft files this
+session — 2 of them (prompts.py, session_log.py) are intermediate and will
+be deleted once their Brokers exist; pipeline_builder.py still imports the
+old shape and needs rework. Committed f02a49d (WIP, not the final shape).
+Created a target-architecture canvas:
+Projects/spanish-companion/voice-conversation-architecture.canvas. Full
+record:
+Projects/spanish-companion/decisions/voice-conversation-broker-service-split.md.
+Not hardware-tested — nothing in this session's draft is trusted until a
+real mic test, per CLAUDE.md's standing Voice Conversation waiver.
 
 ---
 
