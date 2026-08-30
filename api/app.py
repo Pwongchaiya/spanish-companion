@@ -67,7 +67,8 @@ ALLOWED_ORIGINS: Tuple[str, ...] = tuple(
     if origin.strip()
 )
 
-# Same path/env-var as api/services/voice_conversation.py's TRANSCRIPT_FILE_PATH
+# Same path/env-var as api/services/voice_conversation/voice_conversation_service.py's
+# TRANSCRIPT_FILE_PATH
 # — duplicated as a constant, not imported, to keep pipecat/Azure/Google out of
 # this process (see module docstring).
 TRANSCRIPT_FILE_PATH = Path(os.getenv("TRANSCRIPT_FILE_PATH", str(REPO_ROOT / "data" / "live_transcript.jsonl")))

@@ -8,7 +8,7 @@ flag persistence — gated on a real mic/hardware test, same method as
 Phase 1. Graceful stop on `/stop` uses a polled stop-flag file (see
 `_watch_for_stop_signal`), not Phase 1's Windows SIGBREAK port — that
 mechanism was confirmed broken via isolated repro, 2026-08-29 (see
-api/brokers/bot_process.py's module docstring).
+api/brokers/bot_process/bot_process_broker.py's module docstring).
 
 Per the architecture decision record, this is the one feature where
 Pipecat's own STT/LLM/TTS service objects ARE the Broker layer — they are
@@ -20,6 +20,22 @@ decision): flags are `Flag` objects (uuid4 id + timestamp), persisted via
 FlagBroker.save_flags() instead of Phase 1's direct save_flags_json() file
 write. Pipeline wiring, the system prompt, and transcript logging are
 unchanged — no reason to touch code that's already hardware-verified.
+
+Folder layout matches the per-feature subpackage convention established
+for Session Lifecycle/Review (api/services/<feature>/,
+api/models/<feature>/exceptions/) — this file was moved wholesale from
+the prior flat api/services/voice_conversation.py, layout only, no
+content change. Deliberately NOT split into interface/validations/
+exceptions mixin files the way Session Lifecycle/Review were: those
+splits exist to combine wrapper-tier exception-handling content via
+multiple inheritance, and Voice Conversation has no such content (its two
+exceptions are flat leaves with no wrapping tier, matching
+api/brokers/logging/'s package-with-no-split precedent) — per CLAUDE.md,
+Voice Conversation gets folder-layout only, no agent-driven content
+rebuild. Likewise no `i_voice_conversation_service.py` Protocol interface:
+nothing in this codebase consumes ConversationOrchestrator through an
+injected interface (the CLI entrypoint constructs it directly), so one
+would be pure ceremony — cited omission, not an oversight.
 """
 
 import asyncio
@@ -60,32 +76,15 @@ from azure.cognitiveservices.speech import (
 )
 
 from api.brokers.flag import FlagBroker
-from api.errors import ApiError
 from api.models.flag import Flag
+from api.models.voice_conversation.exceptions import (
+    VoiceConversationConfigError,
+    VoiceConversationPipelineError,
+)
 
 load_dotenv()
 
-
-class VoiceConversationConfigError(ApiError):
-    """Raised when voice conversation fails due to missing or invalid configuration.
-
-    Covers missing Azure Speech or Gemini API credentials, invalid audio device
-    settings, or other startup configuration issues.
-    """
-
-    pass
-
-
-class VoiceConversationPipelineError(ApiError):
-    """Raised when the voice conversation pipeline fails at runtime.
-
-    Covers audio device initialization failures, pipeline setup timeouts,
-    unrecoverable LLM failures after retry, or other pipeline-level issues.
-    """
-
-    pass
-
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 BILINGUAL_STT_LANGUAGES = ["es-ES", "en-US"]
 
@@ -470,8 +469,8 @@ class ConversationOrchestrator:
         but wasn't: confirmed via isolated repro (2026-08-29, no pipecat
         involved) that a parent process programmatically signaling a child it
         spawned doesn't reliably raise KeyboardInterrupt in that child on
-        Windows/Python 3 — see api/brokers/bot_process.py's module docstring.
-        A polled file has no such platform dependency."""
+        Windows/Python 3 — see api/brokers/bot_process/bot_process_broker.py's
+        module docstring. A polled file has no such platform dependency."""
         while True:
             await asyncio.sleep(1.0)
             if STOP_SIGNAL_FILE_PATH.exists():
