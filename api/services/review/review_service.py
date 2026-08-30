@@ -39,7 +39,7 @@ from api.brokers.flag import FlagBroker
 from api.brokers.logging import LoggingBroker, StdlibLoggingBroker
 from api.brokers.practice_log import PracticeAttempt, PracticeLogBroker
 from api.models.flag import Flag
-from api.models.review.exceptions import NotFoundFlagException
+from api.models.flag.exceptions import NotFoundFlagException
 from rag.controllers.generation import GenerationController
 from rag.controllers.retrieval import RetrievalController
 from rag.models.generation import Explanation

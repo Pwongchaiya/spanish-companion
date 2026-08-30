@@ -1,21 +1,15 @@
-"""Leaf validation exception raised when a flag id matches nothing."""
+"""Backward-compatible re-export shim.
 
-from api.errors import ApiError
+NotFoundFlagException moved to api.models.flag.exceptions as part of the
+6-layer rebuild's Flag Foundation service (Wave 4) -- it's Flag's own leaf
+now, not Review's. This shim keeps api.services.review.review_service_exceptions
+and api.controllers.review importing successfully in the interim: per the
+rebuild's migration mechanics, a Foundation build must ADD new code without
+breaking a consumer that a later wave hasn't rewired yet. Wave 5 rewires
+ReviewOrchestrator onto FlagService directly and deletes this shim along with
+its __init__.py re-export.
+"""
 
+from api.models.flag.exceptions.not_found_flag_exception import NotFoundFlagException
 
-class NotFoundFlagException(ApiError):
-    """Raised by _get_flag() when no flag in the current list has this id.
-
-    Named `<Condition><Entity>` after NL.Core.Entitlements.Api/Models/
-    Foundations/Entitlements/Exceptions/NotFoundEntitlementException.cs,
-    matching the AlreadyRunningSessionException / NotRunningSessionException
-    convention already established by the Session Lifecycle rebuild.
-    (Was `FlagNotFoundException` before this rebuild.)
-
-    Leaf exception -- always caught and wrapped into
-    ReviewOrchestrationValidationException before leaving this service,
-    mirroring EntitlementCodesOrchestrationService.Exeptions.cs:25-28.
-    """
-
-    def __init__(self, flag_id: str) -> None:
-        super().__init__(f"No flag found with id {flag_id!r}")
+__all__ = ["NotFoundFlagException"]
