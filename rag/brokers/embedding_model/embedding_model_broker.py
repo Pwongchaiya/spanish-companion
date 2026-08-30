@@ -11,7 +11,7 @@ No DB, no SQLAlchemy — the model itself is the only external resource here.
 
 import os
 from functools import cached_property
-from typing import List, Optional, Protocol
+from typing import List, Optional
 
 from sentence_transformers import SentenceTransformer
 
@@ -21,33 +21,12 @@ from sentence_transformers import SentenceTransformer
 _DEFAULT_MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
 
-class EmbeddingModelBroker(Protocol):
-    """External-resource boundary for text embedding."""
-
-    @property
-    def model_name(self) -> str:
-        """The model name this broker is configured to use.
-
-        Used for versioning and mismatch detection: ingestion tags chunks with
-        this value, and retrieval checks for consistency at query time.
-        """
-        ...
-
-    def embed(self, texts: List[str]) -> List[List[float]]:
-        """One 384-dim vector per text, same order.
-
-        Ingestion passes a batch of chunk texts; Retrieval passes a
-        single-element list and reads result[0].
-        """
-        ...
-
-
 class SentenceTransformerEmbeddingModelBroker:
     """EmbeddingModelBroker backed by a local sentence-transformers model.
 
     `model_name` defaults to EMBEDDING_MODEL_NAME (env), then the project's
     pinned multilingual default — same defaulting shape as
-    api/brokers/bot_process.py's `command`/`cwd`.
+    api/brokers/bot_process/bot_process_broker.py's `command`/`cwd`.
     """
 
     def __init__(self, model_name: Optional[str] = None) -> None:

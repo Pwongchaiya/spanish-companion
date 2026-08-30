@@ -1,39 +1,15 @@
-"""Broker for the Gemini generation client.
-
-Phase 1 (review/review.py) constructed a fresh genai.Client() inside
-explain_flag() on every call. This broker is the single source of truth:
-one client instance, constructed once in __init__ and reused for every
-generate() call.
-
-No DB, no SQLAlchemy — the Gemini API is the only external resource here.
-"""
+"""GeminiGenerationBroker — google-genai-backed GenerationBroker."""
 
 import os
-from typing import Optional, Protocol
+from typing import Optional
 
 import google.genai as genai
 
-from rag.errors import RagError
+from rag.brokers.generation.i_generation_broker import GenerationError
 
 # Matches voice/bot.py's and review/review.py's existing default exactly —
 # Gemini Flash-Lite, per CLAUDE.md tech stack.
 _DEFAULT_MODEL_NAME = "gemini-flash-lite-latest"
-
-
-class GenerationError(RagError):
-    """Client failure or an empty/None response — the only exception this feature has."""
-
-
-class GenerationBroker(Protocol):
-    """External-resource boundary for LLM text generation."""
-
-    def generate(self, prompt: str) -> str:
-        """Send prompt to the LLM, return response text.
-
-        Raises:
-            GenerationError: on client failure or an empty/None response.
-        """
-        ...
 
 
 class GeminiGenerationBroker:
@@ -41,7 +17,7 @@ class GeminiGenerationBroker:
 
     `api_key`/`model_name` default to GEMINI_API_KEY/GEMINI_MODEL (env),
     then the project's pinned Flash-Lite default — same defaulting shape as
-    api/brokers/bot_process.py's `command`/`cwd`.
+    api/brokers/bot_process/bot_process_broker.py's `command`/`cwd`.
 
     # ponytail: broker-skill's "no try/except in a broker" default is
     # deliberately not followed here — the empty/None-response guard and
