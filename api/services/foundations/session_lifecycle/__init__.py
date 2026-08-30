@@ -1,14 +1,14 @@
-from api.services.session_lifecycle.i_session_lifecycle_service import SessionLifecycleService
-from api.services.session_lifecycle.session_lifecycle_service import (
+from api.services.foundations.session_lifecycle.i_session_lifecycle_service import SessionLifecycleService
+from api.services.foundations.session_lifecycle.session_lifecycle_service import (
     _ConversationSessionServiceBase,
     GRACEFUL_TIMEOUT_SECONDS,
     TERMINATE_TIMEOUT_SECONDS,
     READY_WARMUP_SECONDS,
 )
-from api.services.session_lifecycle.session_lifecycle_service_validations import (
+from api.services.foundations.session_lifecycle.session_lifecycle_service_validations import (
     ConversationSessionServiceValidations,
 )
-from api.services.session_lifecycle.session_lifecycle_service_exceptions import (
+from api.services.foundations.session_lifecycle.session_lifecycle_service_exceptions import (
     ConversationSessionServiceExceptions,
 )
 

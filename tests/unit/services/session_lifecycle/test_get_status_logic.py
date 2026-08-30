@@ -4,7 +4,7 @@ service (Phase 1 conflated "process started" with "pipeline warm"); see the
 module docstring in api/services/session_lifecycle.py.
 """
 
-from api.services.session_lifecycle import READY_WARMUP_SECONDS
+from api.services.foundations.session_lifecycle import READY_WARMUP_SECONDS
 
 
 class TestConversationSessionServiceGetStatus:

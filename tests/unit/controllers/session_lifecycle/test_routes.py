@@ -19,7 +19,7 @@ from api.models.session_lifecycle.exceptions import (
     SessionValidationException,
 )
 from api.models.session_lifecycle.session_status import SessionStatus
-from api.services.session_lifecycle import SessionLifecycleService
+from api.services.foundations.session_lifecycle import SessionLifecycleService
 
 
 @pytest.fixture

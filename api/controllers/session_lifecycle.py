@@ -39,7 +39,7 @@ from api.models.session_lifecycle.exceptions import (
     SessionServiceException,
     SessionValidationException,
 )
-from api.services.session_lifecycle import SessionLifecycleService
+from api.services.foundations.session_lifecycle import SessionLifecycleService
 
 
 def make_session_lifecycle_blueprint(service: SessionLifecycleService) -> Blueprint:

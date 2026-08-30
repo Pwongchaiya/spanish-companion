@@ -9,7 +9,7 @@ import subprocess
 import pytest
 from unittest.mock import call
 
-from api.services.session_lifecycle import (
+from api.services.foundations.session_lifecycle import (
     GRACEFUL_TIMEOUT_SECONDS,
     TERMINATE_TIMEOUT_SECONDS,
 )

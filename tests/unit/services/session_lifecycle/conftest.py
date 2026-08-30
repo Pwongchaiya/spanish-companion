@@ -10,7 +10,7 @@ from unittest.mock import Mock
 
 from api.brokers.bot_process import BotProcessBroker
 from api.brokers.logging import LoggingBroker
-from api.services.session_lifecycle import ConversationSessionService
+from api.services.foundations.session_lifecycle import ConversationSessionService
 
 
 class FakeClock:

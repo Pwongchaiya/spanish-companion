@@ -1,4 +1,4 @@
-from api.services.session_lifecycle import (
+from api.services.foundations.session_lifecycle import (
     ConversationSessionService,
     SessionLifecycleService,
 )

@@ -31,7 +31,7 @@ from api.brokers.practice_log import JsonLinesPracticeLogBroker
 from api.controllers.review import make_review_blueprint
 from api.controllers.session_lifecycle import make_session_lifecycle_blueprint
 from api.services.review import ReviewOrchestrator
-from api.services.session_lifecycle import ConversationSessionService
+from api.services.foundations.session_lifecycle import ConversationSessionService
 from rag.brokers.chunk_repository import SqlAlchemyChunkRepositoryBroker
 from rag.brokers.embedding_model import SentenceTransformerEmbeddingModelBroker
 from rag.brokers.generation import GeminiGenerationBroker
