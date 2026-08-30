@@ -26,6 +26,7 @@ from flask import Flask, Response, jsonify, request, send_from_directory
 
 from api.brokers.bot_process import SubprocessBotProcessBroker
 from api.brokers.flag import JsonFileFlagBroker
+from api.brokers.logging import StdlibLoggingBroker
 from api.brokers.practice_log import JsonLinesPracticeLogBroker
 from api.controllers.review import make_review_blueprint
 from api.controllers.session_lifecycle import make_session_lifecycle_blueprint
@@ -97,8 +98,17 @@ def create_app() -> Flask:
             return jsonify({"error": "origin not allowed"}), 403
         return None
 
+    # One LoggingBroker shared by every service in the process — both
+    # services already defaulted to a StdlibLoggingBroker over the same
+    # named logger; constructing it once here makes that sharing explicit
+    # at the composition root instead of implicit in two default args.
+    logging_broker = StdlibLoggingBroker()
+
     # --- Session Lifecycle ---
-    session_service = ConversationSessionService(SubprocessBotProcessBroker())
+    session_service = ConversationSessionService(
+        SubprocessBotProcessBroker(),
+        logging_broker=logging_broker,
+    )
     app.register_blueprint(make_session_lifecycle_blueprint(session_service))
 
     # --- Review (composes Retrieval + Generation via rag's controllers) ---
@@ -112,6 +122,7 @@ def create_app() -> Flask:
         practice_log_broker=JsonLinesPracticeLogBroker(),
         retrieval_controller=retrieval_controller,
         generation_controller=generation_controller,
+        logging_broker=logging_broker,
     )
     app.register_blueprint(make_review_blueprint(review_orchestrator))
 
