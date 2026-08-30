@@ -13,3 +13,4 @@ voice/logs/
 review/logs/
 .repowise/
 .playwright-mcp
+.mcp.json
