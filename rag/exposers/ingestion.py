@@ -1,7 +1,7 @@
 """Ingestion CLI — hand-written, no agent, per CLAUDE.md's Phase 2
 Layer-Agent Mapping (not worth the waivers for ~20 lines of argparse).
 
-    python -m rag.controllers.ingestion
+    python -m rag.exposers.ingestion
 
 Fetches each RAE grammar page, hands the extracted text to
 IngestionService, and prints a per-topic row count. Fetching (requests +

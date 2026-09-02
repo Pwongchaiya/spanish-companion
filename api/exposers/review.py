@@ -59,7 +59,7 @@ def make_review_blueprint(orchestrator: ReviewOrchestrator) -> Blueprint:
             explanation = orchestrator.explain_flag(flag_id)
             return jsonify(asdict(explanation)), 200
         except ReviewOrchestrationValidationException as e:
-            if isinstance(e.inner_exception, NotFoundFlagException):
+            if isinstance(e.inner_exception.inner_exception, NotFoundFlagException):
                 return jsonify({"error": str(e.inner_exception)}), 404
             return jsonify({"error": str(e.inner_exception)}), 400
         except ReviewOrchestrationDependencyException as e:
@@ -75,7 +75,7 @@ def make_review_blueprint(orchestrator: ReviewOrchestrator) -> Blueprint:
             attempt = orchestrator.record_practice(flag_id, attempt_text)
             return jsonify({**asdict(attempt), "timestamp": attempt.timestamp.isoformat()}), 201
         except ReviewOrchestrationValidationException as e:
-            if isinstance(e.inner_exception, NotFoundFlagException):
+            if isinstance(e.inner_exception.inner_exception, NotFoundFlagException):
                 return jsonify({"error": str(e.inner_exception)}), 404
             return jsonify({"error": str(e.inner_exception)}), 400
         except ReviewOrchestrationDependencyException as e:

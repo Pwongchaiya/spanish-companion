@@ -19,7 +19,7 @@ from flask import Flask
 
 from api.brokers.flag import JsonFileFlagBroker
 from api.brokers.practice_log import JsonLinesPracticeLogBroker
-from api.controllers.review import make_review_blueprint
+from api.exposers.review import make_review_blueprint
 from api.models.flag import Flag
 from api.services.foundations.flag import FlagService
 from api.services.foundations.practice_log import PracticeLogService

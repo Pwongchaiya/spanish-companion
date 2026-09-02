@@ -15,9 +15,10 @@ import pytest
 from flask import Flask
 
 from api.brokers.practice_log import PracticeAttempt
-from api.controllers.review import make_review_blueprint
+from api.exposers.review import make_review_blueprint
 from api.models.flag import Flag
-from api.models.flag.exceptions import NotFoundFlagException
+from api.models.flag.exceptions import FlagValidationException, NotFoundFlagException
+from api.models.review.exceptions import ReviewOrchestrationValidationException
 from api.services.orchestrations.review import ReviewOrchestrator
 from rag.models.generation import Explanation
 
@@ -102,15 +103,20 @@ class TestExplainFlag:
         mock_orchestrator.explain_flag.assert_called_once_with("flag-1")
 
     def test_should_return_404_with_error_body_when_flag_not_found(self, client, mock_orchestrator):
-        # given
-        mock_orchestrator.explain_flag.side_effect = NotFoundFlagException("flag-1")
+        # given -- mirrors the real orchestrator's wrap depth: the leaf sits
+        # two levels deep, at inner_exception.inner_exception
+        mock_orchestrator.explain_flag.side_effect = ReviewOrchestrationValidationException(
+            inner_exception=FlagValidationException(inner_exception=NotFoundFlagException("flag-1"))
+        )
 
         # when
         response = client.get("/review/flags/flag-1/explain")
 
-        # then
+        # then -- body comes from str(e.inner_exception), the FlagValidationException
+        # wrapper's own message, not the leaf's -- controller response-body logic is
+        # untouched by this wave, see api/exposers/review.py
         assert response.status_code == 404
-        assert response.get_json() == {"error": "No flag found with id 'flag-1'"}
+        assert response.get_json() == {"error": "Flag validation error occurred. Fix the errors and try again."}
 
 
 class TestRecordPractice:
@@ -138,15 +144,20 @@ class TestRecordPractice:
         mock_orchestrator.record_practice.assert_called_once_with("flag-1", "yo tengo")
 
     def test_should_return_404_with_error_body_when_flag_not_found(self, client, mock_orchestrator):
-        # given
-        mock_orchestrator.record_practice.side_effect = NotFoundFlagException("flag-1")
+        # given -- mirrors the real orchestrator's wrap depth: the leaf sits
+        # two levels deep, at inner_exception.inner_exception
+        mock_orchestrator.record_practice.side_effect = ReviewOrchestrationValidationException(
+            inner_exception=FlagValidationException(inner_exception=NotFoundFlagException("flag-1"))
+        )
 
         # when
         response = client.post("/review/flags/flag-1/practice", json={"attempt_text": "yo tengo"})
 
-        # then
+        # then -- body comes from str(e.inner_exception), the FlagValidationException
+        # wrapper's own message, not the leaf's -- controller response-body logic is
+        # untouched by this wave, see api/exposers/review.py
         assert response.status_code == 404
-        assert response.get_json() == {"error": "No flag found with id 'flag-1'"}
+        assert response.get_json() == {"error": "Flag validation error occurred. Fix the errors and try again."}
 
     @pytest.mark.parametrize(
         "body",
