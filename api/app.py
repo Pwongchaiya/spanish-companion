@@ -1,11 +1,15 @@
-"""Flask app factory — wires every feature's Controller into one process.
+"""Flask app factory — wires every feature's Exposer into one process.
 
 Owned by the main build session, not any single feature or layer agent
 (per CLAUDE.md's Phase 2 Layer-Agent Mapping build order: "app.py
 integration ... owned by the main session, no single feature/agent owns
-it"). Constructs every broker/service/controller exactly once here — the
-composition root — and injects the finished objects into each feature's
-Blueprint factory.
+it"). Constructs every broker/service exactly once here — the composition
+root — and injects the finished objects into each feature's Blueprint
+factory. Review's four service dependencies (FlagService,
+PracticeLogService, HybridRetrievalService, GenerationService) are wired
+directly into ReviewOrchestrator -- the pass-through
+RetrievalController/GenerationController this used to route through are
+gone (6-layer Standard rebuild, Wave 7).
 
 `/api/events` reads the transcript file by its own env var (not by
 importing api.services.voice_conversation) so this process never pulls in
@@ -28,17 +32,19 @@ from api.brokers.bot_process import SubprocessBotProcessBroker
 from api.brokers.flag import JsonFileFlagBroker
 from api.brokers.logging import StdlibLoggingBroker
 from api.brokers.practice_log import JsonLinesPracticeLogBroker
-from api.controllers.review import make_review_blueprint
-from api.controllers.session_lifecycle import make_session_lifecycle_blueprint
-from api.services.review import ReviewOrchestrator
+from api.exposers.review import make_review_blueprint
+from api.exposers.session_lifecycle import make_session_lifecycle_blueprint
+from api.services.foundations.flag import FlagService
+from api.services.foundations.practice_log import PracticeLogService
 from api.services.foundations.session_lifecycle import ConversationSessionService
+from api.services.orchestrations.review import ReviewOrchestrator
 from rag.brokers.chunk_repository import SqlAlchemyChunkRepositoryBroker
 from rag.brokers.embedding_model import SentenceTransformerEmbeddingModelBroker
 from rag.brokers.generation import GeminiGenerationBroker
-from rag.controllers.generation import GenerationController
-from rag.controllers.retrieval import RetrievalController
-from rag.services.generation import GenerationService
-from rag.services.retrieval import HybridRetrievalService
+from rag.services.foundations.chunk_repository import ChunkRepositoryService
+from rag.services.foundations.embedding_model import EmbeddingModelService
+from rag.services.foundations.generation import GenerationService
+from rag.services.orchestrations.retrieval import HybridRetrievalService
 
 load_dotenv()
 
@@ -99,10 +105,10 @@ def create_app() -> Flask:
             return jsonify({"error": "origin not allowed"}), 403
         return None
 
-    # One LoggingBroker shared by every service in the process — both
-    # services already defaulted to a StdlibLoggingBroker over the same
+    # One LoggingBroker shared by every service in the process — each
+    # service already defaulted to a StdlibLoggingBroker over the same
     # named logger; constructing it once here makes that sharing explicit
-    # at the composition root instead of implicit in two default args.
+    # at the composition root instead of implicit in each default arg.
     logging_broker = StdlibLoggingBroker()
 
     # --- Session Lifecycle ---
@@ -112,21 +118,28 @@ def create_app() -> Flask:
     )
     app.register_blueprint(make_session_lifecycle_blueprint(session_service))
 
-    # --- Review (composes Retrieval + Generation via rag's controllers) ---
-    chunk_repository = SqlAlchemyChunkRepositoryBroker(connection_string=os.environ["DATABASE_URL"])
-    embedding_model = SentenceTransformerEmbeddingModelBroker()
-    retrieval_controller = RetrievalController(
-        HybridRetrievalService(embedding_model, chunk_repository, logging_broker=logging_broker)
+    # --- Review (composes Retrieval + Generation via rag's Foundation/
+    # Orchestration services directly -- RetrievalController/
+    # GenerationController were pure pass-throughs and are gone) ---
+    chunk_repository_service = ChunkRepositoryService(
+        SqlAlchemyChunkRepositoryBroker(connection_string=os.environ["DATABASE_URL"]),
+        logging_broker=logging_broker,
     )
-    generation_controller = GenerationController(
-        GenerationService(GeminiGenerationBroker(), logging_broker=logging_broker)
+    embedding_model_service = EmbeddingModelService(
+        SentenceTransformerEmbeddingModelBroker(),
+        logging_broker=logging_broker,
     )
-    flag_broker = JsonFileFlagBroker()
+    retrieval_service = HybridRetrievalService(
+        embedding_model_service, chunk_repository_service, logging_broker=logging_broker
+    )
+    generation_service = GenerationService(GeminiGenerationBroker(), logging_broker=logging_broker)
+    flag_service = FlagService(JsonFileFlagBroker(), logging_broker=logging_broker)
+    practice_log_service = PracticeLogService(JsonLinesPracticeLogBroker(), logging_broker=logging_broker)
     review_orchestrator = ReviewOrchestrator(
-        flag_broker=flag_broker,
-        practice_log_broker=JsonLinesPracticeLogBroker(),
-        retrieval_controller=retrieval_controller,
-        generation_controller=generation_controller,
+        flag_service=flag_service,
+        practice_log_service=practice_log_service,
+        retrieval_service=retrieval_service,
+        generation_service=generation_service,
         logging_broker=logging_broker,
     )
     app.register_blueprint(make_review_blueprint(review_orchestrator))
@@ -154,7 +167,7 @@ def create_app() -> Flask:
 
                 flags = [
                     asdict(flag) | {"timestamp": flag.timestamp.isoformat()}
-                    for flag in flag_broker.load_flags()
+                    for flag in flag_service.list_flags()
                 ]
                 if flags != last_flags:
                     yield f"data: {json.dumps({'type': 'flags', 'flags': flags})}\n\n"
