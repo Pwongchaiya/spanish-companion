@@ -8,32 +8,32 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-08-30-0135.md — Planning-only
-session, no code changed. User asked to reverse Phase 2's 3-layer
-(Broker→Service→Controller) collapse back to the full Standard six-layer
-pattern (Broker→Foundation→Processing→Orchestration→Aggregation→Exposer),
-treating this as a production-ready build. Two Explore agents read actual
-api/rag source directly (CLAUDE.md/Obsidian carried a repowise staleness
-warning) for exact ground truth on every Service/Broker/exception/call
-chain; a Plan agent designed the full rebuild against that ground truth,
-verified against review_service.py/app.py, then approved. Inserts genuine
-Foundation services under Ingestion, Retrieval, and Review (closing ORC-002
-for real instead of waiving it); retires the old blanket waiver for two
-narrow named ones (ORC-003 for Review's one sanctioned api→rag crossing,
-ORC-001 for Voice Conversation's 4-dependency Orchestration). Processing/
-Aggregation get real scaffolding despite no current feature needing either.
-Voice Conversation keeps its Pipecat TTS/LLM-unwrapped waiver — only
-finishes the already-planned Stt/SessionLog/Prompt broker split (this
-supersedes and absorbs the standalone split plan from the prior session;
-the 6 dead orphan files from that attempt, confirmed NOT on the live call
-path, are addressed by this rebuild's Voice Conversation wave). 9-wave
-build order approved, Wave 1 (Session Lifecycle move + Processing/
-Aggregation scaffolding) next — not started. Full record:
+Projects/spanish-companion/sessions/2026-09-02-0934.md — Executed the
+six-layer Standard rebuild approved 2026-08-30: Waves 1-7 of 9 landed as
+10 commits (2f04281..6a9c2ac on feat/pwongchaiya/step0-repo-scaffold) via
+the Hierarchical Agent Delegation convention. Session Lifecycle moved to
+services/foundations/; ChunkRepositoryService/EmbeddingModelService built
+as new shared Foundations under Ingestion+Retrieval; IngestionService/
+HybridRetrievalService rewired onto them (IngestionUnavailableError/
+RetrievalUnavailableError retired); GenerationService moved to Foundation
+tier, its pass-through GenerationController deleted; FlagService/
+PracticeLogService built as new Foundations under Review, absorbing
+ReviewOrchestrator logic verbatim; ReviewOrchestrator fully rebuilt onto
+all four service deps directly (RetrievalController/GenerationController
+both gone from that call path); every Controller renamed/moved to
+exposers/ (or deleted where it was a pure pass-through — RetrievalController,
+GenerationController); a real bug fixed along the way (Review's exception-
+wrap-depth isinstance check was silently returning 400 instead of 404 for
+every not-found flag). app.py composition root rewired to match, verified
+with a real create_app() boot and a live smoke test that round-trips a 404
+through the full stack end to end. Two Orchestration Agent dispatches hit
+a weekly rate limit mid-task and were resumed via cross-agent messaging
+rather than restarted. Wave 8 (Voice Conversation, hand-written,
+hardware-gated) and Wave 9 (pytest, user's job) deliberately not started
+this session. CLAUDE.md's Architecture section and waiver table are now
+stale (still describe the retired 3-layer pattern) — flagged to the user
+at session-end, not yet approved/applied. Full record:
 Projects/spanish-companion/decisions/six-layer-standard-rebuild.md.
-New target-architecture canvas:
-Projects/spanish-companion/six-layer-standard-rebuild.canvas.
-CLAUDE.md is explicitly NOT yet updated — flagged as follow-up once code
-lands.
 
 ---
 
