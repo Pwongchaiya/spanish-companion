@@ -15,7 +15,8 @@ prefix from the class (Protocol `SessionLifecycleService` -> concrete
 because the feature name was free -- the concrete class had a different name.
 Here the concrete class must stay `IngestionService` (its public name,
 imported by rag/controllers/ingestion.py:26 and by three test modules), so the
-feature name is taken. This Protocol therefore keeps the reference's literal
+feature name is taken (the CLI import is now
+`rag.services.orchestrations.ingestion`). This Protocol therefore keeps the reference's literal
 `I` prefix: `IIngestionService`, exactly as
 IEntitlementCodesOrchestrationService.cs:10 spells it.
 """
@@ -30,7 +31,7 @@ class IIngestionService(Protocol):
         """Chunk `text`, embed the chunks in one batch, insert each. Returns rows inserted.
 
         Empty or whitespace-only `text` yields zero chunks and returns 0
-        without touching either broker.
+        without touching either dependency.
 
         Raises:
             IngestionOrchestrationValidationException: wrapping
@@ -38,8 +39,9 @@ class IIngestionService(Protocol):
                 or an embedding batch whose length does not match the chunk
                 batch.
             IngestionOrchestrationDependencyException: wrapping
-                IngestionUnavailableError -- the chunk store or embedding
-                model is unreachable.
+                ChunkRepositoryDependencyException or
+                EmbeddingModelDependencyException -- the chunk store or
+                embedding model is unreachable.
             IngestionOrchestrationServiceException: anything else.
         """
         ...

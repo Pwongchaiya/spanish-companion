@@ -1,13 +1,13 @@
-from rag.services.ingestion.i_ingestion_service import IIngestionService
-from rag.services.ingestion.ingestion_service import (
+from rag.services.orchestrations.ingestion.i_ingestion_service import IIngestionService
+from rag.services.orchestrations.ingestion.ingestion_service import (
     _IngestionServiceBase,
     chunk_text,
     CHUNK_SIZE,
     CHUNKING_STRATEGY_VERSION,
     LoggingBroker,
 )
-from rag.services.ingestion.ingestion_service_validations import IngestionServiceValidations
-from rag.services.ingestion.ingestion_service_exceptions import IngestionServiceExceptions
+from rag.services.orchestrations.ingestion.ingestion_service_validations import IngestionServiceValidations
+from rag.services.orchestrations.ingestion.ingestion_service_exceptions import IngestionServiceExceptions
 
 
 class IngestionService(

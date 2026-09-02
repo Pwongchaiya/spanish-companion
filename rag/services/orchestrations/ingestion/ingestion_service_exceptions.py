@@ -14,11 +14,14 @@ dependency.
 Cited omissions from the reference's tier set:
 
 1. No DependencyValidation tier (Exeptions.cs:29-52 /
-   CreateAndLogDependencyValidationException, Exeptions.cs:100-110).
-   IngestionUnavailableError is an infrastructure outage, not a rejected
-   input bubbled up from a service beneath — and there is no service beneath,
-   only brokers (CLAUDE.md's ORC-002 waiver). Nothing validation-shaped could
-   reach that tier.
+   CreateAndLogDependencyValidationException, Exeptions.cs:100-110). What the
+   Foundation services beneath raise as a dependency failure is an
+   infrastructure outage, not a rejected input bubbled up. Their *Validation*
+   wrappers (ChunkRepositoryValidationException /
+   EmbeddingModelValidationException) are deliberately not caught here either:
+   Ingestion validates topic/source_url itself before either call, so one of
+   those arriving means a programming error, and the catch-all service tier is
+   the right home for it.
 2. No intermediate Failed*ServiceException before the catch-all
    (Exeptions.cs:79-82). Reasoning in
    rag/models/ingestion/exceptions/ingestion_orchestration_service_exception.py.
@@ -29,11 +32,12 @@ IngestionValidationError bare and let every broker exception through raw.
 
 from typing import Callable, TypeVar
 
+from rag.models.chunk_repository.exceptions import ChunkRepositoryDependencyException
+from rag.models.embedding_model.exceptions import EmbeddingModelDependencyException
 from rag.models.ingestion.exceptions import (
     IngestionOrchestrationDependencyException,
     IngestionOrchestrationServiceException,
     IngestionOrchestrationValidationException,
-    IngestionUnavailableError,
     IngestionValidationError,
 )
 
@@ -52,7 +56,7 @@ class IngestionServiceExceptions:
             return fn()
         except IngestionValidationError as e:
             raise self._create_and_log_validation_exception(e) from e
-        except IngestionUnavailableError as e:
+        except (ChunkRepositoryDependencyException, EmbeddingModelDependencyException) as e:
             raise self._create_and_log_dependency_exception(e) from e
         except Exception as e:
             raise self._create_and_log_service_exception(e) from e
@@ -70,12 +74,20 @@ class IngestionServiceExceptions:
     ) -> IngestionOrchestrationDependencyException:
         """Mirrors CreateAndLogDependencyException, Exeptions.cs:112-122.
 
-        Cited divergence: the reference unwraps one level
-        (`exception.InnerException as Xeption`, Exeptions.cs:117) because what
-        it catches is itself already a wrapper from the Processing service
-        beneath it. Ingestion catches IngestionUnavailableError directly — it
-        IS the leaf — so it is carried through whole rather than unwrapped
-        into None. Same divergence the Review rebuild recorded.
+        What arrives here is ChunkRepositoryDependencyException or
+        EmbeddingModelDependencyException — already wrapped by the Foundation
+        service that owns the failing broker, which is what holds the
+        ChunkRepositoryUnavailableError / EmbeddingModelUnavailableError leaf.
+        That is the reference's own cross-service shape, Exeptions.cs:53-76:
+        the outer service catches the *wrapper* types the layer beneath it
+        raises, never that layer's raw leaves. Identical to how
+        ReviewOrchestratorExceptions catches
+        RetrievalOrchestrationDependencyException one layer up.
+
+        Cited divergence retained from the reference: it unwraps one level
+        (`exception.InnerException as Xeption`, Exeptions.cs:117). Ingestion
+        carries the wrapper through whole instead, so the leaf stays reachable
+        as `.inner_exception.inner_exception` — the same call Review made.
         """
         dependency_exception = IngestionOrchestrationDependencyException(inner_exception=exception)
         self._logging_broker.log_error(dependency_exception)

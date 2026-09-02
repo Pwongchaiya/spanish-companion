@@ -1,11 +1,15 @@
 """Integration tests for IngestionService against a real test Postgres.
 
 Real SqlAlchemyChunkRepositoryBroker (tests/integration/conftest.py's
-`chunk_repository` fixture, TEST_DATABASE_URL, truncated per test);
+`chunk_repository` fixture, TEST_DATABASE_URL, truncated per test), wrapped in
+the real ChunkRepositoryService that IngestionService now depends on;
 EmbeddingModelBroker mocked -- it is a local sentence-transformers model, so it
 falls under CLAUDE.md's "external APIs mocked at the Broker boundary" rule for
 the same reason a network API does: loading it makes the test slow and
-non-deterministic without exercising any of this service's logic.
+non-deterministic without exercising any of this service's logic. The mock
+stays at the *broker* boundary, with the real EmbeddingModelService wrapped
+around it, so this tier still exercises the Foundation layer Ingestion calls
+through.
 
 What this tier buys over the unit tier: proof that the SQLAlchemy mapping and
 the pgvector round-trip actually work -- rows written by ingest_topic come back
@@ -18,7 +22,9 @@ import pytest
 
 from rag.brokers.chunk_repository import EMBEDDING_DIM
 from rag.brokers.embedding_model import EmbeddingModelBroker
-from rag.services.ingestion import CHUNK_SIZE, IngestionService
+from rag.services.foundations.chunk_repository import ChunkRepositoryService
+from rag.services.foundations.embedding_model import EmbeddingModelService
+from rag.services.orchestrations.ingestion import CHUNK_SIZE, IngestionService
 
 TOPIC = "preterite-vs-imperfect"
 SOURCE_URL = "https://www.rae.es/gram/preterito"
@@ -42,7 +48,10 @@ def mock_embedding_model():
 
 @pytest.fixture
 def service(chunk_repository, mock_embedding_model):
-    return IngestionService(chunk_repository=chunk_repository, embedding_model=mock_embedding_model)
+    return IngestionService(
+        chunk_repository_service=ChunkRepositoryService(chunk_repository),
+        embedding_model_service=EmbeddingModelService(mock_embedding_model),
+    )
 
 
 class TestIngestionServiceIngestTopicIntegration:

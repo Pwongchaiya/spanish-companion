@@ -1,10 +1,12 @@
 """Ingestion service — chunk, embed, and store one topic's fetched page text.
 
-Coordinates two brokers (ChunkRepositoryBroker + EmbeddingModelBroker), so it
-sits at the Orchestration layer per CLAUDE.md's Phase 2 Layer-Agent Mapping.
-ORC-001 (Florance dep-count) and ORC-002 (no direct broker deps) are waived
-there: this project has no Foundation layer beneath Ingestion, so depending on
-brokers directly is the intended shape, not a violation.
+Coordinates two Foundation services (ChunkRepositoryService +
+EmbeddingModelService), so it sits at the Orchestration layer — two
+dependencies, satisfying ORC-001's Florance dep-count on its own, and no
+direct broker dependency, so ORC-002 needs no waiver either. CLAUDE.md's
+Orchestration-row waivers for both codes are what covered the pre-rebuild
+shape, where Ingestion wrapped the two brokers directly because no Foundation
+layer existed beneath it; that layer now exists.
 
 Fetching is *not* this service's job — the caller (the Ingestion CLI,
 hand-written per the same mapping) fetches page text and hands it in. That
@@ -24,10 +26,9 @@ import os
 
 from dotenv import load_dotenv
 
-from rag.brokers.chunk_repository import ChunkRepositoryBroker
-from rag.brokers.embedding_model import EmbeddingModelBroker
 from rag.brokers.logging import LoggingBroker, StdlibLoggingBroker
-from rag.models.ingestion.exceptions import IngestionUnavailableError
+from rag.services.foundations.chunk_repository import IChunkRepositoryService
+from rag.services.foundations.embedding_model import IEmbeddingModelService
 
 load_dotenv()
 
@@ -38,7 +39,7 @@ CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "800"))
 
 # Version tags stamped on every row this service writes. Bump CHUNKING_STRATEGY_VERSION
 # whenever chunk_text's algorithm changes (size, overlap, splitting rule) and
-# read EMBEDDING_MODEL_VERSION from the broker instance, so the tag records the model
+# read EMBEDDING_MODEL_VERSION from the embedding model service, so the tag records the model
 # that actually produced the vectors. Otherwise rows written by different algorithms
 # become indistinguishable in the `chunks` table and a targeted re-ingest of just the
 # stale ones is impossible. Per the architecture record's "track a chunking-strategy
@@ -76,12 +77,12 @@ class _IngestionServiceBase:
 
     def __init__(
         self,
-        chunk_repository: ChunkRepositoryBroker,
-        embedding_model: EmbeddingModelBroker,
+        chunk_repository_service: IChunkRepositoryService,
+        embedding_model_service: IEmbeddingModelService,
         logging_broker: LoggingBroker = StdlibLoggingBroker(),
     ) -> None:
-        self._chunk_repository = chunk_repository
-        self._embedding_model = embedding_model
+        self._chunk_repository_service = chunk_repository_service
+        self._embedding_model_service = embedding_model_service
         # Mirrors the `ILoggingBroker loggingBroker` constructor parameter on
         # EntitlementCodesOrchestrationService.cs:22-33 — every
         # _create_and_log_* method logs through it before raising. Defaulted
@@ -104,40 +105,37 @@ class _IngestionServiceBase:
         # THIS call only — repeated boilerplate (nav text, a repeated legal
         # footer) can make the fixed-size splitter emit byte-identical chunks
         # from one page. It cannot skip chunks already stored by a previous
-        # run: ChunkRepositoryBroker exposes only insert_chunk and
+        # run: ChunkRepositoryService exposes only insert_chunk and
         # search_by_vector, no read/exists path. True idempotent re-ingestion
-        # needs a broker read method that does not exist yet — see notes.
+        # needs a read method that does not exist yet — see notes.
         chunks = list(dict.fromkeys(chunk_text(text)))
         if not chunks:
             return 0
 
-        # Broker failures (sentence-transformers model load, SQLAlchemy,
-        # pgvector) are wrapped into one named leaf here, then into
-        # IngestionOrchestrationDependencyException by _try_catch. Same two
-        # wrap sites, same `raise X(str(e)) from e` shape, as
-        # RetrievalUnavailableError in
-        # rag/services/retrieval/retrieval_service.py:121-124 and :132-135.
-        try:
-            embeddings = self._embedding_model.embed(chunks)
-        except Exception as e:
-            raise IngestionUnavailableError(str(e)) from e
+        # No local try/except around either dependency call. Infrastructure
+        # failures (sentence-transformers model load, SQLAlchemy, pgvector)
+        # are already caught, wrapped, and logged by the Foundation service
+        # that owns the broker — arriving here as
+        # EmbeddingModelDependencyException / ChunkRepositoryDependencyException,
+        # which _try_catch catches directly. That is the reference project's
+        # cross-service shape (Exeptions.cs:53-76): the outer service catches
+        # the *wrapper* types the layer beneath raises, never re-wraps them
+        # into a leaf of its own.
+        embeddings = self._embedding_model_service.embed(chunks)
 
         # Checked up front, not via zip(strict=True) inside the loop: writes have no
-        # rollback (ChunkRepositoryBroker has no delete path), so a mismatch must fail
-        # before any row is inserted, not after the loop has already written some.
+        # rollback (there is no delete path), so a mismatch must fail before any row
+        # is inserted, not after the loop has already written some.
         self._validate_embeddings_match_chunks(embeddings, chunks)
 
-        try:
-            for chunk, embedding in zip(chunks, embeddings):
-                self._chunk_repository.insert_chunk(
-                    topic=topic,
-                    source_url=source_url,
-                    content=chunk,
-                    embedding=embedding,
-                    embedding_model_version=self._embedding_model.model_name,
-                    chunking_strategy_version=CHUNKING_STRATEGY_VERSION,
-                )
-        except Exception as e:
-            raise IngestionUnavailableError(str(e)) from e
+        for chunk, embedding in zip(chunks, embeddings):
+            self._chunk_repository_service.insert_chunk(
+                topic=topic,
+                source_url=source_url,
+                content=chunk,
+                embedding=embedding,
+                embedding_model_version=self._embedding_model_service.model_name,
+                chunking_strategy_version=CHUNKING_STRATEGY_VERSION,
+            )
 
         return len(chunks)

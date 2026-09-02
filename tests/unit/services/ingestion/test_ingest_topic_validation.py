@@ -11,7 +11,7 @@ mismatch inserts zero rows, not some.
 import pytest
 
 from rag.models.ingestion.exceptions import IngestionValidationError
-from rag.services.ingestion import CHUNK_SIZE
+from rag.services.orchestrations.ingestion import CHUNK_SIZE
 
 TOPIC = "preterite-vs-imperfect"
 SOURCE_URL = "https://www.rae.es/gram/preterito"

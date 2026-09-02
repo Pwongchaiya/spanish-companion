@@ -10,7 +10,8 @@ stays a pure text -> rows operation.
 
 Known limitation: re-running this against an already-populated corpus
 inserts duplicate rows — ChunkRepositoryBroker has no read/exists method
-to dedupe against prior runs (see rag/services/ingestion.py's docstring).
+to dedupe against prior runs (see
+rag/services/orchestrations/ingestion/ingestion_service.py's docstring).
 At MVP scale (3-5 topics), the fix is re-running the Alembic migration
 (drops and recreates the table) before re-ingesting, not a code change.
 """
@@ -23,7 +24,9 @@ from dotenv import load_dotenv
 
 from rag.brokers.chunk_repository import SqlAlchemyChunkRepositoryBroker
 from rag.brokers.embedding_model import SentenceTransformerEmbeddingModelBroker
-from rag.services.ingestion import IngestionService
+from rag.services.foundations.chunk_repository import ChunkRepositoryService
+from rag.services.foundations.embedding_model import EmbeddingModelService
+from rag.services.orchestrations.ingestion import IngestionService
 
 load_dotenv()
 
@@ -77,9 +80,11 @@ def fetch_page_text(url: str) -> str:
 
 def main() -> None:
     database_url = os.environ["DATABASE_URL"]
-    chunk_repository = SqlAlchemyChunkRepositoryBroker(connection_string=database_url)
-    embedding_model = SentenceTransformerEmbeddingModelBroker()
-    service = IngestionService(chunk_repository, embedding_model)
+    chunk_repository_service = ChunkRepositoryService(
+        SqlAlchemyChunkRepositoryBroker(connection_string=database_url)
+    )
+    embedding_model_service = EmbeddingModelService(SentenceTransformerEmbeddingModelBroker())
+    service = IngestionService(chunk_repository_service, embedding_model_service)
 
     for topic, url in TOPICS:
         try:
