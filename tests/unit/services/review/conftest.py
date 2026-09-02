@@ -1,11 +1,12 @@
 """Shared fixtures for ReviewOrchestrator unit tests.
 
 Per CLAUDE.md's Phase 2 test strategy: all four dependencies are mocked via
-unittest.mock.Mock(spec=...) -- the two brokers at the Protocol boundary, the
-two rag controllers at their class boundary (never their real services, which
-would drag in Postgres, an embedding model and Gemini). datetime.now() is never
-read live: the clock is injected as a fake, test-controlled callable, same
-pattern as tests/unit/services/session_lifecycle/conftest.py.
+unittest.mock.Mock(spec=...) -- the two api Foundation services at their
+Protocol boundary, the two rag services at their class boundary (never their
+real collaborators, which would drag in Postgres, an embedding model and
+Gemini). datetime.now() is never read live: the clock is injected as a fake,
+test-controlled callable, same pattern as
+tests/unit/services/session_lifecycle/conftest.py.
 """
 
 from datetime import datetime, timedelta
@@ -13,13 +14,13 @@ from unittest.mock import Mock
 
 import pytest
 
-from api.brokers.flag import FlagBroker
-from api.brokers.practice_log import PracticeLogBroker
 from api.models.flag import Flag
-from api.services.review import ReviewOrchestrator
-from rag.controllers.generation import GenerationController
-from rag.controllers.retrieval import RetrievalController
+from api.services.foundations.flag import IFlagService
+from api.services.foundations.practice_log import IPracticeLogService
+from api.services.orchestrations.review import ReviewOrchestrator
 from rag.models.retrieval import ScoredChunk
+from rag.services.foundations.generation import GenerationService
+from rag.services.orchestrations.retrieval import HybridRetrievalService
 
 FIXED_NOW = datetime(2026, 1, 2, 3, 4, 5)
 
@@ -38,23 +39,23 @@ class FakeClock:
 
 
 @pytest.fixture
-def mock_flag_broker():
-    return Mock(spec=FlagBroker)
+def mock_flag_service():
+    return Mock(spec=IFlagService)
 
 
 @pytest.fixture
-def mock_practice_log_broker():
-    return Mock(spec=PracticeLogBroker)
+def mock_practice_log_service():
+    return Mock(spec=IPracticeLogService)
 
 
 @pytest.fixture
-def mock_retrieval_controller():
-    return Mock(spec=RetrievalController)
+def mock_retrieval_service():
+    return Mock(spec=HybridRetrievalService)
 
 
 @pytest.fixture
-def mock_generation_controller():
-    return Mock(spec=GenerationController)
+def mock_generation_service():
+    return Mock(spec=GenerationService)
 
 
 @pytest.fixture
@@ -64,17 +65,17 @@ def clock():
 
 @pytest.fixture
 def service(
-    mock_flag_broker,
-    mock_practice_log_broker,
-    mock_retrieval_controller,
-    mock_generation_controller,
+    mock_flag_service,
+    mock_practice_log_service,
+    mock_retrieval_service,
+    mock_generation_service,
     clock,
 ):
     return ReviewOrchestrator(
-        flag_broker=mock_flag_broker,
-        practice_log_broker=mock_practice_log_broker,
-        retrieval_controller=mock_retrieval_controller,
-        generation_controller=mock_generation_controller,
+        flag_service=mock_flag_service,
+        practice_log_service=mock_practice_log_service,
+        retrieval_service=mock_retrieval_service,
+        generation_service=mock_generation_service,
         clock=clock,
     )
 

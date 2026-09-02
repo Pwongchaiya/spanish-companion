@@ -3,44 +3,44 @@
 An attempt against a flag that is not in the list is a client-side state
 mismatch, not an orphan row worth writing -- so nothing must reach the
 practice log.
+
+The id is now rejected by FlagService, which raises FlagValidationException
+wrapping NotFoundFlagException. Review re-wraps that whole exception rather
+than unwrapping it, so the leaf sits at `.inner_exception.inner_exception`.
+Whether the list was empty or merely lacked the id is no longer visible from
+here -- that distinction belongs to FlagService's own tier. The blank
+attempt_text refusal likewise moved down, to PracticeLogService's tier.
 """
 
 import pytest
 
-from api.services.review import FlagNotFoundException
+from api.models.flag.exceptions import FlagValidationException, NotFoundFlagException
+from api.models.review.exceptions import ReviewOrchestrationValidationException
 
 
 class TestReviewOrchestratorRecordPracticeExceptions:
 
-    def test_should_raise_flag_not_found_without_recording_when_flag_id_is_unknown(
+    def test_should_raise_validation_exception_without_recording_when_flag_id_is_unknown(
         self,
         service,
-        mock_flag_broker,
-        mock_practice_log_broker,
-        make_flag,
+        mock_flag_service,
+        mock_practice_log_service,
     ):
         # given
-        mock_flag_broker.load_flags.return_value = [make_flag("flag-1")]
+        leaf = NotFoundFlagException("does-not-exist")
+        mock_flag_service.get_flag.side_effect = FlagValidationException(inner_exception=leaf)
 
         # when / then
-        with pytest.raises(FlagNotFoundException):
+        with pytest.raises(ReviewOrchestrationValidationException) as exc_info:
             service.record_practice("does-not-exist", "fui al mercado")
 
-        mock_flag_broker.load_flags.assert_called_once_with()
-        mock_practice_log_broker.record_attempt.assert_not_called()
+        # The Foundation wrapper is carried through whole, so the leaf is one
+        # level deeper than it used to be.
+        assert isinstance(exc_info.value.inner_exception, FlagValidationException)
+        assert exc_info.value.inner_exception.inner_exception is leaf
 
-    def test_should_raise_flag_not_found_when_flag_list_is_empty(
-        self,
-        service,
-        mock_flag_broker,
-        mock_practice_log_broker,
-    ):
-        # given
-        mock_flag_broker.load_flags.return_value = []
-
-        # when / then
-        with pytest.raises(FlagNotFoundException):
-            service.record_practice("flag-1", "fui al mercado")
-
-        mock_flag_broker.load_flags.assert_called_once_with()
-        mock_practice_log_broker.record_attempt.assert_not_called()
+        mock_flag_service.get_flag.assert_called_once_with("does-not-exist")
+        # The lookup runs first, so a bad id short-circuits before any write
+        # is attempted -- and before PracticeLogService gets a chance to
+        # reject the text.
+        mock_practice_log_service.record_attempt.assert_not_called()

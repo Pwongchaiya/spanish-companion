@@ -10,7 +10,16 @@ this service unwrapped" guarantee.
 Three wrapper tiers, one more than Session Lifecycle collapsed to, because
 Review has a genuine dependency-failure category that Session Lifecycle
 lacks: RetrievalOrchestrationDependencyException from
-RetrievalController.retrieve().
+HybridRetrievalService.retrieve().
+
+The validation tier catches the *wrappers* the Foundation services beneath
+raise -- FlagValidationException (holding NotFoundFlagException) and
+PracticeLogValidationException (holding InvalidPracticeAttemptException) --
+never their raw leaves, the same shape already used here for
+RetrievalOrchestrationDependencyException and one tier down in
+IngestionServiceExceptions. Consequence: those leaves now sit at
+`.inner_exception.inner_exception` on the ReviewOrchestrationValidationException,
+one level deeper than before.
 
 Two cited omissions from the reference's tier set:
 
@@ -18,10 +27,12 @@ Two cited omissions from the reference's tier set:
    CreateAndLogDependencyValidationException, Exeptions.cs:100-110).
    Retrieval's dependency failure is an infrastructure outage, not a
    rejected input, so nothing validation-shaped would ever reach that tier.
+   FlagDependencyException / PracticeLogDependencyException are likewise not
+   caught: those are infrastructure outages too, and fall to the catch-all
+   service tier rather than being mislabelled as Retrieval-shaped.
 2. No Generation dependency catch. GenerationError is handled inside
-   GenerationService.explain() (rag/services/generation.py:37-46) and
-   replaced with a fallback string; it never propagates to
-   GenerationController.explain() or here.
+   GenerationService.explain() and replaced with a fallback string; it never
+   propagates here.
 
 `retrieve()`'s other documented raise, a bare ValueError for blank query or
 top_k < 1, is deliberately left to the final `except Exception` catch-all
@@ -32,10 +43,10 @@ there is a programming error, not an expected condition.
 
 from typing import Callable, TypeVar
 
+from api.models.flag.exceptions import FlagValidationException
+from api.models.practice_log.exceptions import PracticeLogValidationException
 from api.models.review.exceptions import (
     FailedReviewOrchestrationServiceException,
-    InvalidReviewOrchestrationException,
-    NotFoundFlagException,
     ReviewOrchestrationDependencyException,
     ReviewOrchestrationServiceException,
     ReviewOrchestrationValidationException,
@@ -54,9 +65,9 @@ class ReviewOrchestratorExceptions:
         # matching the reference's generic `ReturningXFunction` delegates.
         try:
             return fn()
-        except InvalidReviewOrchestrationException as e:
+        except FlagValidationException as e:
             raise self._create_and_log_validation_exception(e) from e
-        except NotFoundFlagException as e:
+        except PracticeLogValidationException as e:
             raise self._create_and_log_validation_exception(e) from e
         except RetrievalOrchestrationDependencyException as e:
             raise self._create_and_log_dependency_exception(e) from e
@@ -67,7 +78,14 @@ class ReviewOrchestratorExceptions:
     def _create_and_log_validation_exception(
         self, exception: Exception
     ) -> ReviewOrchestrationValidationException:
-        """Mirrors CreateAndLogValidationException, Exeptions.cs:88-98."""
+        """Mirrors CreateAndLogValidationException, Exeptions.cs:88-98.
+
+        What arrives here is FlagValidationException or
+        PracticeLogValidationException -- the Foundation tier's own wrapper,
+        carried through whole rather than unwrapped (Exeptions.cs:117's
+        divergence, the same call made below for the dependency tier). The
+        leaf stays reachable as `.inner_exception.inner_exception`.
+        """
         validation_exception = ReviewOrchestrationValidationException(inner_exception=exception)
         self._logging_broker.log_error(validation_exception)
         return validation_exception

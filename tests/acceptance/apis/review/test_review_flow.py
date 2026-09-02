@@ -1,13 +1,14 @@
 """Acceptance tests for the Review feature's HTTP round trip.
 
 Per CLAUDE.md's Phase 2 test strategy: full Flask app in-process
-(app.test_client()), real file-backed brokers pointed at pytest tmp_path
-(self-cleaning by construction), external dependencies (Retrieval,
-Generation) mocked at their controller boundary. Does NOT go through
-api.app.create_app() -- that wires real Postgres/Gemini brokers with no
-injection point, out of scope here. Retrieval/Generation's own behavior is
-out of scope too; this tier is about Review's real flagged-list ->
-selection -> explanation -> practice flow against real JSON/JSONL files.
+(app.test_client()), real file-backed brokers behind real Foundation
+services, pointed at pytest tmp_path (self-cleaning by construction),
+external dependencies (Retrieval, Generation) mocked at their service
+boundary. Does NOT go through api.app.create_app() -- that wires real
+Postgres/Gemini brokers with no injection point, out of scope here.
+Retrieval/Generation's own behavior is out of scope too; this tier is about
+Review's real flagged-list -> selection -> explanation -> practice flow
+against real JSON/JSONL files.
 """
 
 from datetime import datetime
@@ -20,11 +21,13 @@ from api.brokers.flag import JsonFileFlagBroker
 from api.brokers.practice_log import JsonLinesPracticeLogBroker
 from api.controllers.review import make_review_blueprint
 from api.models.flag import Flag
-from api.services.review import ReviewOrchestrator
-from rag.controllers.generation import GenerationController
-from rag.controllers.retrieval import RetrievalController
+from api.services.foundations.flag import FlagService
+from api.services.foundations.practice_log import PracticeLogService
+from api.services.orchestrations.review import ReviewOrchestrator
 from rag.models.generation import Explanation
 from rag.models.retrieval import ScoredChunk
+from rag.services.foundations.generation import GenerationService
+from rag.services.orchestrations.retrieval import HybridRetrievalService
 
 
 @pytest.fixture
@@ -60,8 +63,18 @@ def practice_log_broker(tmp_path):
 
 
 @pytest.fixture
-def mock_retrieval_controller():
-    mock = Mock(spec=RetrievalController)
+def flag_service(flag_broker):
+    return FlagService(flag_broker=flag_broker)
+
+
+@pytest.fixture
+def practice_log_service(practice_log_broker):
+    return PracticeLogService(practice_log_broker=practice_log_broker)
+
+
+@pytest.fixture
+def mock_retrieval_service():
+    mock = Mock(spec=HybridRetrievalService)
     mock.retrieve.return_value = [
         ScoredChunk(
             chunk_id=1,
@@ -75,8 +88,8 @@ def mock_retrieval_controller():
 
 
 @pytest.fixture
-def mock_generation_controller():
-    mock = Mock(spec=GenerationController)
+def mock_generation_service():
+    mock = Mock(spec=GenerationService)
     mock.explain.return_value = Explanation(
         explanation="Use 'tengo' for the first person present of tener.",
         source_url="https://rae.es/verb-conjugation",
@@ -85,12 +98,12 @@ def mock_generation_controller():
 
 
 @pytest.fixture
-def client(flag_broker, practice_log_broker, mock_retrieval_controller, mock_generation_controller):
+def client(flag_service, practice_log_service, mock_retrieval_service, mock_generation_service):
     orchestrator = ReviewOrchestrator(
-        flag_broker=flag_broker,
-        practice_log_broker=practice_log_broker,
-        retrieval_controller=mock_retrieval_controller,
-        generation_controller=mock_generation_controller,
+        flag_service=flag_service,
+        practice_log_service=practice_log_service,
+        retrieval_service=mock_retrieval_service,
+        generation_service=mock_generation_service,
     )
     app = Flask(__name__)
     app.register_blueprint(make_review_blueprint(orchestrator))
@@ -112,7 +125,7 @@ class TestListFlags:
 
 class TestExplainFlag:
 
-    def test_should_return_200_with_mocked_explanation_for_known_flag(self, client, mock_generation_controller):
+    def test_should_return_200_with_mocked_explanation_for_known_flag(self, client, mock_generation_service):
         # when
         response = client.get("/review/flags/flag-1/explain")
 

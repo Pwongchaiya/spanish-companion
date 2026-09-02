@@ -17,7 +17,8 @@ from flask import Flask
 from api.brokers.practice_log import PracticeAttempt
 from api.controllers.review import make_review_blueprint
 from api.models.flag import Flag
-from api.services.review import FlagNotFoundException, ReviewOrchestrator
+from api.models.flag.exceptions import NotFoundFlagException
+from api.services.orchestrations.review import ReviewOrchestrator
 from rag.models.generation import Explanation
 
 
@@ -102,7 +103,7 @@ class TestExplainFlag:
 
     def test_should_return_404_with_error_body_when_flag_not_found(self, client, mock_orchestrator):
         # given
-        mock_orchestrator.explain_flag.side_effect = FlagNotFoundException("flag-1")
+        mock_orchestrator.explain_flag.side_effect = NotFoundFlagException("flag-1")
 
         # when
         response = client.get("/review/flags/flag-1/explain")
@@ -138,7 +139,7 @@ class TestRecordPractice:
 
     def test_should_return_404_with_error_body_when_flag_not_found(self, client, mock_orchestrator):
         # given
-        mock_orchestrator.record_practice.side_effect = FlagNotFoundException("flag-1")
+        mock_orchestrator.record_practice.side_effect = NotFoundFlagException("flag-1")
 
         # when
         response = client.post("/review/flags/flag-1/practice", json={"attempt_text": "yo tengo"})

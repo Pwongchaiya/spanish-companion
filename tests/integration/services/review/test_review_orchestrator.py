@@ -2,13 +2,14 @@
 
 Review has two kinds of dependency and they get different treatment here:
 
-- FlagBroker / PracticeLogBroker are real local JSON / JSON Lines files --
-  cheap, and the one thing the Unit tier's mocks genuinely cannot confirm
-  (does a flag written by save_flags() actually come back out of load_flags();
-  does record_practice() actually leave a readable line on disk). So they are
-  REAL, pointed at pytest's tmp_path rather than the default data/ paths.
+- FlagService / PracticeLogService are real, built over real local JSON /
+  JSON Lines brokers -- cheap, and the one thing the Unit tier's mocks
+  genuinely cannot confirm (does a flag written by save_flags() actually come
+  back out of list_flags(); does record_practice() actually leave a readable
+  line on disk). So they are REAL, pointed at pytest's tmp_path rather than
+  the default data/ paths.
 
-- RetrievalController / GenerationController wrap Retrieval (Postgres +
+- HybridRetrievalService / GenerationService wrap Retrieval (Postgres +
   embedding model) and Generation (Gemini). Both already have their own
   Integration tiers; exercising them again through Review would be duplicate
   coverage of someone else's feature, so they stay mocked.
@@ -25,11 +26,15 @@ import pytest
 from api.brokers.flag import JsonFileFlagBroker
 from api.brokers.practice_log import JsonLinesPracticeLogBroker
 from api.models.flag import Flag
-from api.services.review import RETRIEVAL_TOP_K, FlagNotFoundException, ReviewOrchestrator
-from rag.controllers.generation import GenerationController
-from rag.controllers.retrieval import RetrievalController
+from api.models.flag.exceptions import FlagValidationException, NotFoundFlagException
+from api.models.review.exceptions import ReviewOrchestrationValidationException
+from api.services.foundations.flag import FlagService
+from api.services.foundations.practice_log import PracticeLogService
+from api.services.orchestrations.review import RETRIEVAL_TOP_K, ReviewOrchestrator
 from rag.models.generation import Explanation
 from rag.models.retrieval import ScoredChunk
+from rag.services.foundations.generation import GenerationService
+from rag.services.orchestrations.retrieval import HybridRetrievalService
 
 FIXED_NOW = datetime(2026, 1, 2, 3, 4, 5)
 
@@ -47,22 +52,32 @@ def practice_log_broker(tmp_path):
 
 
 @pytest.fixture
-def mock_retrieval_controller():
-    return Mock(spec=RetrievalController)
+def flag_service(flag_broker):
+    return FlagService(flag_broker=flag_broker)
 
 
 @pytest.fixture
-def mock_generation_controller():
-    return Mock(spec=GenerationController)
+def practice_log_service(practice_log_broker):
+    return PracticeLogService(practice_log_broker=practice_log_broker)
 
 
 @pytest.fixture
-def service(flag_broker, practice_log_broker, mock_retrieval_controller, mock_generation_controller):
+def mock_retrieval_service():
+    return Mock(spec=HybridRetrievalService)
+
+
+@pytest.fixture
+def mock_generation_service():
+    return Mock(spec=GenerationService)
+
+
+@pytest.fixture
+def service(flag_service, practice_log_service, mock_retrieval_service, mock_generation_service):
     return ReviewOrchestrator(
-        flag_broker=flag_broker,
-        practice_log_broker=practice_log_broker,
-        retrieval_controller=mock_retrieval_controller,
-        generation_controller=mock_generation_controller,
+        flag_service=flag_service,
+        practice_log_service=practice_log_service,
+        retrieval_service=mock_retrieval_service,
+        generation_service=mock_generation_service,
         clock=lambda: FIXED_NOW,
     )
 
@@ -106,7 +121,7 @@ class TestReviewOrchestratorIntegration:
         assert practice_log_broker.read_attempts(flag_id="flag-2") == [second]
 
     def test_should_explain_the_top_chunk_for_a_flag_loaded_from_the_real_file(
-        self, service, flag_broker, mock_retrieval_controller, mock_generation_controller
+        self, service, flag_broker, mock_retrieval_service, mock_generation_service
     ):
         # given
         flag = make_flag("flag-1", corrected="fui al mercado", category="preterite")
@@ -119,34 +134,40 @@ class TestReviewOrchestratorIntegration:
             content="...",
             score=0.9,
         )
-        mock_retrieval_controller.retrieve.return_value = [top_chunk]
+        mock_retrieval_service.retrieve.return_value = [top_chunk]
         expected = Explanation(explanation="grounded answer", source_url=top_chunk.source_url)
-        mock_generation_controller.explain.return_value = expected
+        mock_generation_service.explain.return_value = expected
 
         # when
         actual = service.explain_flag("flag-1")
 
         # then
         assert actual is expected
-        mock_retrieval_controller.retrieve.assert_called_once_with(
+        mock_retrieval_service.retrieve.assert_called_once_with(
             query="fui al mercado",
             top_k=RETRIEVAL_TOP_K,
             category="preterite",
         )
         # The flag handed to Generation is the one reconstructed from disk.
-        mock_generation_controller.explain.assert_called_once_with(flag, top_chunk)
+        mock_generation_service.explain.assert_called_once_with(flag, top_chunk)
 
-    def test_should_raise_flag_not_found_when_the_real_file_has_no_such_id(
-        self, service, flag_broker, mock_retrieval_controller, practice_log_broker
+    def test_should_raise_validation_exception_when_the_real_file_has_no_such_id(
+        self, service, flag_broker, mock_retrieval_service, practice_log_broker
     ):
         # given
         flag_broker.save_flags([make_flag("flag-1")])
 
-        # when / then
-        with pytest.raises(FlagNotFoundException):
-            service.explain_flag("does-not-exist")
-        with pytest.raises(FlagNotFoundException):
-            service.record_practice("does-not-exist", "fui al mercado")
+        # when / then -- FlagService wraps its NotFoundFlagException leaf, and
+        # Review carries that wrapper through whole, so the leaf is two levels
+        # deep rather than one.
+        for call in (
+            lambda: service.explain_flag("does-not-exist"),
+            lambda: service.record_practice("does-not-exist", "fui al mercado"),
+        ):
+            with pytest.raises(ReviewOrchestrationValidationException) as exc_info:
+                call()
+            assert isinstance(exc_info.value.inner_exception, FlagValidationException)
+            assert isinstance(exc_info.value.inner_exception.inner_exception, NotFoundFlagException)
 
-        mock_retrieval_controller.retrieve.assert_not_called()
+        mock_retrieval_service.retrieve.assert_not_called()
         assert practice_log_broker.read_attempts() == []

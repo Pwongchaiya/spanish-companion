@@ -28,7 +28,7 @@ class ReviewService(Protocol):
     def list_flags(self) -> List[Flag]:
         """The current flag list, for the flagged-list -> selection step.
 
-        Raises nothing: FlagBroker.load_flags() returns [] for a missing or
+        Raises nothing: FlagService.list_flags() returns [] for a missing or
         corrupt file, and "no flags yet" is a normal state.
         """
         ...
@@ -37,8 +37,9 @@ class ReviewService(Protocol):
         """Grounded explanation of one flag, chosen by id.
 
         Raises ReviewOrchestrationValidationException (wrapping
-        NotFoundFlagException) if no flag has this id,
-        ReviewOrchestrationDependencyException (wrapping
+        FlagValidationException, which itself holds NotFoundFlagException) if
+        no flag has this id, ReviewOrchestrationDependencyException (wrapping
+        RetrievalOrchestrationDependencyException, which itself holds
         RetrievalUnavailableError) if retrieval is unreachable, or
         ReviewOrchestrationServiceException for anything else.
         """
@@ -48,9 +49,13 @@ class ReviewService(Protocol):
         """Log the learner's single practice attempt at a flag's correction.
 
         Raises ReviewOrchestrationValidationException wrapping either
-        InvalidReviewOrchestrationException (blank attempt_text) or
-        NotFoundFlagException (unknown flag_id), or
+        FlagValidationException (unknown flag_id, holding
+        NotFoundFlagException) or PracticeLogValidationException (blank
+        attempt_text, holding InvalidPracticeAttemptException), or
         ReviewOrchestrationServiceException for anything else.
+
+        The flag lookup runs first, so an unknown flag_id is reported even
+        when attempt_text is also blank.
         """
         ...
 

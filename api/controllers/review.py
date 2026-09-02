@@ -36,13 +36,13 @@ from dataclasses import asdict
 
 from flask import Blueprint, jsonify, request
 
+from api.models.flag.exceptions import NotFoundFlagException
 from api.models.review.exceptions import (
-    NotFoundFlagException,
     ReviewOrchestrationDependencyException,
     ReviewOrchestrationServiceException,
     ReviewOrchestrationValidationException,
 )
-from api.services.review import ReviewOrchestrator
+from api.services.orchestrations.review import ReviewOrchestrator
 
 
 def make_review_blueprint(orchestrator: ReviewOrchestrator) -> Blueprint:
