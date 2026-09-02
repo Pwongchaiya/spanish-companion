@@ -7,14 +7,16 @@ mocked at the Broker boundary.
 What this tier adds over the Unit tier: the Unit tests fake the strategy, so
 nothing there proves the pgvector `<=>` cosine-distance query actually orders
 and limits rows the way DenseVectorStrategy assumes. Here the service is built
-with NO `strategies` override, so the real DenseVectorStrategy and the real
-SQL run.
+with NO `strategies` override, so the real DenseVectorStrategy, the real
+ChunkRepositoryService beneath it, and the real SQL all run.
 
-EmbeddingModelBroker stays mocked -- loading the sentence-transformers model
-is slow, and a real one would make nearest-neighbour ordering a property of
-the model rather than something this test can assert deterministically. The
-fixed vectors below are hand-picked so the expected distance order is
-arithmetic, not luck.
+The EmbeddingModel dependency stays mocked -- loading the sentence-transformers
+model is slow, and a real one would make nearest-neighbour ordering a property
+of the model rather than something this test can assert deterministically. It
+is now mocked one layer higher than before (Mock(spec=IEmbeddingModelService)
+rather than the raw broker), because that is the seam the service depends on
+since Retrieval moved to the Orchestration tier. The fixed vectors below are
+hand-picked so the expected distance order is arithmetic, not luck.
 """
 
 from unittest.mock import Mock
@@ -22,8 +24,9 @@ from unittest.mock import Mock
 import pytest
 
 from rag.brokers.chunk_repository import EMBEDDING_DIM
-from rag.brokers.embedding_model import EmbeddingModelBroker
-from rag.services.retrieval import HybridRetrievalService
+from rag.services.foundations.chunk_repository import ChunkRepositoryService
+from rag.services.foundations.embedding_model import IEmbeddingModelService
+from rag.services.orchestrations.retrieval import HybridRetrievalService
 
 EMBEDDING_MODEL_VERSION = "test-model-v1"
 CHUNKING_STRATEGY_VERSION = "test-chunking-v1"
@@ -56,9 +59,9 @@ TOPICS_BY_AXIS = ["ser-vs-estar", "preterite-vs-imperfect", "subjunctive-basics"
 
 @pytest.fixture
 def mock_embedding_model():
-    broker = Mock(spec=EmbeddingModelBroker)
-    broker.embed.return_value = [QUERY_EMBEDDING]
-    return broker
+    embedding_model_service = Mock(spec=IEmbeddingModelService)
+    embedding_model_service.embed.return_value = [QUERY_EMBEDDING]
+    return embedding_model_service
 
 
 @pytest.fixture
@@ -80,10 +83,13 @@ def seeded_chunk_ids(chunk_repository):
 @pytest.fixture
 def service(mock_embedding_model, chunk_repository):
     # No strategies/fusion/filters override: the real DenseVectorStrategy and
-    # the real pgvector query are the point of this tier.
+    # the real pgvector query are the point of this tier. The `chunk_repository`
+    # fixture is the real broker, wrapped here in the real Foundation service
+    # the Orchestration tier now depends on -- so the SQL under test is
+    # unchanged, just reached through one more real layer.
     return HybridRetrievalService(
-        embedding_model=mock_embedding_model,
-        chunk_repository=chunk_repository,
+        embedding_model_service=mock_embedding_model,
+        chunk_repository_service=ChunkRepositoryService(chunk_repository),
     )
 
 

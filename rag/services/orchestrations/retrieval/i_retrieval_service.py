@@ -28,10 +28,11 @@ class RetrievalService(Protocol):
         Returns [] when the corpus has no match -- empty is a valid result,
         not an error.
 
-        Raises RetrievalOrchestrationDependencyException (wrapping
-        RetrievalUnavailableError) if the chunk store or embedding model is
-        unreachable, or RetrievalOrchestrationServiceException for anything
-        else.
+        Raises RetrievalOrchestrationDependencyException (wrapping the
+        Foundation tier's EmbeddingModelDependencyException or
+        ChunkRepositoryDependencyException) if the chunk store or embedding
+        model is unreachable, or RetrievalOrchestrationServiceException for
+        anything else.
 
         Raises a bare ValueError for a blank query or top_k < 1. That is
         deliberately NOT wrapped: it is a programming error at the call

@@ -11,8 +11,12 @@ class RetrievalOrchestrationDependencyException(RagError):
     CreateAndLogDependencyException
     (EntitlementCodesOrchestrationService.Exeptions.cs:112-122).
 
-    It wraps exactly one thing today: `RetrievalUnavailableError` -- the
-    chunk store or embedding model being unreachable.
+    It wraps exactly two things today, both Foundation-tier wrappers:
+    `EmbeddingModelDependencyException` and
+    `ChunkRepositoryDependencyException` -- the embedding model or chunk
+    store being unreachable. (Before the Foundation tier existed beneath
+    this service it wrapped a local `RetrievalUnavailableError` leaf, now
+    deleted: the Foundation services raise their own wrapped equivalents.)
 
     This is the type api/services/review/ now catches. Retrieval sits
     directly beneath Review in the call graph (ReviewOrchestrator ->
@@ -26,21 +30,21 @@ class RetrievalOrchestrationDependencyException(RagError):
     1. No DependencyValidation tier. The reference pairs every Dependency
        tier with a DependencyValidation one
        (EntitlementCodeOrchestrationDependencyValidationException.cs, fed by
-       Exeptions.cs:29-52). Retrieval's only dependency failure mode,
-       RetrievalUnavailableError, is an infrastructure outage rather than a
-       rejected input, so there is nothing validation-shaped for that tier
-       to carry. Same reasoning already recorded for Review in
+       Exeptions.cs:29-52). Retrieval's dependency failure modes are both
+       infrastructure outages rather than rejected inputs, so there is
+       nothing validation-shaped for that tier to carry. Same reasoning
+       already recorded for Review in
        api/models/review/exceptions/review_orchestration_dependency_exception.py.
 
     2. Cited divergence from Exeptions.cs:117
        (`innerException: exception.InnerException as Xeption`): the
        reference unwraps one level because what it catches is itself
-       already a wrapper from the Processing service beneath it. Retrieval
-       catches RetrievalUnavailableError, which IS the leaf -- there is no
-       layer beneath it here -- so it is carried through whole rather than
-       unwrapped into None. (Review's pre-rebuild note said the same thing
-       about this leaf; after this rebuild that reasoning lives here, one
-       tier down, and Review's own catch is now a wrapper-of-wrapper.)
+       already a wrapper from the service beneath it. Retrieval now catches
+       exactly that shape -- a Foundation-tier wrapper -- but still carries
+       it through whole rather than flattening it, so the raw
+       *UnavailableError leaf stays reachable as
+       `.inner_exception.inner_exception`. Same call Review makes one tier
+       up, which means from Review's side the leaf now sits three deep.
     """
 
     def __init__(self, inner_exception: Exception) -> None:

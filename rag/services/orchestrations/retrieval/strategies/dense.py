@@ -11,8 +11,8 @@ fusion stage's interface, or the filters.
 import logging
 from typing import List, Protocol
 
-from rag.brokers.chunk_repository import ChunkRepositoryBroker
 from rag.models.retrieval import ScoredChunk
+from rag.services.foundations.chunk_repository import IChunkRepositoryService
 
 logger = logging.getLogger(__name__)
 
@@ -40,15 +40,21 @@ class RetrievalStrategy(Protocol):
 class DenseVectorStrategy:
     """Dense vector search via pgvector cosine distance.
 
-    Owns the ChunkRepositoryBroker — the service never touches it directly,
-    so swapping in a different candidate source touches only this class.
+    Owns the ChunkRepository Foundation service — the orchestration service
+    never touches it directly, so swapping in a different candidate source
+    touches only this class.
+
+    No exception handling here: ChunkRepositoryService already wraps its own
+    broker failures (ChunkRepositoryDependencyException et al), and those
+    propagate raw through this class to be caught one level up in
+    HybridRetrievalServiceExceptions._try_catch.
     """
 
-    def __init__(self, chunk_repository: ChunkRepositoryBroker) -> None:
-        self._chunk_repository = chunk_repository
+    def __init__(self, chunk_repository_service: IChunkRepositoryService) -> None:
+        self._chunk_repository_service = chunk_repository_service
 
     def search(self, query_embedding: List[float], top_k: int) -> List[ScoredChunk]:
-        candidates = self._chunk_repository.search_by_vector(query_embedding, top_k)
+        candidates = self._chunk_repository_service.search_by_vector(query_embedding, top_k)
 
         # Per rag-retrieval-skill: every strategy logs its own candidates
         # before fusion — when a Review Mode explanation cites the wrong RAE

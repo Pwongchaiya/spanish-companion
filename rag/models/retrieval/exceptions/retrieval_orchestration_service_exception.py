@@ -21,8 +21,9 @@ class RetrievalOrchestrationServiceException(RagError):
     api/models/session_lifecycle/exceptions/session_service_exception.py:10-17's
     already-established collapse in this codebase rather than Review's
     fuller 3-wrapper-tier shape. Retrieval has exactly one recognised
-    failure category (RetrievalUnavailableError), so there is nothing for
-    the extra level of indirection to disambiguate.
+    failure category (a dependency outage, arriving as either
+    EmbeddingModelDependencyException or ChunkRepositoryDependencyException),
+    so there is nothing for the extra level of indirection to disambiguate.
 
     Note what this tier does NOT catch: `retrieve()`'s bare ValueError for a
     blank query or top_k < 1 is raised *outside* _try_catch and propagates

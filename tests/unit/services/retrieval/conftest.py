@@ -1,27 +1,30 @@
 """Shared fixtures for HybridRetrievalService unit tests.
 
-Per CLAUDE.md's Phase 2 test strategy: every broker is mocked via
-unittest.mock.Mock(spec=BrokerProtocol), with strict call-count verification
-on every mock touched, and deterministic data only.
+Per CLAUDE.md's Phase 2 test strategy: every dependency is mocked via
+unittest.mock.Mock(spec=Protocol), with strict call-count verification on
+every mock touched, and deterministic data only. This service's dependencies
+are the two Foundation services (IEmbeddingModelService,
+IChunkRepositoryService), not raw brokers -- the brokers now sit one layer
+further down, behind those services.
 
-Seam note: the service never calls ChunkRepositoryBroker itself -- it only
+Seam note: the service never calls IChunkRepositoryService itself -- it only
 passes it to the default DenseVectorStrategy it builds when `strategies` is
 not overridden (see HybridRetrievalService.__init__). These tests override
-`strategies`, so the repository is a mock that must stay untouched; that is
-asserted in test_retrieve_logic.py rather than assumed. The real repository
-path is covered by the Integration tier instead.
+`strategies`, so the repository service is a mock that must stay untouched;
+that is asserted in test_retrieve_logic.py rather than assumed. The real
+repository path is covered by the Integration tier instead.
 """
 
 from unittest.mock import Mock
 
 import pytest
 
-from rag.brokers.chunk_repository import ChunkRepositoryBroker
-from rag.brokers.embedding_model import EmbeddingModelBroker
 from rag.models.retrieval import ScoredChunk
-from rag.services.retrieval import HybridRetrievalService
-from rag.services.retrieval.strategies.dense import RetrievalStrategy
-from rag.services.retrieval.strategies.fusion import PassThroughRankFusion
+from rag.services.foundations.chunk_repository import IChunkRepositoryService
+from rag.services.foundations.embedding_model import IEmbeddingModelService
+from rag.services.orchestrations.retrieval import HybridRetrievalService
+from rag.services.orchestrations.retrieval.strategies.dense import RetrievalStrategy
+from rag.services.orchestrations.retrieval.strategies.fusion import PassThroughRankFusion
 
 # Deterministic stand-in for a 384-dim embedding. Nothing under test does
 # vector math -- the dense search that would is the broker's job, exercised
@@ -54,14 +57,14 @@ def make_chunk():
 
 @pytest.fixture
 def mock_embedding_model():
-    broker = Mock(spec=EmbeddingModelBroker)
-    broker.embed.return_value = [QUERY_EMBEDDING]
-    return broker
+    embedding_model_service = Mock(spec=IEmbeddingModelService)
+    embedding_model_service.embed.return_value = [QUERY_EMBEDDING]
+    return embedding_model_service
 
 
 @pytest.fixture
 def mock_chunk_repository():
-    return Mock(spec=ChunkRepositoryBroker)
+    return Mock(spec=IChunkRepositoryService)
 
 
 @pytest.fixture
@@ -81,8 +84,8 @@ def service_factory(mock_embedding_model, mock_chunk_repository, mock_strategy):
 
     def build(strategies=None, fusion=None, filters=None):
         return HybridRetrievalService(
-            embedding_model=mock_embedding_model,
-            chunk_repository=mock_chunk_repository,
+            embedding_model_service=mock_embedding_model,
+            chunk_repository_service=mock_chunk_repository,
             strategies=[mock_strategy] if strategies is None else strategies,
             fusion=PassThroughRankFusion() if fusion is None else fusion,
             filters=filters,

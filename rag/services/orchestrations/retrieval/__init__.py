@@ -1,10 +1,10 @@
-from rag.services.retrieval.i_retrieval_service import RetrievalService
-from rag.services.retrieval.retrieval_service import (
+from rag.services.orchestrations.retrieval.i_retrieval_service import RetrievalService
+from rag.services.orchestrations.retrieval.retrieval_service import (
     _HybridRetrievalServiceBase,
     LoggingBroker,
     StdlibLoggingBroker,
 )
-from rag.services.retrieval.retrieval_service_exceptions import HybridRetrievalServiceExceptions
+from rag.services.orchestrations.retrieval.retrieval_service_exceptions import HybridRetrievalServiceExceptions
 
 
 class HybridRetrievalService(

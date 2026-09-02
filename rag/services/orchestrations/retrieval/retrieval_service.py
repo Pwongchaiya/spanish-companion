@@ -8,9 +8,11 @@ behaviour is swappable. Today exactly one strategy (dense) is wired and
 fusion is a pass-through; LexicalStrategy and reranking are seams, not
 placeholders — see strategies/fusion.py and strategies/filters.py.
 
-Per the CLAUDE.md Phase 2 waiver this service depends on brokers directly:
-there is no Foundation layer beneath it, so ORC-001 (dep count) and ORC-002
-(no direct broker deps) do not apply.
+Depends on exactly two Foundation services -- IEmbeddingModelService and
+IChunkRepositoryService -- so the Florance Pattern (ORC-001, 2-3 deps) and
+ORC-002 (no direct broker deps) are both satisfied outright; the CLAUDE.md
+Phase 2 waiver that previously covered this service's raw-broker deps no
+longer needs to apply to it.
 
 Split into this base logic file plus an Exceptions mixin
 (retrieval_service_exceptions.py), combined into the concrete
@@ -30,14 +32,13 @@ there is no named validation method for such a file to hold.
 import logging
 from typing import List, Optional, Sequence
 
-from rag.brokers.chunk_repository import ChunkRepositoryBroker
-from rag.brokers.embedding_model import EmbeddingModelBroker
 from rag.brokers.logging import LoggingBroker, StdlibLoggingBroker
 from rag.models.retrieval import ScoredChunk
-from rag.models.retrieval.exceptions import RetrievalUnavailableError
-from rag.services.retrieval.strategies.dense import DenseVectorStrategy, RetrievalStrategy
-from rag.services.retrieval.strategies.filters import CategoryBoostFilter, ResultFilter
-from rag.services.retrieval.strategies.fusion import PassThroughRankFusion, RankFusionStrategy
+from rag.services.foundations.chunk_repository import IChunkRepositoryService
+from rag.services.foundations.embedding_model import IEmbeddingModelService
+from rag.services.orchestrations.retrieval.strategies.dense import DenseVectorStrategy, RetrievalStrategy
+from rag.services.orchestrations.retrieval.strategies.filters import CategoryBoostFilter, ResultFilter
+from rag.services.orchestrations.retrieval.strategies.fusion import PassThroughRankFusion, RankFusionStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -45,10 +46,11 @@ logger = logging.getLogger(__name__)
 class _HybridRetrievalServiceBase:
     """Finds the corpus chunks that ground a Review Mode explanation.
 
-    Direct dependencies are the embedding broker (query embedding) plus the
-    pipeline stages it composes. The ChunkRepositoryBroker is passed in only
-    to build the default DenseVectorStrategy — that strategy owns it, and
-    this service never calls it.
+    Direct dependencies are the EmbeddingModel Foundation service (query
+    embedding) plus the pipeline stages it composes. The ChunkRepository
+    Foundation service is passed in only to build the default
+    DenseVectorStrategy — that strategy owns it, and this service never
+    calls it.
 
     The public `retrieve` delegates to a private `_retrieve` through
     `_try_catch` (defined in the Exceptions mixin), mirroring
@@ -58,19 +60,19 @@ class _HybridRetrievalServiceBase:
 
     def __init__(
         self,
-        embedding_model: EmbeddingModelBroker,
-        chunk_repository: ChunkRepositoryBroker,
+        embedding_model_service: IEmbeddingModelService,
+        chunk_repository_service: IChunkRepositoryService,
         strategies: Optional[Sequence[RetrievalStrategy]] = None,
         fusion: Optional[RankFusionStrategy] = None,
         filters: Optional[Sequence[ResultFilter]] = None,
         logging_broker: LoggingBroker = StdlibLoggingBroker(),
     ) -> None:
-        self._embedding_model = embedding_model
-        # Defaults are the whole MVP pipeline, so app.py wires two brokers and
-        # is done — no caller has to assemble stages by hand to get the
-        # behaviour everything currently expects.
+        self._embedding_model_service = embedding_model_service
+        # Defaults are the whole MVP pipeline, so app.py wires two Foundation
+        # services and is done — no caller has to assemble stages by hand to
+        # get the behaviour everything currently expects.
         self._strategies: Sequence[RetrievalStrategy] = (
-            strategies if strategies is not None else [DenseVectorStrategy(chunk_repository)]
+            strategies if strategies is not None else [DenseVectorStrategy(chunk_repository_service)]
         )
         self._fusion: RankFusionStrategy = fusion if fusion is not None else PassThroughRankFusion()
         self._filters: Sequence[ResultFilter] = filters if filters is not None else []
@@ -98,8 +100,9 @@ class _HybridRetrievalServiceBase:
                 is entered, so it propagates completely raw — see
                 retrieval_service_exceptions.py's module docstring.
             RetrievalOrchestrationDependencyException: wrapping
-                RetrievalUnavailableError when the chunk store or embedding
-                model is unreachable.
+                EmbeddingModelDependencyException or
+                ChunkRepositoryDependencyException — the Foundation service
+                beneath reported its broker unreachable.
             RetrievalOrchestrationServiceException: anything else.
         """
         # Deliberately outside _try_catch: these two are programming errors at
@@ -118,10 +121,9 @@ class _HybridRetrievalServiceBase:
         # Query text at DEBUG only (user speech); ids and counts at INFO.
         logger.debug("retrieve query=%r top_k=%d category=%r", query, top_k, category)
 
-        try:
-            query_embedding = self._embedding_model.embed([query])[0]
-        except Exception as e:
-            raise RetrievalUnavailableError(str(e)) from e
+        # No try/except: EmbeddingModelService.embed() already raises its own
+        # wrapped EmbeddingModelDependencyException, which _try_catch catches.
+        query_embedding = self._embedding_model_service.embed([query])[0]
 
         # ponytail: each strategy is asked for exactly top_k, so a chunk the
         # category boost would have floated to rank 1 is invisible if dense
@@ -129,10 +131,10 @@ class _HybridRetrievalServiceBase:
         # chunks). Upgrade path if Review Mode explanations cite the wrong
         # page: over-fetch here (top_k * a small factor) and keep the final
         # [:top_k] slice below exactly as it is.
-        try:
-            candidate_lists = [strategy.search(query_embedding, top_k) for strategy in self._strategies]
-        except Exception as e:
-            raise RetrievalUnavailableError(str(e)) from e
+        # No try/except here either: this chain bottoms out in
+        # ChunkRepositoryService.search_by_vector(), which raises its own
+        # wrapped ChunkRepositoryDependencyException for _try_catch to catch.
+        candidate_lists = [strategy.search(query_embedding, top_k) for strategy in self._strategies]
 
         fused = self._fusion.fuse(candidate_lists)
 
@@ -141,7 +143,7 @@ class _HybridRetrievalServiceBase:
         # is read-only signal (not an error), but flags potential stale corpus
         # issues for the user to investigate. ponytail: a single log line, not a
         # new validation layer.
-        configured_model = self._embedding_model.model_name
+        configured_model = self._embedding_model_service.model_name
         mismatched = [c for c in fused if c.embedding_model_version and c.embedding_model_version != configured_model]
         if mismatched:
             logger.warning(

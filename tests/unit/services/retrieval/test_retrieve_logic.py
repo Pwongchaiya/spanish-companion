@@ -9,8 +9,8 @@ See test_retrieve_validation.py for the blank-query / top_k guards.
 
 from unittest.mock import Mock
 
-from rag.services.retrieval.strategies.filters import ResultFilter
-from rag.services.retrieval.strategies.fusion import RankFusionStrategy
+from rag.services.orchestrations.retrieval.strategies.filters import ResultFilter
+from rag.services.orchestrations.retrieval.strategies.fusion import RankFusionStrategy
 
 
 class TestHybridRetrievalServiceRetrieveLogic:
@@ -77,9 +77,9 @@ class TestHybridRetrievalServiceRetrieveLogic:
     def test_should_never_call_chunk_repository_directly(
         self, service, mock_chunk_repository, mock_strategy, make_chunk
     ):
-        # given -- chunk_repository is constructor-only: it exists to build the
-        # default DenseVectorStrategy, which owns it. With `strategies`
-        # overridden, nothing in the pipeline may touch it.
+        # given -- chunk_repository_service is constructor-only: it exists to
+        # build the default DenseVectorStrategy, which owns it. With
+        # `strategies` overridden, nothing in the pipeline may touch it.
         mock_strategy.search.return_value = [make_chunk(1)]
 
         # when
