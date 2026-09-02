@@ -12,7 +12,7 @@ from unittest.mock import Mock
 import pytest
 from flask import Flask
 
-from api.controllers.session_lifecycle import make_session_lifecycle_blueprint
+from api.exposers.session_lifecycle import make_session_lifecycle_blueprint
 from api.models.session_lifecycle.exceptions import (
     AlreadyRunningSessionException,
     NotRunningSessionException,

@@ -16,7 +16,7 @@ import pytest
 from flask import Flask
 
 from api.brokers.bot_process import SubprocessBotProcessBroker
-from api.controllers.session_lifecycle import make_session_lifecycle_blueprint
+from api.exposers.session_lifecycle import make_session_lifecycle_blueprint
 from api.services.foundations.session_lifecycle import ConversationSessionService
 
 WAIT_TIMEOUT_SECONDS = 5  # mirrors tests/integration/brokers/test_bot_process.py
