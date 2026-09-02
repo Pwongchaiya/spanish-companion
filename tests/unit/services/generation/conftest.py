@@ -11,7 +11,7 @@ import pytest
 
 from rag.brokers.generation import GenerationBroker
 from rag.models.retrieval import ScoredChunk
-from rag.services.generation import GenerationService
+from rag.services.foundations.generation import GenerationService
 
 
 @dataclass

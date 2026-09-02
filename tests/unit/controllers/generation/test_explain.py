@@ -12,7 +12,7 @@ import pytest
 from rag.controllers.generation import GenerationController
 from rag.models.generation import Explanation
 from rag.models.retrieval import ScoredChunk
-from rag.services.generation import GenerationService
+from rag.services.foundations.generation import GenerationService
 
 
 @dataclass

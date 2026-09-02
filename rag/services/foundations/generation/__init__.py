@@ -1,6 +1,6 @@
-from rag.services.generation.i_generation_service import FlagLike, IGenerationService
-from rag.services.generation.generation_service import _GenerationServiceBase
-from rag.services.generation.generation_service_exceptions import (
+from rag.services.foundations.generation.i_generation_service import FlagLike, IGenerationService
+from rag.services.foundations.generation.generation_service import _GenerationServiceBase
+from rag.services.foundations.generation.generation_service_exceptions import (
     GenerationServiceExceptions,
 )
 

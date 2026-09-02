@@ -28,7 +28,7 @@ from rag.brokers.generation import GenerationBroker, GenerationError
 from rag.brokers.logging import LoggingBroker, StdlibLoggingBroker
 from rag.models.generation import Explanation
 from rag.models.retrieval import ScoredChunk
-from rag.services.generation.i_generation_service import FlagLike
+from rag.services.foundations.generation.i_generation_service import FlagLike
 
 logger = logging.getLogger(__name__)
 
