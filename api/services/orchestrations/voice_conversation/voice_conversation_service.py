@@ -24,9 +24,13 @@ Foundation-tier services matching every other feature's shape. New narrow
 ORC-001 waiver (5 dependencies) per CLAUDE.md's Phase 2 Layer-Agent
 Mapping.
 
-Folder layout matches the per-feature subpackage convention established
-for Session Lifecycle/Review (api/services/<feature>/,
-api/models/<feature>/exceptions/). Deliberately NOT split into
+Lives under api/services/orchestrations/voice_conversation/, matching
+Review's (api/services/orchestrations/review/) and Ingestion's
+(rag/services/orchestrations/ingestion/) Orchestration-tier placement --
+moved here from a flat api/services/voice_conversation/ as a same-day
+follow-up to this wave, once the flat layout was flagged as an
+inconsistency rather than a deliberate exception. Deliberately NOT split
+into
 interface/validations/exceptions mixin files the way Session Lifecycle/
 Review were: those splits exist to combine wrapper-tier exception-handling
 content via multiple inheritance, and Voice Conversation has no such

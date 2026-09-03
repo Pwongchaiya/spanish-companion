@@ -1,6 +1,6 @@
 """Broker for the voice-conversation subprocess.
 
-Owns the OS process handle for `python -m api.controllers.voice_conversation`
+Owns the OS process handle for `python -m api.exposers.voice_conversation`
 (the Phase 2 successor to Phase 1's `voice/bot.py`, launched the same way
 Phase 1's `ui/app.py` launched it). No persistence, no business logic —
 double-start refusal and the graceful/terminate/kill escalation policy

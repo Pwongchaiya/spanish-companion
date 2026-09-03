@@ -12,7 +12,7 @@ RetrievalController/GenerationController this used to route through are
 gone (6-layer Standard rebuild, Wave 7).
 
 `/api/events` reads the transcript file by its own env var (not by
-importing api.services.voice_conversation) so this process never pulls in
+importing api.services.orchestrations.voice_conversation) so this process never pulls in
 Voice Conversation's pipecat/Azure/Google dependencies — Voice Conversation
 runs as a separate subprocess precisely to keep those out of the Flask
 process (see BotProcessBroker).
@@ -73,8 +73,8 @@ ALLOWED_ORIGINS: Tuple[str, ...] = tuple(
     if origin.strip()
 )
 
-# Same path/env-var as api/services/voice_conversation/voice_conversation_service.py's
-# TRANSCRIPT_FILE_PATH
+# Same path/env-var as api/brokers/session_log/session_log_broker.py's
+# DEFAULT_TRANSCRIPT_FILE_PATH
 # — duplicated as a constant, not imported, to keep pipecat/Azure/Google out of
 # this process (see module docstring).
 TRANSCRIPT_FILE_PATH = Path(os.getenv("TRANSCRIPT_FILE_PATH", str(REPO_ROOT / "data" / "live_transcript.jsonl")))

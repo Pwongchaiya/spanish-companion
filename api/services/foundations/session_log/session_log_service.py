@@ -3,7 +3,8 @@
 Single broker dependency -> Foundation layer, not Orchestration, per
 CLAUDE.md's Phase 2 Layer-Agent Mapping & Waivers. Formatting logic
 (save_session_log's body) moved here verbatim from
-api/services/voice_conversation/voice_conversation_service.py -- the
+api/services/orchestrations/voice_conversation/voice_conversation_service.py
+-- the
 Orchestrator still owns flattening LLMContext into `turns` (a pipecat-
 specific concern this Foundation shouldn't need to know about), and passes
 already-flattened strings in.

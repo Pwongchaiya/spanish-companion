@@ -5,7 +5,7 @@ CLAUDE.md's Phase 2 Layer-Agent Mapping & Waivers. Shares SessionLogBroker
 with SessionLogService (one broker, two Foundation concerns) -- this one
 owns the live-transcript-file half. JSON-line formatting moved here
 verbatim from _write_live_transcript's per-turn loop in
-api/services/voice_conversation/voice_conversation_service.py.
+api/services/orchestrations/voice_conversation/voice_conversation_service.py.
 
 No Validations/Exceptions mixin split: no validation beyond the broker's
 own I/O, already covered by Voice Conversation's already-resolved

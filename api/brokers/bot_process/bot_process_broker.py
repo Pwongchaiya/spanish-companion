@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import List, Optional
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-BOT_COMMAND = [sys.executable, "-m", "api.controllers.voice_conversation"]
+BOT_COMMAND = [sys.executable, "-m", "api.exposers.voice_conversation"]
 STOP_SIGNAL_FILE_PATH = Path(os.getenv("STOP_SIGNAL_FILE_PATH", str(REPO_ROOT / "data" / "stop_signal")))
 
 

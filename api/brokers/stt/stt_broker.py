@@ -1,8 +1,8 @@
 """AzureSttBroker -- Azure Speech-backed SttBroker.
 
 BilingualAzureSTTService moved here verbatim from
-api/services/voice_conversation/voice_conversation_service.py -- folder
-move only, no behavior change. See i_stt_broker.py for why STT specifically
+api/services/orchestrations/voice_conversation/voice_conversation_service.py
+-- folder move only, no behavior change. See i_stt_broker.py for why STT specifically
 gets a broker wrapper while LLM/TTS don't.
 """
 

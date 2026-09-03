@@ -1,8 +1,8 @@
 """FileSessionLogBroker -- filesystem-backed SessionLogBroker.
 
 SESSION_LOG_DIR / TRANSCRIPT_FILE_PATH moved here verbatim from
-api/services/voice_conversation/voice_conversation_service.py -- same env
-vars, same defaults, folder move only.
+api/services/orchestrations/voice_conversation/voice_conversation_service.py
+-- same env vars, same defaults, folder move only.
 """
 
 import os
