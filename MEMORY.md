@@ -8,32 +8,25 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-09-02-0934.md — Executed the
-six-layer Standard rebuild approved 2026-08-30: Waves 1-7 of 9 landed as
-10 commits (2f04281..6a9c2ac on feat/pwongchaiya/step0-repo-scaffold) via
-the Hierarchical Agent Delegation convention. Session Lifecycle moved to
-services/foundations/; ChunkRepositoryService/EmbeddingModelService built
-as new shared Foundations under Ingestion+Retrieval; IngestionService/
-HybridRetrievalService rewired onto them (IngestionUnavailableError/
-RetrievalUnavailableError retired); GenerationService moved to Foundation
-tier, its pass-through GenerationController deleted; FlagService/
-PracticeLogService built as new Foundations under Review, absorbing
-ReviewOrchestrator logic verbatim; ReviewOrchestrator fully rebuilt onto
-all four service deps directly (RetrievalController/GenerationController
-both gone from that call path); every Controller renamed/moved to
-exposers/ (or deleted where it was a pure pass-through — RetrievalController,
-GenerationController); a real bug fixed along the way (Review's exception-
-wrap-depth isinstance check was silently returning 400 instead of 404 for
-every not-found flag). app.py composition root rewired to match, verified
-with a real create_app() boot and a live smoke test that round-trips a 404
-through the full stack end to end. Two Orchestration Agent dispatches hit
-a weekly rate limit mid-task and were resumed via cross-agent messaging
-rather than restarted. Wave 8 (Voice Conversation, hand-written,
-hardware-gated) and Wave 9 (pytest, user's job) deliberately not started
-this session. CLAUDE.md's Architecture section and waiver table are now
-stale (still describe the retired 3-layer pattern) — flagged to the user
-at session-end, not yet approved/applied. Full record:
-Projects/spanish-companion/decisions/six-layer-standard-rebuild.md.
+Projects/spanish-companion/sessions/2026-09-03-1422.md — Hackathon research
+session, not layer-build work: extracted the Nerdy AI Hackathon Challenge's
+full requirements via Playwright (homepage + /terms; no other pages exist)
+and ground-truth-verified the repo's actual current state (not just re-read
+from docs) by inspecting app.py imports/directory contents and running the
+real test suites. Confirmed the six-layer rebuild genuinely is live in
+app.py (old pre-rebuild directories are empty leftovers); found a live,
+previously-unknown bug — record_practice returns 500 instead of 400 on a
+missing JSON body (api/exposers/review.py:76) — and reproduced the 13
+integration-test errors as a Windows port-exhaustion artifact, not an app
+bug. Wrote a time-boxed plan of attack (competition summary → current-state
+snapshot → judged-vs-unjudged gap list → Sep 3-18 plan) to
+Projects/spanish-companion/decisions/hackathon-nerdy-plan-of-attack.md, with
+two decisions explicitly left open for the user: whether the Phase 3/4
+rebuild (Wave 8/9 below) pauses for hackathon prep or runs in parallel, and
+whether the contest's IP-assignment term is acceptable. Six-layer rebuild
+(Waves 1-7 of 9, landed 2026-09-02) and Wave 8/9 status unchanged this
+session — see Projects/spanish-companion/decisions/six-layer-standard-rebuild.md
+for that record.
 
 ---
 
