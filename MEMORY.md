@@ -8,19 +8,21 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-09-03-1434.md — tooling/documentation
-session, not layer-build work: added a "Codebase Documentation (repowise)"
-section to CLAUDE.md (when to use repowise's MCP tools vs. plain Grep/Read,
-staleness caveat), committed alongside a pending `.claude-toolkit` submodule
-bump. Built a new global (not project-scoped) `revise-prompt` skill at
-`~/.claude/skills/revise-prompt/` that rewrites a raw prompt before acting on
-it, then corrected it twice after live use surfaced real bugs in its own
-design (an over-narrow "ask only for genuine forks" gate, and "show the
-revision" collapsing into the same turn as acting with no real pause). No
-spanish-companion entities or layers touched. Six-layer rebuild (Waves 1-7 of
-9, landed 2026-09-02) and the hackathon-prep decision points are unchanged
-this session — see Projects/spanish-companion/decisions/six-layer-standard-rebuild.md
-and Projects/spanish-companion/decisions/hackathon-nerdy-plan-of-attack.md.
+Projects/spanish-companion/sessions/2026-09-03-1650.md — app-hardening pass,
+explicitly reprioritized over hackathon submission logistics this session
+(Sep 18 deadline may now slip). Landed Wave 8 (Voice Conversation six-layer
+migration — 3 new Brokers, 4 new Foundations, Orchestrator rewired onto 5
+Foundation deps, zero behavior change verified), plus a same-day follow-up
+fix (user caught that the Orchestrator/CLI entrypoint were left at old flat
+paths — moved to `services/orchestrations/voice_conversation/` and
+`exposers/voice_conversation.py`, `api/controllers/` now fully retired).
+Also: a real pipeline-setup-timeout bug found and fixed (was silently
+exiting 0 instead of crashing), `pipecat-ai` pinned to `==1.8.1`, Flag/
+PracticeLog/ChunkRepository/EmbeddingModel got full test coverage for the
+first time, Tri-Nature gaps 1+2 closed (Judge for Generation, prompts
+extracted to data files), 6+ dead files/folders removed. Two commits:
+`b88ef76`, `9f13120`. See
+Projects/spanish-companion/decisions/wave-8-voice-conversation-six-layer-migration.md.
 
 ---
 
