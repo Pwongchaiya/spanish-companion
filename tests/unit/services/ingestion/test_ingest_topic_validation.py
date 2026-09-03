@@ -10,7 +10,10 @@ mismatch inserts zero rows, not some.
 
 import pytest
 
-from rag.models.ingestion.exceptions import IngestionValidationError
+from rag.models.ingestion.exceptions import (
+    IngestionOrchestrationValidationException,
+    IngestionValidationError,
+)
 from rag.services.orchestrations.ingestion import CHUNK_SIZE
 
 TOPIC = "preterite-vs-imperfect"
@@ -25,8 +28,10 @@ class TestIngestionServiceIngestTopicValidation:
         self, service, mock_chunk_repository, mock_embedding_model, blank_topic
     ):
         # when / then
-        with pytest.raises(IngestionValidationError):
+        with pytest.raises(IngestionOrchestrationValidationException) as exc_info:
             service.ingest_topic(topic=blank_topic, source_url=SOURCE_URL, text=TEXT)
+
+        assert isinstance(exc_info.value.inner_exception, IngestionValidationError)
 
         mock_embedding_model.embed.assert_not_called()
         mock_chunk_repository.insert_chunk.assert_not_called()
@@ -36,8 +41,10 @@ class TestIngestionServiceIngestTopicValidation:
         self, service, mock_chunk_repository, mock_embedding_model, blank_source_url
     ):
         # when / then
-        with pytest.raises(IngestionValidationError):
+        with pytest.raises(IngestionOrchestrationValidationException) as exc_info:
             service.ingest_topic(topic=TOPIC, source_url=blank_source_url, text=TEXT)
+
+        assert isinstance(exc_info.value.inner_exception, IngestionValidationError)
 
         mock_embedding_model.embed.assert_not_called()
         mock_chunk_repository.insert_chunk.assert_not_called()
@@ -51,8 +58,10 @@ class TestIngestionServiceIngestTopicValidation:
         mock_embedding_model.embed.return_value = [[0.1, 0.2]]
 
         # when / then
-        with pytest.raises(IngestionValidationError):
+        with pytest.raises(IngestionOrchestrationValidationException) as exc_info:
             service.ingest_topic(topic=TOPIC, source_url=SOURCE_URL, text=text)
+
+        assert isinstance(exc_info.value.inner_exception, IngestionValidationError)
 
         mock_embedding_model.embed.assert_called_once_with(["a" * CHUNK_SIZE, "bbb"])
         mock_chunk_repository.insert_chunk.assert_not_called()
@@ -65,8 +74,10 @@ class TestIngestionServiceIngestTopicValidation:
         mock_embedding_model.embed.return_value = [[0.1, 0.2], [0.3, 0.4]]
 
         # when / then
-        with pytest.raises(IngestionValidationError):
+        with pytest.raises(IngestionOrchestrationValidationException) as exc_info:
             service.ingest_topic(topic=TOPIC, source_url=SOURCE_URL, text=TEXT)
+
+        assert isinstance(exc_info.value.inner_exception, IngestionValidationError)
 
         mock_embedding_model.embed.assert_called_once_with([TEXT])
         mock_chunk_repository.insert_chunk.assert_not_called()

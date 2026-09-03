@@ -10,32 +10,33 @@ Phase 1. Graceful stop on `/stop` uses a polled stop-flag file (see
 mechanism was confirmed broken via isolated repro, 2026-08-29 (see
 api/brokers/bot_process/bot_process_broker.py's module docstring).
 
-Per the architecture decision record, this is the one feature where
-Pipecat's own STT/LLM/TTS service objects ARE the Broker layer — they are
-not re-wrapped. FlagBroker (injected) is this service's only other
-dependency, and Voice Conversation is its sole writer.
-
-What changed from a literal copy (per the "clean rewrite, not a patch"
-decision): flags are `Flag` objects (uuid4 id + timestamp), persisted via
-FlagBroker.save_flags() instead of Phase 1's direct save_flags_json() file
-write. Pipeline wiring, the system prompt, and transcript logging are
-unchanged — no reason to touch code that's already hardware-verified.
+Wave 8 six-layer migration (hand-written, no agent, per CLAUDE.md): this
+Orchestration service now coordinates 5 Foundation dependencies —
+SttService, PromptService, SessionLogService, LiveTranscriptService, and
+FlagService — replacing what used to be inline pipecat/Azure construction
+and free-function file I/O directly in this class. LLM and TTS remain bare
+pipecat service objects, unwrapped, per the architecture decision record
+(only STT's fragile private-API override warranted its own broker — see
+api/brokers/stt/i_stt_broker.py). Zero behavior change from this move:
+same echo suppression, same sample-rate handling, same flag parsing, same
+stop-signal polling — only the construction/persistence plumbing moved to
+Foundation-tier services matching every other feature's shape. New narrow
+ORC-001 waiver (5 dependencies) per CLAUDE.md's Phase 2 Layer-Agent
+Mapping.
 
 Folder layout matches the per-feature subpackage convention established
 for Session Lifecycle/Review (api/services/<feature>/,
-api/models/<feature>/exceptions/) — this file was moved wholesale from
-the prior flat api/services/voice_conversation.py, layout only, no
-content change. Deliberately NOT split into interface/validations/
-exceptions mixin files the way Session Lifecycle/Review were: those
-splits exist to combine wrapper-tier exception-handling content via
-multiple inheritance, and Voice Conversation has no such content (its two
-exceptions are flat leaves with no wrapping tier, matching
-api/brokers/logging/'s package-with-no-split precedent) — per CLAUDE.md,
-Voice Conversation gets folder-layout only, no agent-driven content
-rebuild. Likewise no `i_voice_conversation_service.py` Protocol interface:
-nothing in this codebase consumes ConversationOrchestrator through an
-injected interface (the CLI entrypoint constructs it directly), so one
-would be pure ceremony — cited omission, not an oversight.
+api/models/<feature>/exceptions/). Deliberately NOT split into
+interface/validations/exceptions mixin files the way Session Lifecycle/
+Review were: those splits exist to combine wrapper-tier exception-handling
+content via multiple inheritance, and Voice Conversation has no such
+content (its two exceptions are flat leaves with no wrapping tier,
+matching api/brokers/logging/'s package-with-no-split precedent) — per
+CLAUDE.md, Voice Conversation gets folder-layout only, no agent-driven
+content rebuild. Likewise no `i_voice_conversation_service.py` Protocol
+interface: nothing in this codebase consumes ConversationOrchestrator
+through an injected interface (the CLI entrypoint constructs it directly),
+so one would be pure ceremony — cited omission, not an oversight.
 """
 
 import asyncio
@@ -61,7 +62,6 @@ from pipecat.processors.aggregators.llm_response_universal import (
 from pipecat.processors.aggregators.llm_text_processor import LLMTextProcessor
 from pipecat.processors.filters.function_filter import FunctionFilter
 from pipecat.utils.text.pattern_pair_aggregator import MatchAction, PatternMatch, PatternPairAggregator
-from pipecat.services.azure.stt import AudioConfig, AudioStreamFormat, AzureSTTService, PushAudioInputStream
 from pipecat.services.azure.tts import AzureTTSService
 from pipecat.services.google.llm import GoogleLLMService
 from pipecat.transcriptions.language import Language
@@ -69,24 +69,21 @@ from pipecat.transports.local.audio import LocalAudioTransport, LocalAudioTransp
 from pipecat.turns.user_mute import AlwaysUserMuteStrategy
 from pipecat.workers.runner import WorkerRunner
 
-from azure.cognitiveservices.speech import (
-    AutoDetectSourceLanguageConfig,
-    PropertyId,
-    SpeechRecognizer,
-)
-
-from api.brokers.flag import FlagBroker
 from api.models.flag import Flag
+from api.models.flag.exceptions import FlagDependencyException, FlagServiceException
 from api.models.voice_conversation.exceptions import (
     VoiceConversationConfigError,
     VoiceConversationPipelineError,
 )
+from api.services.foundations.flag import IFlagService
+from api.services.foundations.live_transcript import ILiveTranscriptService
+from api.services.foundations.prompt import IPromptService
+from api.services.foundations.session_log import ISessionLogService
+from api.services.foundations.stt import ISttService
 
 load_dotenv()
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-
-BILINGUAL_STT_LANGUAGES = ["es-ES", "en-US"]
 
 FLAG_START = "<flag>"
 FLAG_END = "</flag>"
@@ -94,57 +91,10 @@ FLAG_TYPE = "error_flag"
 FLAG_KEYS = ("said", "corrected", "category")
 
 # ponytail: same os.getenv-at-import-time pattern as every other Phase 2
-# module (load_dotenv() then os.getenv with a string default). data/ matches
-# FlagBroker's/PracticeLogBroker's own file location convention, replacing
-# Phase 1's voice/logs/ — these are new paths, not a port of the old ones.
-SESSION_LOG_DIR = Path(os.getenv("SESSION_LOG_DIR", str(REPO_ROOT / "data" / "session_logs")))
-TRANSCRIPT_FILE_PATH = Path(os.getenv("TRANSCRIPT_FILE_PATH", str(REPO_ROOT / "data" / "live_transcript.jsonl")))
+# module. Voice Conversation's own stop-signal file is out of this wave's
+# 3-broker scope (Stt/SessionLog/Prompt) -- single-purpose, already simple,
+# not worth a 4th broker.
 STOP_SIGNAL_FILE_PATH = Path(os.getenv("STOP_SIGNAL_FILE_PATH", str(REPO_ROOT / "data" / "stop_signal")))
-
-
-class BilingualAzureSTTService(AzureSTTService):
-    """Azure STT with continuous language identification between Spanish
-    and English, so the learner can ask a question in either language
-    mid-conversation.
-
-    Pipecat's AzureSTTService only supports one fixed recognition language,
-    with no hook for AutoDetectSourceLanguageConfig — so this re-implements
-    _connect() to add it. Keep in sync with upstream's _connect() if pipecat
-    changes it (pipecat-ai==1.8.1 as of writing).
-
-    Continuous LID re-detects per utterance (not mid-sentence) and adds
-    per-utterance detection overhead — a deliberate cost against this
-    project's "Conversation Mode stays fast" principle, traded for actually
-    understanding English questions.
-    """
-
-    async def _connect(self):
-        if self._audio_stream:
-            return
-
-        try:
-            self._speech_config.set_property(
-                PropertyId.SpeechServiceConnection_LanguageIdMode, "Continuous"
-            )
-
-            stream_format = AudioStreamFormat(samples_per_second=self.sample_rate, channels=1)
-            self._audio_stream = PushAudioInputStream(stream_format)
-            audio_config = AudioConfig(stream=self._audio_stream)
-            auto_detect_config = AutoDetectSourceLanguageConfig(languages=BILINGUAL_STT_LANGUAGES)
-
-            self._speech_recognizer = SpeechRecognizer(
-                speech_config=self._speech_config,
-                audio_config=audio_config,
-                auto_detect_source_language_config=auto_detect_config,
-            )
-            self._speech_recognizer.recognizing.connect(self._on_handle_recognizing)
-            self._speech_recognizer.recognized.connect(self._on_handle_recognized)
-            self._speech_recognizer.canceled.connect(self._on_handle_canceled)
-            self._speech_recognizer.start_continuous_recognition_async()
-        except Exception as e:
-            await self.push_error(
-                error_msg=f"Uncaught exception during initialization: {e}", exception=e
-            )
 
 
 class _MicGate:
@@ -185,42 +135,6 @@ class _MicGate:
 # everything flagged, unfiltered" — under-flagging is a known gap, not a bug
 # to chase. Upgrade path if manual review shows this misses too much:
 # response_schema via settings.extra, trading away streamed TTS latency.
-SYSTEM_PROMPT = (
-    "You are a warm, friendly bilingual companion helping a native English "
-    "speaker learn to speak Spanish, by voice. Walk them through Spanish "
-    "phrases conversationally: say a phrase in Spanish, briefly explain what "
-    "it means in English, then invite them to try saying it back. Cover one "
-    "phrase or idea per turn, not a list. Keep it warm and casual, like a "
-    "friend teaching you over coffee, not a formal lesson. Keep responses "
-    "short, since this is a real-time spoken conversation.\n\n"
-    "This is spoken aloud by a text-to-speech engine, not displayed as text. "
-    "Never use markdown, asterisks, quotation marks, or any other formatting "
-    "— those symbols get read aloud literally. The voice picks one language "
-    "per sentence and reads the whole sentence in it — so a Spanish word or "
-    "phrase sharing a sentence with English, in ANY way (comma-spliced, "
-    "parenthesized, quoted, or otherwise), gets read aloud with an English "
-    "accent instead of Spanish. Every Spanish phrase must be its own "
-    "complete, standalone sentence with nothing English in it, and every "
-    "English sentence must have nothing Spanish in it. Always write Spanish "
-    "with its correct accents and punctuation — é, í, ó, ú, á, ñ, ¿, ¡ — "
-    "never drop them (tú, not tu; cómo, not como, when it means how). "
-    "A construction you tend to get wrong: introducing a phrase with 'you "
-    "can say, Estoy bien' or 'that means, buenos días' as one comma-spliced "
-    "sentence — split it into two sentences instead: 'You can say this.' "
-    "'Estoy bien.'\n\n"
-    "Separately from what you say aloud, watch for mistakes the learner makes "
-    "in Spanish — grammar, verb conjugation, gender agreement, or word choice. "
-    "When you notice one, append a flag at the very END of your reply, after "
-    "everything you say aloud, in exactly this form:\n"
-    "<flag>{\"said\": \"what they actually said\", \"corrected\": \"the corrected "
-    "Spanish\", \"category\": \"short label\"}</flag>\n"
-    "One flag block per mistake; emit several blocks if there were several. "
-    "Use short category labels like ser vs estar, preterite vs imperfect, "
-    "gender agreement, subjunctive, vocabulary. Emit nothing if there was no "
-    "mistake — most turns will have none. Never mention the flag, never read "
-    "it aloud, never correct the learner out loud; the flag is silent and is "
-    "reviewed after the conversation. Nothing may follow the closing tag."
-)
 
 
 def _message_text(content) -> str:
@@ -252,44 +166,30 @@ def parse_flag(content: str) -> Optional[dict]:
     return {key: flag[key] for key in FLAG_KEYS}
 
 
-def save_session_log(context: LLMContext, flags: List[Flag]) -> Optional[Path]:
-    """Write the session's conversation turns to a timestamped file under
-    data/session_logs/, for manual review per this step's testing standard
-    (no automated transcript checks yet — see CLAUDE.md Testing Standards)."""
-    turns = [
-        f"[{message['role']}] {_message_text(message['content'])}"
-        for message in context.messages
-        if isinstance(message, dict) and message["role"] in ("user", "assistant")
-    ]
-    if not turns:
-        return None
-
-    output_lines = turns[:]
-    if flags:
-        output_lines.append("--- flags ---")
-        for flag in flags:
-            output_lines.append(
-                f"[{flag.category}] said: \"{flag.said}\" -> corrected: \"{flag.corrected}\""
-            )
-
-    SESSION_LOG_DIR.mkdir(parents=True, exist_ok=True)
-    log_path = SESSION_LOG_DIR / f"{datetime.now():%Y-%m-%d-%H%M%S}.log"
-    log_path.write_text("\n".join(output_lines) + "\n", encoding="utf-8")
-    return log_path
-
-
 class ConversationOrchestrator:
     """Owns the live voice conversation — Pipecat pipeline construction,
     error-flag capture, and periodic persistence.
 
-    Pipecat's own STT/LLM/TTS service objects are this feature's Broker
-    layer (per the architecture decision record — not re-wrapped).
-    FlagBroker is the only injected dependency; Voice Conversation is its
-    sole writer.
+    Pipecat's own LLM/TTS service objects are this feature's Broker layer
+    (per the architecture decision record — not re-wrapped); STT is wrapped
+    (SttService) because of its fragile private-API override. FlagService,
+    PromptService, SessionLogService, and LiveTranscriptService are the
+    other four Foundation-tier dependencies.
     """
 
-    def __init__(self, flag_broker: FlagBroker) -> None:
-        self._flag_broker = flag_broker
+    def __init__(
+        self,
+        stt_service: ISttService,
+        prompt_service: IPromptService,
+        session_log_service: ISessionLogService,
+        live_transcript_service: ILiveTranscriptService,
+        flag_service: IFlagService,
+    ) -> None:
+        self._stt_service = stt_service
+        self._prompt_service = prompt_service
+        self._session_log_service = session_log_service
+        self._live_transcript_service = live_transcript_service
+        self._flag_service = flag_service
 
     async def run(self) -> None:
         try:
@@ -303,20 +203,7 @@ class ConversationOrchestrator:
                 LocalAudioTransportParams(audio_in_enabled=True, audio_out_enabled=True)
             )
 
-            stt = BilingualAzureSTTService(
-                api_key=os.environ["AZURE_SPEECH_KEY"],
-                # Continuous LID requires a SpeechConfig built from an explicit endpoint
-                # rather than region= (Microsoft's documented requirement) — this is
-                # pipecat's only hook for that, despite the Private-Link-flavored name.
-                # URL is the standard real-time STT endpoint for the region, per
-                # https://learn.microsoft.com/azure/ai-services/speech-service/get-started-speech-to-text
-                # (same endpoint region= builds internally; nothing else changes).
-                private_endpoint=(
-                    f"wss://{os.environ['AZURE_SPEECH_REGION']}.stt.speech.microsoft.com"
-                    "/speech/recognition/conversation/cognitiveservices/v1"
-                ),
-                settings=AzureSTTService.Settings(language=Language.ES_ES),
-            )
+            stt = self._stt_service.create()
 
             tts = AzureTTSService(
                 api_key=os.environ["AZURE_SPEECH_KEY"],
@@ -328,7 +215,7 @@ class ConversationOrchestrator:
                 api_key=os.environ["GEMINI_API_KEY"],
                 settings=GoogleLLMService.Settings(
                     model=gemini_model,
-                    system_instruction=SYSTEM_PROMPT,
+                    system_instruction=self._prompt_service.get_system_prompt(),
                 ),
                 # A slow first chunk (network blip, API-side latency) otherwise drops
                 # the turn silently with no assistant reply ever recorded — the user
@@ -379,8 +266,7 @@ class ConversationOrchestrator:
             flag_aggregator.on_pattern_match(FLAG_TYPE, on_error_flag)
 
             # Initialize live transcript file for Review Mode / later SSE
-            TRANSCRIPT_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
-            TRANSCRIPT_FILE_PATH.write_text("", encoding="utf-8")
+            self._live_transcript_service.clear()
 
             # Clear any stale stop-flag file left by a prior hard-killed run —
             # otherwise this run would see it and end immediately.
@@ -407,20 +293,27 @@ class ConversationOrchestrator:
             # AUDIO_OUT_SAMPLE_RATE should match your output device's native rate
             # (query via PyAudio's get_default_output_device_info) — MME doesn't
             # reliably resample, so a mismatch plays back sped up and cut short.
-            # ponytail: known gap — pipecat's setup-timeout path (worker.py's
-            # _setup_within_timeout) swallows its own asyncio.wait_for TimeoutError
-            # internally and just returns False; add_workers() doesn't wait for
-            # setup to finish anyway (schedules worker.run() as a background task
-            # and returns after asyncio.sleep(0)). Nothing raises here on timeout,
-            # so it can't be caught with a try/except around this call. Catching
-            # it for real means hooking `@worker.event_handler("on_setup_timeout")`
-            # on the worker below and raising VoiceConversationPipelineError from
-            # that handler instead — bigger change than this fix pass covers.
             worker = PipelineWorker(
                 pipeline,
                 params=PipelineParams(audio_out_sample_rate=audio_out_sample_rate),
                 setup_timeout_secs=60.0,
             )
+
+            # A setup timeout makes worker.run() clean up and return normally --
+            # no exception, nothing to catch around runner.run() below. Left
+            # unhandled, WorkerRunner.run()'s default auto_end=True then sees a
+            # "finished" root worker and returns normally too, so the subprocess
+            # exits 0: indistinguishable from a real graceful stop, even though no
+            # conversation ever started. Flag it here and raise after the
+            # finally block runs, so SubprocessBotProcessBroker's exit-code check
+            # sees a real crash instead of a false "graceful" stop.
+            setup_timed_out = False
+
+            @worker.event_handler("on_setup_timeout")
+            async def on_setup_timeout(worker):
+                nonlocal setup_timed_out
+                setup_timed_out = True
+
             runner = WorkerRunner()
             await runner.add_workers(worker)
 
@@ -453,13 +346,32 @@ class ConversationOrchestrator:
         finally:
             live_transcript_task.cancel()
             stop_watch_task.cancel()
-            log_path = save_session_log(context, session_flags)
+            turns = self._extract_turns(context)
+            log_path = self._session_log_service.save(turns, session_flags)
             if log_path:
                 logger.info(f"Session log saved to {log_path}")
             try:
-                self._flag_broker.save_flags(session_flags)
-            except OSError as e:
+                self._flag_service.save_flags(session_flags)
+            except (FlagDependencyException, FlagServiceException) as e:
                 logger.error(f"Failed to persist flags at session end: {e}")
+
+        if setup_timed_out:
+            raise VoiceConversationPipelineError(
+                "Pipeline setup timed out after 60s (a processor blocked while "
+                "connecting -- mic/speaker device busy, a hung Azure Speech "
+                "connection, or Windows AV scanning fresh native DLLs on a cold "
+                "start). No conversation started."
+            )
+
+    @staticmethod
+    def _extract_turns(context: LLMContext) -> List[str]:
+        """Flatten LLMContext's user/assistant messages into "[role] text"
+        lines, for both the end-of-session log and the live transcript."""
+        return [
+            f"[{message['role']}] {_message_text(message['content'])}"
+            for message in context.messages
+            if isinstance(message, dict) and message["role"] in ("user", "assistant")
+        ]
 
     async def _watch_for_stop_signal(self, runner: WorkerRunner) -> None:
         """Poll for BotProcessBroker's stop-flag file and end the pipeline
@@ -480,7 +392,7 @@ class ConversationOrchestrator:
 
     async def _write_live_transcript(self, context: LLMContext, flags: List[Flag]) -> None:
         """Background task that periodically appends new conversation turns to a
-        live JSONL transcript file, and re-saves flags via FlagBroker, for
+        live JSONL transcript file, and re-saves flags via FlagService, for
         Review Mode.
 
         Re-saving flags here (not just in run()'s finally block) matters: if
@@ -498,15 +410,10 @@ class ConversationOrchestrator:
             ]
 
             for turn in current_turns[written_turn_count:]:
-                line = json.dumps(
-                    {"role": turn["role"], "text": _message_text(turn["content"])},
-                    ensure_ascii=False,
-                )
-                with open(TRANSCRIPT_FILE_PATH, "a", encoding="utf-8") as f:
-                    f.write(line + "\n")
+                self._live_transcript_service.append(turn["role"], _message_text(turn["content"]))
                 written_turn_count += 1
 
             try:
-                self._flag_broker.save_flags(flags)
-            except OSError as e:
+                self._flag_service.save_flags(flags)
+            except (FlagDependencyException, FlagServiceException) as e:
                 logger.error(f"Failed to persist flags to disk: {e}")

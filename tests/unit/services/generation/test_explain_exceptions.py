@@ -1,9 +1,10 @@
-"""Unit tests for GenerationService.explain() -- GenerationError fallback.
+"""Unit tests for GenerationService.explain() -- GenerationError / not-grounded
+fallback.
 
-GenerationBroker.generate() is the only failure mode this feature has (per
-CLAUDE.md's Foundation waiver for Generation: no 9-class exception
-hierarchy, just GenerationError). The service catches it and substitutes
-Phase 1's exact fallback string -- it never lets GenerationError escape.
+GenerationBroker.generate() failing, and the grounding judge (GAP 1,
+Tri-Nature gap analysis) ruling the draft not grounded, both route through
+the same fallback -- the service never lets an ungrounded or failed
+explanation escape, and never invents a second fallback mechanism.
 """
 
 from rag.brokers.generation import GenerationError
@@ -27,3 +28,42 @@ class TestGenerationServiceExplainExceptions:
             source_url=chunk.source_url,
         )
         mock_broker.generate.assert_called_once()
+
+    def test_should_return_fallback_explanation_when_judge_rules_draft_not_grounded(
+        self, service, mock_broker, flag, chunk
+    ):
+        # given
+        mock_broker.generate.side_effect = [
+            "The corrected form is right because reasons unrelated to the source.",
+            "NO, the reference content does not support this claim.",
+        ]
+
+        # when
+        result = service.explain(flag, chunk)
+
+        # then
+        assert result == Explanation(
+            explanation="I'm not certain on that one.",
+            source_url=chunk.source_url,
+        )
+        assert mock_broker.generate.call_count == 2
+
+    def test_should_return_fallback_explanation_when_judge_call_itself_raises_generation_error(
+        self, service, mock_broker, flag, chunk
+    ):
+        # given -- draft succeeds, but the judge call fails; can't verify
+        # groundedness so it's treated as not grounded, same fallback.
+        mock_broker.generate.side_effect = [
+            "Great question! 'Tengo' is the correct form.",
+            GenerationError("Gemini client call failed: boom"),
+        ]
+
+        # when
+        result = service.explain(flag, chunk)
+
+        # then
+        assert result == Explanation(
+            explanation="I'm not certain on that one.",
+            source_url=chunk.source_url,
+        )
+        assert mock_broker.generate.call_count == 2

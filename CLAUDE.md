@@ -164,6 +164,11 @@ full-coverage push across the frontend. `npm test` (alias for `vitest`) from
 All secrets/config in `.env` at repo root. Never hardcode, never commit.
 `.env.example` has placeholders.
 
+**Claude must never edit `.env` directly — non-negotiable.** If a change
+requires updating `.env` (e.g. a config key rename, a connection-string
+scheme change), update `.env.example` and tell the user what to change in
+their own `.env`; let them make the edit themselves.
+
 | Variable | Purpose |
 | --- | --- |
 | `AZURE_SPEECH_KEY` | Azure Speech resource key (STT + TTS) |

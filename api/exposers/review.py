@@ -26,10 +26,12 @@ api/controllers/session_lifecycle.py. The response body is built from
 `e.inner_exception` (the wrapped leaf), not from `e` itself, matching the
 C# pattern of returning `...ValidationException.InnerException`.
 
-The attempt_text blank check that used to live inline here now lives in the
-service (ReviewOrchestratorValidations._validate_practice_input) and
-arrives as InvalidReviewOrchestrationException inside the validation
-wrapper -- same 400, same body text, one layer down.
+attempt_text is validated at both tiers, deliberately: here, so a malformed
+request never reaches the orchestrator at all (test_routes.py's
+assert_not_called() on the mock orchestrator enforces this at the HTTP
+boundary); again inside PracticeLogService._validate_attempt_text, as
+defense-in-depth for any other caller of the service that doesn't go
+through this route.
 """
 
 from dataclasses import asdict
@@ -71,6 +73,8 @@ def make_review_blueprint(orchestrator: ReviewOrchestrator) -> Blueprint:
     def record_practice(flag_id: str):
         body = request.get_json(silent=True) or {}
         attempt_text = body.get("attempt_text")
+        if not isinstance(attempt_text, str) or not attempt_text.strip():
+            return jsonify({"error": "attempt_text is required"}), 400
         try:
             attempt = orchestrator.record_practice(flag_id, attempt_text)
             return jsonify({**asdict(attempt), "timestamp": attempt.timestamp.isoformat()}), 201

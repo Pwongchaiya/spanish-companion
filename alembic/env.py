@@ -17,14 +17,14 @@ load_dotenv()
 
 config = context.config
 
-# psycopg (v3, the only driver in requirements.txt) needs an explicit
-# "+psycopg" scheme — a bare "postgresql://" DATABASE_URL (as currently set
-# in .env/.env.example) resolves to the psycopg2 dialect, which isn't
+# pg8000 (the only driver in requirements.txt) needs an explicit "+pg8000"
+# scheme — a bare "postgresql://" DATABASE_URL (as currently set in
+# .env/.env.example) resolves to the psycopg2 dialect, which isn't
 # installed. Normalized here rather than in .env(.example), which this
 # migration wave doesn't own — see outbound notes.
 database_url = os.environ["DATABASE_URL"]
 if database_url.startswith("postgresql://"):
-    database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
+    database_url = database_url.replace("postgresql://", "postgresql+pg8000://", 1)
 # alembic.ini uses ConfigParser interpolation ("%(here)s") — escape a literal
 # "%" (e.g. from a URL-encoded password) so set_main_option doesn't choke on it.
 config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))

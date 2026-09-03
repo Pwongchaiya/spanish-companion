@@ -70,7 +70,17 @@ class _FlagServiceBase:
         # the point -- Voice Conversation rewrites the file mid-session, so a
         # cached dict would go stale. Build an id->Flag index only if a single
         # request ever needs more than one lookup.
-        for flag in self._flag_broker.load_flags():
+        try:
+            flags = self._flag_broker.load_flags()
+        except Exception as e:
+            # Mirrors _save_flags's wrapping below -- without this, a broker
+            # failure here would fall through _try_catch's generic Exception
+            # branch as FlagServiceException, contradicting this class's own
+            # get_flag() docstring (and i_flag_service.py's), which promises
+            # FlagDependencyException for "the underlying FlagBroker call
+            # fails".
+            raise FlagUnavailableError(str(e)) from e
+        for flag in flags:
             if flag.id == flag_id:
                 return flag
         raise NotFoundFlagException(flag_id)

@@ -1,0 +1,9 @@
+A Spanish learner made this grammar mistake:
+- They said: {said!r}
+- They meant: {corrected!r}
+- Category: {category}
+
+Here is relevant grammar content from the RAE (Royal Spanish Academy):
+{content}
+
+Write a short, warm, encouraging explanation (2-3 sentences) of the correction, grounded in the grammar content above. Explain why the corrected form is right and what the learner confused. Keep it friendly and supportive, suitable for display as text on a review screen.

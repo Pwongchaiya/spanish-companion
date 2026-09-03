@@ -45,8 +45,11 @@ class IGenerationService(Protocol):
     def explain(self, flag: FlagLike, chunk: ScoredChunk) -> Explanation:
         """Return a grounded explanation for `flag` using `chunk`'s content.
 
-        Never raises GenerationError -- a broker failure is caught and
-        replaced with a fixed fallback string. May raise
-        GenerationServiceException for anything else unexpected.
+        A second broker call judges whether the draft explanation is
+        actually supported by `chunk`'s content before it is returned
+        (Review Mode only -- untimed, budgeted for the extra call). Never
+        raises GenerationError -- a broker failure, or a "not grounded"
+        verdict, is caught and replaced with a fixed fallback string. May
+        raise GenerationServiceException for anything else unexpected.
         """
         ...

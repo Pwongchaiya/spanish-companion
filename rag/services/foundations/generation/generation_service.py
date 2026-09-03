@@ -10,6 +10,18 @@ exception hierarchy -- a deliberate, already-verified business decision
 plumbing). That swallow-to-fallback behavior is unchanged here, just
 relocated.
 
+Grounding check (Tri-Nature gap analysis, 2026-08-29, GAP 1 -- "No Judge on
+Generation"): after the broker produces a draft explanation, a second call
+to the same broker asks it to judge whether the draft is actually supported
+by the retrieved chunk's content. A "not grounded" verdict is routed through
+the exact same except-GenerationError fallback path as a broker failure --
+one boolean decision, no new fallback mechanism, no scoring/threshold
+config. Review Mode only; never called from Conversation Mode's live path.
+
+Prompt templates (Tri-Nature gap analysis GAP 2 -- "Skills live in code, not
+Data") live as plain text files under rag/data/prompts/, loaded once at
+import time and filled in with str.format().
+
 Split into this base logic file plus an Exceptions mixin
 (generation_service_exceptions.py), combined into the concrete
 GenerationService in __init__.py -- mirrors C#'s `partial class` merging
@@ -23,7 +35,9 @@ restructuring.
 """
 
 import logging
+from pathlib import Path
 
+import rag
 from rag.brokers.generation import GenerationBroker, GenerationError
 from rag.brokers.logging import LoggingBroker, StdlibLoggingBroker
 from rag.models.generation import Explanation
@@ -31,6 +45,12 @@ from rag.models.retrieval import ScoredChunk
 from rag.services.foundations.generation.i_generation_service import FlagLike
 
 logger = logging.getLogger(__name__)
+
+# ponytail: plain read_text() at import time, no templating framework --
+# see GAP 2 above.
+_PROMPTS_DIR = Path(rag.__file__).parent / "data" / "prompts"
+_EXPLANATION_PROMPT = (_PROMPTS_DIR / "explanation.txt").read_text(encoding="utf-8")
+_GROUNDING_JUDGE_PROMPT = (_PROMPTS_DIR / "grounding_judge.txt").read_text(encoding="utf-8")
 
 
 class _GenerationServiceBase:
@@ -56,6 +76,8 @@ class _GenerationServiceBase:
         prompt = self._build_prompt(flag, chunk)
         try:
             text = self._broker.generate(prompt)
+            if not self._is_grounded(text, chunk):
+                raise GenerationError("draft explanation failed the grounding check")
         except GenerationError as e:
             # Load-bearing log: this is the only signal distinguishing "Gemini
             # failed" from Review's own "no corpus match" fallback (same string,
@@ -66,16 +88,26 @@ class _GenerationServiceBase:
             text = "I'm not certain on that one."
         return Explanation(explanation=text, source_url=chunk.source_url)
 
+    def _is_grounded(self, explanation: str, chunk: ScoredChunk) -> bool:
+        """Reflective judge (Ch.8): a second call to the same LLM reconsiders
+        the draft before it can reach the user framed as "grounded, sourced".
+        A broker failure on the judge call itself is treated as "not
+        grounded" -- can't verify, so don't trust it.
+        """
+        judge_prompt = self._build_judge_prompt(explanation, chunk)
+        try:
+            verdict = self._broker.generate(judge_prompt)
+        except GenerationError:
+            return False
+        return verdict.strip().upper().startswith("YES")
+
     def _build_prompt(self, flag: FlagLike, chunk: ScoredChunk) -> str:
-        return (
-            f"A Spanish learner made this grammar mistake:\n"
-            f"- They said: {flag.said!r}\n"
-            f"- They meant: {flag.corrected!r}\n"
-            f"- Category: {flag.category}\n\n"
-            f"Here is relevant grammar content from the RAE (Royal Spanish Academy):\n"
-            f"{chunk.content}\n\n"
-            f"Write a short, warm, encouraging explanation (2-3 sentences) of the "
-            f"correction, grounded in the grammar content above. Explain why the "
-            f"corrected form is right and what the learner confused. Keep it friendly "
-            f"and supportive, suitable for display as text on a review screen."
+        return _EXPLANATION_PROMPT.format(
+            said=flag.said,
+            corrected=flag.corrected,
+            category=flag.category,
+            content=chunk.content,
         )
+
+    def _build_judge_prompt(self, explanation: str, chunk: ScoredChunk) -> str:
+        return _GROUNDING_JUDGE_PROMPT.format(explanation=explanation, content=chunk.content)

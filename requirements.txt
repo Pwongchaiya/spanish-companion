@@ -1,7 +1,7 @@
 python-dotenv
-pipecat-ai[local,google]
+pipecat-ai[local,google]==1.8.1
 azure-cognitiveservices-speech
-psycopg[binary]
+pg8000
 pgvector
 sentence-transformers
 requests
