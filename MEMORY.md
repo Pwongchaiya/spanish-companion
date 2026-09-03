@@ -8,25 +8,19 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-09-03-1422.md — Hackathon research
-session, not layer-build work: extracted the Nerdy AI Hackathon Challenge's
-full requirements via Playwright (homepage + /terms; no other pages exist)
-and ground-truth-verified the repo's actual current state (not just re-read
-from docs) by inspecting app.py imports/directory contents and running the
-real test suites. Confirmed the six-layer rebuild genuinely is live in
-app.py (old pre-rebuild directories are empty leftovers); found a live,
-previously-unknown bug — record_practice returns 500 instead of 400 on a
-missing JSON body (api/exposers/review.py:76) — and reproduced the 13
-integration-test errors as a Windows port-exhaustion artifact, not an app
-bug. Wrote a time-boxed plan of attack (competition summary → current-state
-snapshot → judged-vs-unjudged gap list → Sep 3-18 plan) to
-Projects/spanish-companion/decisions/hackathon-nerdy-plan-of-attack.md, with
-two decisions explicitly left open for the user: whether the Phase 3/4
-rebuild (Wave 8/9 below) pauses for hackathon prep or runs in parallel, and
-whether the contest's IP-assignment term is acceptable. Six-layer rebuild
-(Waves 1-7 of 9, landed 2026-09-02) and Wave 8/9 status unchanged this
-session — see Projects/spanish-companion/decisions/six-layer-standard-rebuild.md
-for that record.
+Projects/spanish-companion/sessions/2026-09-03-1434.md — tooling/documentation
+session, not layer-build work: added a "Codebase Documentation (repowise)"
+section to CLAUDE.md (when to use repowise's MCP tools vs. plain Grep/Read,
+staleness caveat), committed alongside a pending `.claude-toolkit` submodule
+bump. Built a new global (not project-scoped) `revise-prompt` skill at
+`~/.claude/skills/revise-prompt/` that rewrites a raw prompt before acting on
+it, then corrected it twice after live use surfaced real bugs in its own
+design (an over-narrow "ask only for genuine forks" gate, and "show the
+revision" collapsing into the same turn as acting with no real pause). No
+spanish-companion entities or layers touched. Six-layer rebuild (Waves 1-7 of
+9, landed 2026-09-02) and the hackathon-prep decision points are unchanged
+this session — see Projects/spanish-companion/decisions/six-layer-standard-rebuild.md
+and Projects/spanish-companion/decisions/hackathon-nerdy-plan-of-attack.md.
 
 ---
 
