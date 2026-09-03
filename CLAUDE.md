@@ -292,6 +292,41 @@ directly.
 
 ---
 
+## Codebase Documentation (repowise)
+
+Repo-level MCP indexer (`mcp__repowise__*` tools) — architecture overviews,
+contextual docs on files/symbols, change-risk assessment, dead-code
+detection, semantic search. Index is per-repo and does **not** auto-update
+on commit.
+
+### When to use
+
+- "How does X relate to Y" / architecture-overview questions →
+  `get_overview` / `get_context` before manually reading multiple files
+- Symbol lookup or "why does this exist" → `get_symbol` / `get_why`
+- Assessing blast radius of a change → `get_change_risk` / `get_risk`
+- Free-text/semantic questions across the codebase → `search_codebase` /
+  `get_answer`
+- Finding unused code → `get_dead_code`
+
+### When not to
+
+- Exact string/pattern search → `Grep`, not repowise (repowise is
+  semantic, not literal)
+- A file whose path is already known → `Read` directly
+- Anything touching code changed very recently — check the SessionStart
+  staleness warning first; if the index is behind HEAD, verify repowise's
+  answer against the live file before trusting it (see Phase 3's "verify
+  against actual current code, not stale docs" rule above — the same
+  applies to a stale index)
+
+### Keeping it current
+
+If a SessionStart hook reports the index is behind HEAD, tell the user to
+run `repowise update` — never run it yourself.
+
+---
+
 ## Obsidian Vault
 
 Vault path: `c:\Users\pwong\OneDrive\Documents\Obsidian\Notes`
