@@ -8,18 +8,24 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-09-04-1538.md — Session 8: tooling
-only, no application code. Added YAML frontmatter to all 24 `.claude-toolkit`
-skills in place (filenames unchanged, so the ~70 explicit-path agent
-references still resolve) and shipped two runnable checks. Researched the
-Claude Code ecosystem and captured a pre-refactor baseline: swear-jar is the
-golden reference for layer shape, NL.Core.Users is authoritative for test
-conventions. Measured a Broker Agent build at 10,350 mandatory skill tokens
-with ~55% unused, and found three verified content defects in
-`broker-skill.md` (ABC vs the Protocol waiver; a mislabeled interface sample;
-async SQLAlchemy against a pg8000 sync stack). The skill refactor stands at
-Phase 1.5 of 4 — Phase 2 (brainstorm) is next. Do not delete the control
-worktree `.claude/worktrees/agent-aa34e1126e4b7e69e` before Phase 4.
+Projects/spanish-companion/sessions/2026-09-04-1644.md — Session 9: tooling
+only, no application code. Verified every source the toolkit refactor tests
+against before acting on it (control worktree intact at exactly 27 generated
+files; swear-jar; NL.Core.Users under `source/repos/`, not Documents) and
+re-confirmed the three `broker-skill.md` defects independently against disk.
+**Phase 2 of the skill refactor is now DECIDED** — six settled constraints,
+recorded in `wiki/decisions/toolkit-skill-refactor-phase-2-decisions.md`:
+split by heading name; `references/<skill>/` plus one shared file; Import
+Scaffolding becomes a `scripts/` generator; Style A agents keep the mandatory
+load list; extend `verify_frontmatter.py`; and **split first, then fix
+D1-D3**. Scope is 19 skills (the 5 `rag-*` are out). **Phase 3 (write the
+plan) is next.** Also fixed a real gap: the project had no `SessionStart`
+hook, so `/checkpoint` never auto-injected despite claiming it would. Two
+corrections logged — the baseline's NL.Core.Users count is 128, not 122, and
+`/next-session-prompt` is not blocked by its freshness check after
+`/checkpoint` (the real conflict is that `/checkpoint` leaves `state.md`
+untouched). Do not delete the control worktree
+`.claude/worktrees/agent-aa34e1126e4b7e69e` before Phase 4.
 
 
 ## Entity Manifest
