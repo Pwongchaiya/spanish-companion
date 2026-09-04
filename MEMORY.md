@@ -8,26 +8,24 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-09-03-2153.md — Tri-Nature Gate
-follow-up 3 (deployment/API security hardening) resolved and built: a
-Brainstorm Agent design pass found the real risk on a public deploy isn't
-auth/rate-limiting/CORS (the follow-up's own framing) but attack-surface
-reduction — `POST /start` spawns a subprocess and spends API credit,
-`/api/events` is an unbounded SSE stream. Built via `/hierarchical-delegation`
-(2 waves, 4 general-purpose agents): `api/app_public.py` (stripped
-Review-only entrypoint, never registers Session Lifecycle or `/api/events`),
-`ReviewOrchestrator.explain_flag` cached (`lru_cache` — flags immutable,
-corpus static, so cost is bounded after first use per flag), a
-`VITE_PUBLIC_MODE` frontend build variant, a seeded `data/demo_flags.json`,
-and a multi-stage `Dockerfile` for Render (confirmed against Render's actual
-docs — native runtimes can't mix Node+Python, Docker is the documented
-path). No auth for the deploy: declined, not deferred, same reasoning as
-the Gate's own refusal. Also fixed a real, independent bug: the Origin
-check's `startswith()` prefix match let `http://localhost:5000.evil.com`
-bypass it — now exact scheme+host matching. 139/139 unit tests pass.
-Committed: `2d57f5c`. See
-Projects/spanish-companion/decisions/deployment-api-security-hardening.md
-(includes a 9-step deploy runbook). Render deployment itself not yet done —
+Projects/spanish-companion/sessions/2026-09-03-2305.md — Session 5: fixed
+two real bugs found while testing the J5 Docker build locally end-to-end
+with Playwright (`ALLOWED_ORIGINS` missing port 10000, 403'ing every static
+asset; embedding-model download hanging past gunicorn's 120s timeout —
+fixed by baking the model into the image at build time with
+`HF_HUB_DISABLE_XET=1`/`HF_HUB_OFFLINE=1`). Also committed pre-existing
+uncommitted work (pg8000 URL-scheme normalization in
+`chunk_repository_broker.py`). Committed: `77a115f`. Investigated (Planner
+Agent, planning-only) adding browser-mic WebRTC voice chat to the public
+deployment — found it needs a full transport rework (`aiortc`, per-connection
+session model, net-new frontend/signaling), and the user ultimately put it
+**on hold**: Render itself is no longer confirmed as the deploy host, and
+separately, local Docker Desktop on Windows can't reach a real mic either
+(no WSL2 host-audio passthrough). See
+Projects/spanish-companion/decisions/voice-conversation-browser-webrtc-transport.md.
+**Security note:** a real `GEMINI_API_KEY` value was printed into tool
+output via an over-broad `docker inspect` — user may want to rotate it.
+Render deployment itself still not done — no GitHub remote configured yet,
 hard cutoff 6pm 2026-09-10.
 
 ---
