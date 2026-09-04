@@ -38,6 +38,14 @@ class SqlAlchemyChunkRepositoryBroker:
     """SQLAlchemy-backed implementation of ChunkRepositoryBroker."""
 
     def __init__(self, connection_string: str):
+        # pg8000 (the only driver in requirements.txt) needs an explicit
+        # "+pg8000" scheme -- a bare "postgresql://" (the standard format,
+        # e.g. what a managed Postgres host hands back) resolves to the
+        # psycopg2 dialect, which isn't installed. Same normalization as
+        # alembic/env.py, applied here too since this is the one place the
+        # running app (not just migrations) builds its engine.
+        if connection_string.startswith("postgresql://"):
+            connection_string = connection_string.replace("postgresql://", "postgresql+pg8000://", 1)
         self._engine = create_engine(connection_string)
 
     def insert_chunk(

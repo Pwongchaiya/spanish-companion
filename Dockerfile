@@ -36,6 +36,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends -o Acquire::Ret
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Bake the embedding model into the image so no network call happens at
+# request time -- SentenceTransformerEmbeddingModelBroker loads it lazily
+# on first /explain call, and a ~470MB HF download behind gunicorn's 120s
+# --timeout was getting the worker SIGKILL'd mid-download instead of
+# completing. HF_HUB_DISABLE_XET forces the plain HTTP downloader --
+# the newer hf_xet transfer backend was the one hitting SSL EOF errors.
+ENV HF_HUB_DISABLE_XET=1
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')"
+
+# Model is fully baked into the image above -- no reason for the runtime
+# process to ever call out to the Hub again (it otherwise pings for
+# metadata/updates on every load, which is also where the flaky-SSL path
+# lives). HF_HUB_OFFLINE must come after the RUN above, not before --
+# that step needs real network access to do its download.
+ENV HF_HUB_OFFLINE=1
+
 COPY api/ api/
 COPY rag/ rag/
 COPY alembic/ alembic/
@@ -47,6 +63,9 @@ ENV PYTHONUNBUFFERED=1
 # Local `docker run` fallback only -- Render always injects its own $PORT.
 ENV PORT=10000
 EXPOSE 10000
+# Local `docker run` fallback only -- Render deployments must set their own
+# ALLOWED_ORIGINS to the real https://*.onrender.com host, not this default.
+ENV ALLOWED_ORIGINS=http://localhost:10000,http://127.0.0.1:10000
 
 # ponytail: single worker -- SentenceTransformerEmbeddingModelBroker loads a
 # ~470MB embedding model per worker process, and Render's small instance
