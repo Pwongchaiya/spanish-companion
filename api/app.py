@@ -73,11 +73,12 @@ ALLOWED_ORIGINS: Tuple[str, ...] = tuple(
     if origin.strip()
 )
 
-# Same path/env-var as api/brokers/session_log/session_log_broker.py's
-# DEFAULT_TRANSCRIPT_FILE_PATH
-# — duplicated as a constant, not imported, to keep pipecat/Azure/Google out of
+# Same path/env-vars as api/brokers/session_log/session_log_broker.py's
+# DEFAULT_TRANSCRIPT_FILE_PATH / DEFAULT_TURN_STATE_FILE_PATH
+# — duplicated as constants, not imported, to keep pipecat/Azure/Google out of
 # this process (see module docstring).
 TRANSCRIPT_FILE_PATH = Path(os.getenv("TRANSCRIPT_FILE_PATH", str(REPO_ROOT / "data" / "live_transcript.jsonl")))
+TURN_STATE_FILE_PATH = Path(os.getenv("TURN_STATE_FILE_PATH", str(REPO_ROOT / "data" / "turn_state.txt")))
 SSE_POLL_INTERVAL_SECONDS = float(os.getenv("SSE_POLL_INTERVAL_SECONDS", "1"))
 
 
@@ -91,6 +92,12 @@ def _read_transcript() -> list:
         except json.JSONDecodeError:
             continue
     return turns
+
+
+def _read_turn_state() -> Optional[str]:
+    if not TURN_STATE_FILE_PATH.exists():
+        return None
+    return TURN_STATE_FILE_PATH.read_text(encoding="utf-8").strip() or None
 
 
 def create_app() -> Flask:
@@ -144,16 +151,20 @@ def create_app() -> Flask:
     )
     app.register_blueprint(make_review_blueprint(review_orchestrator))
 
-    # --- /api/events SSE — status/transcript/flags, per the architecture
-    # decision record's "Resolved: /api/events SSE event schema". status is
-    # pushed only on change (frontend gets the initial value via /status);
-    # transcript/flags each carry their full current list on every push they
-    # do occur on, matching how the source files themselves are read (whole
-    # file, not appended deltas).
+    # --- /api/events SSE — status/transcript/flags/turn_state, per the
+    # architecture decision record's "Resolved: /api/events SSE event
+    # schema" (turn_state added post-Wave-8, see
+    # decisions/tri-nature-gate-design.md's follow-up 2). status/turn_state
+    # are pushed only on change (frontend gets the initial status via
+    # /status; turn_state has no such initial-fetch endpoint, so it starts
+    # None until the voice subprocess writes its first transition);
+    # transcript/flags each carry their full current list on every push
+    # they do occur on, matching how the source files themselves are read
+    # (whole file, not appended deltas).
     @app.route("/api/events")
     def events():
         def stream():
-            last_status = last_transcript = last_flags = None
+            last_status = last_transcript = last_flags = last_turn_state = None
             while True:
                 status = asdict(session_service.get_status())
                 if status != last_status:
@@ -164,6 +175,11 @@ def create_app() -> Flask:
                 if transcript != last_transcript:
                     yield f"data: {json.dumps({'type': 'transcript', 'turns': transcript})}\n\n"
                     last_transcript = transcript
+
+                turn_state = _read_turn_state()
+                if turn_state != last_turn_state:
+                    yield f"data: {json.dumps({'type': 'turn_state', 'state': turn_state})}\n\n"
+                    last_turn_state = turn_state
 
                 flags = [
                     asdict(flag) | {"timestamp": flag.timestamp.isoformat()}

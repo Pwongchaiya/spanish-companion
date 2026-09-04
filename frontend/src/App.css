@@ -92,6 +92,14 @@ button.primary {
   background: #2ecc71;
 }
 
+.status-dot.thinking {
+  background: #f5a623;
+}
+
+.status-dot.speaking {
+  background: #4a90d9;
+}
+
 .transcript {
   display: flex;
   flex-direction: column;

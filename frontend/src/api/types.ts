@@ -28,7 +28,10 @@ export interface PracticeAttempt {
   timestamp: string;
 }
 
+export type TurnState = "listening" | "thinking" | "speaking" | "idle" | null;
+
 export type ServerEvent =
   | { type: "status"; status: SessionStatus }
   | { type: "transcript"; turns: TranscriptTurn[] }
-  | { type: "flags"; flags: Flag[] };
+  | { type: "flags"; flags: Flag[] }
+  | { type: "turn_state"; state: TurnState };

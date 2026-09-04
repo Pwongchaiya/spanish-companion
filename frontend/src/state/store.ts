@@ -1,11 +1,12 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
-import type { Flag, ServerEvent, SessionStatus, TranscriptTurn } from "../api/types";
+import type { Flag, ServerEvent, SessionStatus, TranscriptTurn, TurnState } from "../api/types";
 
 interface SessionStore {
   status: SessionStatus;
   transcript: TranscriptTurn[];
   flags: Flag[];
+  turnState: TurnState;
   setStatus: (status: SessionStatus) => void;
   applyEvent: (event: ServerEvent) => void;
 }
@@ -17,6 +18,7 @@ export const useSessionStore = create<SessionStore>()(
     status: INITIAL_STATUS,
     transcript: [],
     flags: [],
+    turnState: null,
     setStatus: (status) => set({ status }, false, "setStatus"),
     applyEvent: (event) =>
       set(
@@ -28,6 +30,8 @@ export const useSessionStore = create<SessionStore>()(
               return { transcript: event.turns };
             case "flags":
               return { flags: event.flags };
+            case "turn_state":
+              return { turnState: event.state };
           }
         },
         false,

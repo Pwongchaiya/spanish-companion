@@ -31,15 +31,16 @@ from api.services.foundations.live_transcript import LiveTranscriptService
 from api.services.foundations.prompt import PromptService
 from api.services.foundations.session_log import SessionLogService
 from api.services.foundations.stt import SttService
+from api.services.foundations.turn_state import TurnStateService
 from api.services.orchestrations.voice_conversation import ConversationOrchestrator
 
 
 def main() -> None:
     load_dotenv()
 
-    # One SessionLogBroker instance shared by both Foundation services that
-    # front it (SessionLogService, LiveTranscriptService) -- see
-    # api/brokers/session_log/i_session_log_broker.py.
+    # One SessionLogBroker instance shared by every Foundation service that
+    # fronts it (SessionLogService, LiveTranscriptService, TurnStateService)
+    # -- see api/brokers/session_log/i_session_log_broker.py.
     session_log_broker = FileSessionLogBroker()
 
     orchestrator = ConversationOrchestrator(
@@ -48,6 +49,7 @@ def main() -> None:
         session_log_service=SessionLogService(session_log_broker),
         live_transcript_service=LiveTranscriptService(session_log_broker),
         flag_service=FlagService(JsonFileFlagBroker()),
+        turn_state_service=TurnStateService(session_log_broker),
     )
     logger.info("Voice loop starting — talk into your mic. Ctrl+C to stop.")
     asyncio.run(orchestrator.run())

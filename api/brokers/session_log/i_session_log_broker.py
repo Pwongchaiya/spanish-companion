@@ -1,8 +1,9 @@
-"""Broker for Voice Conversation's two file-writing concerns: the
-end-of-session review log, and the live streaming transcript (Review Mode /
-SSE). One broker, two Foundation services in front of it
-(SessionLogService, LiveTranscriptService) -- each owns one concern's
-validation/formatting, this broker does only the raw file I/O.
+"""Broker for Voice Conversation's three file-writing concerns: the
+end-of-session review log, the live streaming transcript (Review Mode /
+SSE), and the live turn-state signal (SSE). One broker, three Foundation
+services in front of it (SessionLogService, LiveTranscriptService,
+TurnStateService) -- each owns one concern's validation/formatting, this
+broker does only the raw file I/O.
 """
 
 from pathlib import Path
@@ -23,4 +24,9 @@ class SessionLogBroker(Protocol):
 
     def append_transcript_line(self, line: str) -> None:
         """Append one already-formatted line to the live transcript file."""
+        ...
+
+    def write_turn_state(self, state: str) -> None:
+        """Overwrite the turn-state file with the pipeline's current turn
+        state (listening/thinking/speaking), for /api/events."""
         ...

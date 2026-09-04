@@ -22,6 +22,7 @@ DEFAULT_SESSION_LOG_DIR = Path(os.getenv("SESSION_LOG_DIR", str(REPO_ROOT / "dat
 DEFAULT_TRANSCRIPT_FILE_PATH = Path(
     os.getenv("TRANSCRIPT_FILE_PATH", str(REPO_ROOT / "data" / "live_transcript.jsonl"))
 )
+DEFAULT_TURN_STATE_FILE_PATH = Path(os.getenv("TURN_STATE_FILE_PATH", str(REPO_ROOT / "data" / "turn_state.txt")))
 
 
 class FileSessionLogBroker:
@@ -36,10 +37,14 @@ class FileSessionLogBroker:
         self,
         session_log_dir: Path | None = None,
         transcript_file_path: Path | None = None,
+        turn_state_file_path: Path | None = None,
     ) -> None:
         self._session_log_dir = session_log_dir if session_log_dir is not None else DEFAULT_SESSION_LOG_DIR
         self._transcript_file_path = (
             transcript_file_path if transcript_file_path is not None else DEFAULT_TRANSCRIPT_FILE_PATH
+        )
+        self._turn_state_file_path = (
+            turn_state_file_path if turn_state_file_path is not None else DEFAULT_TURN_STATE_FILE_PATH
         )
 
     def write_session_log(self, content: str) -> Path:
@@ -55,3 +60,7 @@ class FileSessionLogBroker:
     def append_transcript_line(self, line: str) -> None:
         with open(self._transcript_file_path, "a", encoding="utf-8") as f:
             f.write(line + "\n")
+
+    def write_turn_state(self, state: str) -> None:
+        self._turn_state_file_path.parent.mkdir(parents=True, exist_ok=True)
+        self._turn_state_file_path.write_text(state, encoding="utf-8")
