@@ -23,7 +23,8 @@ import os
 import time
 from dataclasses import asdict
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import FrozenSet, Optional
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 from flask import Flask, Response, jsonify, request, send_from_directory
@@ -60,7 +61,7 @@ FRONTEND_DIST = REPO_ROOT / "frontend" / "dist"
 # neither header (same-origin fetch in some browsers, curl during manual
 # testing) is allowed through; this is a lightweight mitigation, not a
 # full auth system.
-ALLOWED_ORIGINS: Tuple[str, ...] = tuple(
+ALLOWED_ORIGINS: FrozenSet[str] = frozenset(
     origin.strip()
     for origin in os.getenv(
         "ALLOWED_ORIGINS",
@@ -100,15 +101,24 @@ def _read_turn_state() -> Optional[str]:
     return TURN_STATE_FILE_PATH.read_text(encoding="utf-8").strip() or None
 
 
+def _is_allowed_origin(header: str, allowed_origins: FrozenSet[str]) -> bool:
+    # Exact match on scheme+host, not startswith() — a prefix match let
+    # "http://localhost:5000.evil.com" pass by starting with the allowed
+    # "http://localhost:5000".
+    parsed = urlparse(header)
+    origin = f"{parsed.scheme}://{parsed.netloc}"
+    return origin in allowed_origins
+
+
 def create_app() -> Flask:
     app = Flask(__name__, static_folder=str(FRONTEND_DIST), static_url_path="")
 
     @app.before_request
-    def check_origin() -> Optional[Tuple[object, int]]:
+    def check_origin() -> Optional[tuple]:
         header = request.headers.get("Origin") or request.headers.get("Referer")
         if header is None:
             return None
-        if not header.startswith(ALLOWED_ORIGINS):
+        if not _is_allowed_origin(header, ALLOWED_ORIGINS):
             return jsonify({"error": "origin not allowed"}), 403
         return None
 

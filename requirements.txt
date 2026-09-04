@@ -11,3 +11,4 @@ flask
 sqlalchemy
 alembic
 pytest
+gunicorn

@@ -37,6 +37,7 @@ validated at this tier.
 import logging
 import os
 from datetime import datetime
+from functools import lru_cache
 from typing import Callable, List
 
 from dotenv import load_dotenv
@@ -103,6 +104,13 @@ class _ReviewOrchestratorBase:
         """
         return self._flag_service.list_flags()
 
+    # ponytail: flags are immutable once created and the corpus is a static
+    # seeded set, so a given flag_id's explanation never changes -- cache
+    # forever instead of re-running retrieval + an LLM call on every repeat
+    # view. lru_cache only caches successful returns, so a _try_catch-raised
+    # exception is never cached. Caches on (self, flag_id); safe because
+    # exactly one ReviewOrchestrator is constructed per process.
+    @lru_cache(maxsize=None)
     def explain_flag(self, flag_id: str) -> Explanation:
         return self._try_catch(lambda: self._explain_flag(flag_id))
 
