@@ -11,36 +11,58 @@ mechanism was confirmed broken via isolated repro, 2026-08-29 (see
 api/brokers/bot_process/bot_process_broker.py's module docstring).
 
 Wave 8 six-layer migration (hand-written, no agent, per CLAUDE.md): this
-Orchestration service now coordinates 5 Foundation dependencies —
-SttService, PromptService, SessionLogService, LiveTranscriptService, and
-FlagService — replacing what used to be inline pipecat/Azure construction
-and free-function file I/O directly in this class. LLM and TTS remain bare
-pipecat service objects, unwrapped, per the architecture decision record
-(only STT's fragile private-API override warranted its own broker — see
-api/brokers/stt/i_stt_broker.py). Zero behavior change from this move:
-same echo suppression, same sample-rate handling, same flag parsing, same
-stop-signal polling — only the construction/persistence plumbing moved to
-Foundation-tier services matching every other feature's shape. New narrow
-ORC-001 waiver (5 dependencies) per CLAUDE.md's Phase 2 Layer-Agent
-Mapping.
+Orchestration service now coordinates 6 Foundation dependencies —
+SttService, PromptService, SessionLogService, LiveTranscriptService,
+FlagService, and TurnStateService (added post-Wave-8, see
+decisions/tri-nature-gate-design.md's follow-up 2) — replacing what used
+to be inline pipecat/Azure construction and free-function file I/O
+directly in this class. LLM and TTS remain bare pipecat service objects,
+unwrapped, per the architecture decision record (only STT's fragile
+private-API override warranted its own broker — see
+api/brokers/stt/i_stt_broker.py). Zero behavior change from the Wave 8
+move itself: same echo suppression, same sample-rate handling, same flag
+parsing, same stop-signal polling — only the construction/persistence
+plumbing moved to Foundation-tier services matching every other feature's
+shape. New narrow ORC-001 waiver (6 dependencies) per CLAUDE.md's Phase 2
+Layer-Agent Mapping.
 
 Lives under api/services/orchestrations/voice_conversation/, matching
 Review's (api/services/orchestrations/review/) and Ingestion's
 (rag/services/orchestrations/ingestion/) Orchestration-tier placement --
 moved here from a flat api/services/voice_conversation/ as a same-day
 follow-up to this wave, once the flat layout was flagged as an
-inconsistency rather than a deliberate exception. Deliberately NOT split
-into
-interface/validations/exceptions mixin files the way Session Lifecycle/
-Review were: those splits exist to combine wrapper-tier exception-handling
-content via multiple inheritance, and Voice Conversation has no such
-content (its two exceptions are flat leaves with no wrapping tier,
-matching api/brokers/logging/'s package-with-no-split precedent) — per
-CLAUDE.md, Voice Conversation gets folder-layout only, no agent-driven
-content rebuild. Likewise no `i_voice_conversation_service.py` Protocol
-interface: nothing in this codebase consumes ConversationOrchestrator
-through an injected interface (the CLI entrypoint constructs it directly),
-so one would be pure ceremony — cited omission, not an oversight.
+inconsistency rather than a deliberate exception.
+
+No Validations mixin: no input validation happens at this tier (same as
+Review's own file -- see review_service.py's docstring). Exceptions mixin
+now exists (voice_conversation_service_exceptions.py,
+ConversationOrchestratorExceptions), combined into the concrete
+ConversationOrchestrator in __init__.py -- mirrors Session Lifecycle/
+Review's `partial class` merge exactly. One honest caveat this mirroring
+does NOT change: unlike Session Lifecycle/Review, there is still no
+second, distinct wrapper-tier exception class here -- _try_catch catches
+raw stdlib KeyError/OSError and wraps them straight into
+VoiceConversationConfigError/VoiceConversationPipelineError, the same two
+flat leaves this feature has always had (still inheriting ApiError
+directly, no intermediate class). What moved is the *mechanical* pattern
+(_try_catch delegate method, _create_and_log_*_exception helpers, an
+injected LoggingBroker) — not a new exception hierarchy that didn't exist
+before.
+
+_try_catch's scope is deliberately narrower than Session Lifecycle/
+Review's: it wraps only _setup() (everything through
+`runner.add_workers(worker)`), not the live conversation loop
+(`runner.run()`) or its finally-block cleanup — same scope the old inline
+try/except covered before this move, preserved on purpose rather than
+silently expanded.
+
+Everything else DOES follow the pattern: i_voice_conversation_service.py
+(VoiceConversationService Protocol, mirrors Session Lifecycle/Review's
+interface files), and the two pipecat frame-filter helper classes
+(_MicGate, _TurnStateObserver) live in their own files
+(_mic_gate.py, _turn_state_observer.py) rather than bundled into this one
+— this file now holds only _ConversationOrchestratorBase and the small
+module-level flag-parsing functions it directly uses.
 """
 
 import asyncio
@@ -49,13 +71,13 @@ import os
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from dotenv import load_dotenv
 from loguru import logger
 
 from pipecat.audio.vad.silero import SileroVADAnalyzer
-from pipecat.frames.frames import BotStartedSpeakingFrame, BotStoppedSpeakingFrame, InputAudioRawFrame
+from pipecat.audio.vad.vad_analyzer import VADParams
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.worker import PipelineParams, PipelineWorker
 from pipecat.processors.aggregators.llm_context import LLMContext
@@ -73,17 +95,18 @@ from pipecat.transports.local.audio import LocalAudioTransport, LocalAudioTransp
 from pipecat.turns.user_mute import AlwaysUserMuteStrategy
 from pipecat.workers.runner import WorkerRunner
 
+from api.brokers.logging import LoggingBroker, StdlibLoggingBroker
 from api.models.flag import Flag
 from api.models.flag.exceptions import FlagDependencyException, FlagServiceException
-from api.models.voice_conversation.exceptions import (
-    VoiceConversationConfigError,
-    VoiceConversationPipelineError,
-)
+from api.models.voice_conversation.exceptions import VoiceConversationPipelineError
 from api.services.foundations.flag import IFlagService
 from api.services.foundations.live_transcript import ILiveTranscriptService
 from api.services.foundations.prompt import IPromptService
 from api.services.foundations.session_log import ISessionLogService
 from api.services.foundations.stt import ISttService
+from api.services.foundations.turn_state import ITurnStateService
+from api.services.orchestrations.voice_conversation._mic_gate import _MicGate
+from api.services.orchestrations.voice_conversation._turn_state_observer import _TurnStateObserver
 
 load_dotenv()
 
@@ -99,36 +122,6 @@ FLAG_KEYS = ("said", "corrected", "category")
 # 3-broker scope (Stt/SessionLog/Prompt) -- single-purpose, already simple,
 # not worth a 4th broker.
 STOP_SIGNAL_FILE_PATH = Path(os.getenv("STOP_SIGNAL_FILE_PATH", str(REPO_ROOT / "data" / "stop_signal")))
-
-
-class _MicGate:
-    """Drops mic audio while the bot is speaking.
-
-    LocalAudioTransport has no acoustic echo cancellation, so without this the
-    mic hears the bot's own TTS output through the speakers and streams it to
-    Azure STT. AlwaysUserMuteStrategy alone doesn't stop that: it filters
-    downstream of STT, but Azure's cloud endpointing finalizes a "recognized"
-    transcript of the echo the instant TTS audio stops, landing right as that
-    mute window closes. Gating here, before STT ever sees the audio, removes
-    the echo transcript instead of racing to drop it after the fact.
-
-    Only gates InputAudioRawFrame — everything else passes through untouched.
-    Needs filter_system_frames=True on the FunctionFilter wrapping this:
-    InputAudioRawFrame is a SystemFrame, and FunctionFilter auto-passes those
-    through by default, which otherwise makes this a no-op.
-    """
-
-    def __init__(self):
-        self._bot_speaking = False
-
-    async def __call__(self, frame) -> bool:
-        if isinstance(frame, BotStartedSpeakingFrame):
-            self._bot_speaking = True
-        elif isinstance(frame, BotStoppedSpeakingFrame):
-            self._bot_speaking = False
-        if isinstance(frame, InputAudioRawFrame):
-            return not self._bot_speaking
-        return True
 
 
 # ponytail: flag emission is prompt-compliance-only, no API-level guarantee.
@@ -170,7 +163,7 @@ def parse_flag(content: str) -> Optional[dict]:
     return {key: flag[key] for key in FLAG_KEYS}
 
 
-class ConversationOrchestrator:
+class _ConversationOrchestratorBase:
     """Owns the live voice conversation — Pipecat pipeline construction,
     error-flag capture, and periodic persistence.
 
@@ -179,6 +172,11 @@ class ConversationOrchestrator:
     (SttService) because of its fragile private-API override. FlagService,
     PromptService, SessionLogService, and LiveTranscriptService are the
     other four Foundation-tier dependencies.
+
+    run() delegates its setup phase to a private _setup() method through
+    _try_catch (defined in the Exceptions mixin), mirroring Session
+    Lifecycle/Review's `public method -> _try_catch(self._private_method)`
+    shape.
     """
 
     def __init__(
@@ -188,154 +186,28 @@ class ConversationOrchestrator:
         session_log_service: ISessionLogService,
         live_transcript_service: ILiveTranscriptService,
         flag_service: IFlagService,
+        turn_state_service: ITurnStateService,
+        logging_broker: LoggingBroker = StdlibLoggingBroker(),
     ) -> None:
         self._stt_service = stt_service
         self._prompt_service = prompt_service
         self._session_log_service = session_log_service
         self._live_transcript_service = live_transcript_service
         self._flag_service = flag_service
+        self._turn_state_service = turn_state_service
+        # Mirrors the LoggingBroker constructor parameter on
+        # ConversationSessionService/_ReviewOrchestratorBase -- _create_and_log_*
+        # methods (Exceptions mixin) log through it before raising.
+        self._logging_broker = logging_broker
+        self._setup_timed_out = False
 
     async def run(self) -> None:
-        try:
-            gemini_model = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
-            # Multilingual voice — speaks both the Spanish phrases and the English
-            # explanations naturally, instead of an English accent on a Spanish-only voice.
-            azure_voice = os.getenv("AZURE_TTS_VOICE", "es-ES-XimenaMultilingualNeural")
-            audio_out_sample_rate = int(os.getenv("AUDIO_OUT_SAMPLE_RATE", "24000"))
-
-            transport = LocalAudioTransport(
-                LocalAudioTransportParams(audio_in_enabled=True, audio_out_enabled=True)
-            )
-
-            stt = self._stt_service.create()
-
-            tts = AzureTTSService(
-                api_key=os.environ["AZURE_SPEECH_KEY"],
-                region=os.environ["AZURE_SPEECH_REGION"],
-                settings=AzureTTSService.Settings(voice=azure_voice, language=Language.ES_ES),
-            )
-
-            llm = GoogleLLMService(
-                api_key=os.environ["GEMINI_API_KEY"],
-                settings=GoogleLLMService.Settings(
-                    model=gemini_model,
-                    system_instruction=self._prompt_service.get_system_prompt(),
-                ),
-                # A slow first chunk (network blip, API-side latency) otherwise drops
-                # the turn silently with no assistant reply ever recorded — the user
-                # just keeps talking into what looks like silence, and each unanswered
-                # turn piles onto a growing, non-alternating context that makes the
-                # next request slower too. One retry breaks that spiral.
-                retry_on_timeout=True,
-            )
-
-            context = LLMContext()
-            user_aggregator, assistant_aggregator = LLMContextAggregatorPair(
-                context,
-                # AlwaysUserMuteStrategy drops user audio/transcription frames while the
-                # bot is speaking. Without it, LocalAudioTransport has no acoustic echo
-                # cancellation, so the mic hears the bot's own voice through the
-                # speakers, Azure STT transcribes it, and the bot ends up replying to
-                # itself in a loop.
-                user_params=LLMUserAggregatorParams(
-                    vad_analyzer=SileroVADAnalyzer(),
-                    user_mute_strategies=[AlwaysUserMuteStrategy()],
-                ),
-            )
-
-            session_flags: List[Flag] = []
-
-            flag_aggregator = PatternPairAggregator()
-            flag_aggregator.add_pattern(
-                type=FLAG_TYPE,
-                start_pattern=FLAG_START,
-                end_pattern=FLAG_END,
-                action=MatchAction.REMOVE,
-            )
-
-            async def on_error_flag(match: PatternMatch) -> None:
-                parsed = parse_flag(match.text)
-                if parsed is None:
-                    return
-                flag = Flag(
-                    id=uuid.uuid4().hex,
-                    said=parsed["said"],
-                    corrected=parsed["corrected"],
-                    category=parsed["category"],
-                    timestamp=datetime.now(),
-                )
-                session_flags.append(flag)
-                logger.info(f"FLAG {flag.category}: {flag.said!r} -> {flag.corrected!r}")
-
-            flag_aggregator.on_pattern_match(FLAG_TYPE, on_error_flag)
-
-            # Initialize live transcript file for Review Mode / later SSE
-            self._live_transcript_service.clear()
-
-            # Clear any stale stop-flag file left by a prior hard-killed run —
-            # otherwise this run would see it and end immediately.
-            STOP_SIGNAL_FILE_PATH.unlink(missing_ok=True)
-
-            pipeline = Pipeline(
-                [
-                    transport.input(),
-                    FunctionFilter(filter=_MicGate(), filter_system_frames=True),
-                    stt,
-                    user_aggregator,
-                    llm,
-                    LLMTextProcessor(text_aggregator=flag_aggregator),
-                    tts,
-                    transport.output(),
-                    assistant_aggregator,
-                ]
-            )
-
-            # ponytail: cold Windows start (AV scanning fresh native DLLs: Azure Speech
-            # SDK, ONNX runtime, scikit-learn via NLTK warm-up) can blow the default
-            # 20s setup window; bump it rather than chase per-processor timing.
-            #
-            # AUDIO_OUT_SAMPLE_RATE should match your output device's native rate
-            # (query via PyAudio's get_default_output_device_info) — MME doesn't
-            # reliably resample, so a mismatch plays back sped up and cut short.
-            worker = PipelineWorker(
-                pipeline,
-                params=PipelineParams(audio_out_sample_rate=audio_out_sample_rate),
-                setup_timeout_secs=60.0,
-            )
-
-            # A setup timeout makes worker.run() clean up and return normally --
-            # no exception, nothing to catch around runner.run() below. Left
-            # unhandled, WorkerRunner.run()'s default auto_end=True then sees a
-            # "finished" root worker and returns normally too, so the subprocess
-            # exits 0: indistinguishable from a real graceful stop, even though no
-            # conversation ever started. Flag it here and raise after the
-            # finally block runs, so SubprocessBotProcessBroker's exit-code check
-            # sees a real crash instead of a false "graceful" stop.
-            setup_timed_out = False
-
-            @worker.event_handler("on_setup_timeout")
-            async def on_setup_timeout(worker):
-                nonlocal setup_timed_out
-                setup_timed_out = True
-
-            runner = WorkerRunner()
-            await runner.add_workers(worker)
-
-        except KeyError as e:
-            raise VoiceConversationConfigError(
-                f"Missing required configuration: {e}"
-            ) from e
-        except OSError as e:
-            raise VoiceConversationPipelineError(
-                f"Audio device initialization failed: {e}"
-            ) from e
+        runner, context, session_flags = await self._try_catch(self._setup)
 
         # Start background task to write live transcript. Reference kept as a
         # local (alive for run()'s lifetime, same as the pipeline) — an
         # unreferenced task risks being garbage-collected mid-execution.
-        live_transcript_task = asyncio.create_task(
-            self._write_live_transcript(context, session_flags)
-        )
+        live_transcript_task = asyncio.create_task(self._write_live_transcript(context, session_flags))
         stop_watch_task = asyncio.create_task(self._watch_for_stop_signal(runner))
 
         # ponytail: a stop signal arriving before this point (during audio device
@@ -350,6 +222,7 @@ class ConversationOrchestrator:
         finally:
             live_transcript_task.cancel()
             stop_watch_task.cancel()
+            self._turn_state_service.set("idle")
             turns = self._extract_turns(context)
             log_path = self._session_log_service.save(turns, session_flags)
             if log_path:
@@ -359,13 +232,159 @@ class ConversationOrchestrator:
             except (FlagDependencyException, FlagServiceException) as e:
                 logger.error(f"Failed to persist flags at session end: {e}")
 
-        if setup_timed_out:
+        if self._setup_timed_out:
             raise VoiceConversationPipelineError(
                 "Pipeline setup timed out after 60s (a processor blocked while "
                 "connecting -- mic/speaker device busy, a hung Azure Speech "
                 "connection, or Windows AV scanning fresh native DLLs on a cold "
                 "start). No conversation started."
             )
+
+    async def _setup(self) -> Tuple[WorkerRunner, LLMContext, List[Flag]]:
+        """Construct the pipeline and start it running. Returns (runner,
+        context, session_flags) for run() to hand to the conversation loop
+        and its cleanup. Routed through _try_catch (Exceptions mixin) --
+        the only phase this feature wraps, same scope the old inline
+        try/except covered before this move."""
+        gemini_model = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
+        # Multilingual voice — speaks both the Spanish phrases and the English
+        # explanations naturally, instead of an English accent on a Spanish-only voice.
+        azure_voice = os.getenv("AZURE_TTS_VOICE", "es-ES-XimenaMultilingualNeural")
+        audio_out_sample_rate = int(os.getenv("AUDIO_OUT_SAMPLE_RATE", "24000"))
+        # ponytail: hardware calibration knob, not a code fix. Silero VAD's
+        # stock default (0.2s) doesn't survive background noise -- brief
+        # noise spikes above the confidence threshold keep resetting the
+        # 0.2s silence window, so "user stopped speaking" never fires and
+        # the bot never responds (confirmed against a real session log,
+        # 2026-09-03: multiple consecutive user turns with no assistant
+        # reply between them). 0.5s is a starting point, not a measured
+        # value -- retune against your own mic/room via VAD_STOP_SECS if
+        # turns still hang, or if legitimate mid-sentence pauses start
+        # getting cut off.
+        vad_stop_secs = float(os.getenv("VAD_STOP_SECS", "0.5"))
+
+        transport = LocalAudioTransport(
+            LocalAudioTransportParams(audio_in_enabled=True, audio_out_enabled=True)
+        )
+
+        stt = self._stt_service.create()
+
+        tts = AzureTTSService(
+            api_key=os.environ["AZURE_SPEECH_KEY"],
+            region=os.environ["AZURE_SPEECH_REGION"],
+            settings=AzureTTSService.Settings(voice=azure_voice, language=Language.ES_ES),
+        )
+
+        llm = GoogleLLMService(
+            api_key=os.environ["GEMINI_API_KEY"],
+            settings=GoogleLLMService.Settings(
+                model=gemini_model,
+                system_instruction=self._prompt_service.get_system_prompt(),
+            ),
+            # A slow first chunk (network blip, API-side latency) otherwise drops
+            # the turn silently with no assistant reply ever recorded — the user
+            # just keeps talking into what looks like silence, and each unanswered
+            # turn piles onto a growing, non-alternating context that makes the
+            # next request slower too. One retry breaks that spiral.
+            retry_on_timeout=True,
+        )
+
+        context = LLMContext()
+        user_aggregator, assistant_aggregator = LLMContextAggregatorPair(
+            context,
+            # AlwaysUserMuteStrategy drops user audio/transcription frames while the
+            # bot is speaking. Without it, LocalAudioTransport has no acoustic echo
+            # cancellation, so the mic hears the bot's own voice through the
+            # speakers, Azure STT transcribes it, and the bot ends up replying to
+            # itself in a loop.
+            user_params=LLMUserAggregatorParams(
+                vad_analyzer=SileroVADAnalyzer(params=VADParams(stop_secs=vad_stop_secs)),
+                user_mute_strategies=[AlwaysUserMuteStrategy()],
+            ),
+        )
+
+        session_flags: List[Flag] = []
+
+        flag_aggregator = PatternPairAggregator()
+        flag_aggregator.add_pattern(
+            type=FLAG_TYPE,
+            start_pattern=FLAG_START,
+            end_pattern=FLAG_END,
+            action=MatchAction.REMOVE,
+        )
+
+        async def on_error_flag(match: PatternMatch) -> None:
+            parsed = parse_flag(match.text)
+            if parsed is None:
+                return
+            flag = Flag(
+                id=uuid.uuid4().hex,
+                said=parsed["said"],
+                corrected=parsed["corrected"],
+                category=parsed["category"],
+                timestamp=datetime.now(),
+            )
+            session_flags.append(flag)
+            logger.info(f"FLAG {flag.category}: {flag.said!r} -> {flag.corrected!r}")
+
+        flag_aggregator.on_pattern_match(FLAG_TYPE, on_error_flag)
+
+        # Initialize live transcript file for Review Mode / later SSE
+        self._live_transcript_service.clear()
+        self._turn_state_service.set("listening")
+
+        # Clear any stale stop-flag file left by a prior hard-killed run —
+        # otherwise this run would see it and end immediately.
+        STOP_SIGNAL_FILE_PATH.unlink(missing_ok=True)
+
+        pipeline = Pipeline(
+            [
+                transport.input(),
+                FunctionFilter(filter=_MicGate(), filter_system_frames=True),
+                FunctionFilter(
+                    filter=_TurnStateObserver(self._turn_state_service), filter_system_frames=True
+                ),
+                stt,
+                user_aggregator,
+                llm,
+                LLMTextProcessor(text_aggregator=flag_aggregator),
+                tts,
+                transport.output(),
+                assistant_aggregator,
+            ]
+        )
+
+        # ponytail: cold Windows start (AV scanning fresh native DLLs: Azure Speech
+        # SDK, ONNX runtime, scikit-learn via NLTK warm-up) can blow the default
+        # 20s setup window; bump it rather than chase per-processor timing.
+        #
+        # AUDIO_OUT_SAMPLE_RATE should match your output device's native rate
+        # (query via PyAudio's get_default_output_device_info) — MME doesn't
+        # reliably resample, so a mismatch plays back sped up and cut short.
+        worker = PipelineWorker(
+            pipeline,
+            params=PipelineParams(audio_out_sample_rate=audio_out_sample_rate),
+            setup_timeout_secs=60.0,
+        )
+
+        # A setup timeout makes worker.run() clean up and return normally --
+        # no exception, nothing to catch around runner.run() below. Left
+        # unhandled, WorkerRunner.run()'s default auto_end=True then sees a
+        # "finished" root worker and returns normally too, so the subprocess
+        # exits 0: indistinguishable from a real graceful stop, even though no
+        # conversation ever started. Flag it as instance state (run() checks
+        # self._setup_timed_out after runner.run() finishes and cleanup has
+        # run) rather than raising here -- raising here would surface as a
+        # generic wrapped exception one step too early, before run()'s own
+        # more specific "setup timed out" message.
+        @worker.event_handler("on_setup_timeout")
+        async def on_setup_timeout(worker):
+            self._setup_timed_out = True
+
+        runner = WorkerRunner()
+        await runner.add_workers(worker)
+
+        return runner, context, session_flags
 
     @staticmethod
     def _extract_turns(context: LLMContext) -> List[str]:
