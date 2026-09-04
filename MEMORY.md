@@ -8,23 +8,27 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-09-03-2042.md — Tri-Nature Gate
-(gap #3) resolved as a documented refusal via the Brainstorm Agent: no
-adversary exists on Voice Conversation's transcript-content path, today or
-post-deployment (the real future adversary hits the HTTP/API layer). All 3
-Tri-Nature gaps now closed (2 built, 1 refused). See
-Projects/spanish-companion/decisions/tri-nature-gate-design.md. The Gate
-brainstorm's actual motivating symptom (bot goes quiet in a noisy room)
-turned out to be a VAD/latency bug — fixed (`VAD_STOP_SECS`, env-configurable,
-default 0.5s vs. Silero's stock 0.2s) — plus a new live listening/thinking/
-speaking indicator built end to end (`TurnStateService` Foundation, `/api/events`
-SSE, `ConversationView`). Also fixed 3 user-identified architecture deviations
-in Voice Conversation's Orchestration layer (missing interface file, helper
-classes bundled into one file, no exceptions mixin) to match Session
-Lifecycle/Review's shape: added `VoiceConversationService` Protocol, split
-`_MicGate`/`_TurnStateObserver` into their own files, added
-`ConversationOrchestratorExceptions` mixin (`_try_catch` pattern). 131/131
-unit tests pass. Two commits: `2d2aa87`, `03bbc67`.
+Projects/spanish-companion/sessions/2026-09-03-2153.md — Tri-Nature Gate
+follow-up 3 (deployment/API security hardening) resolved and built: a
+Brainstorm Agent design pass found the real risk on a public deploy isn't
+auth/rate-limiting/CORS (the follow-up's own framing) but attack-surface
+reduction — `POST /start` spawns a subprocess and spends API credit,
+`/api/events` is an unbounded SSE stream. Built via `/hierarchical-delegation`
+(2 waves, 4 general-purpose agents): `api/app_public.py` (stripped
+Review-only entrypoint, never registers Session Lifecycle or `/api/events`),
+`ReviewOrchestrator.explain_flag` cached (`lru_cache` — flags immutable,
+corpus static, so cost is bounded after first use per flag), a
+`VITE_PUBLIC_MODE` frontend build variant, a seeded `data/demo_flags.json`,
+and a multi-stage `Dockerfile` for Render (confirmed against Render's actual
+docs — native runtimes can't mix Node+Python, Docker is the documented
+path). No auth for the deploy: declined, not deferred, same reasoning as
+the Gate's own refusal. Also fixed a real, independent bug: the Origin
+check's `startswith()` prefix match let `http://localhost:5000.evil.com`
+bypass it — now exact scheme+host matching. 139/139 unit tests pass.
+Committed: `2d57f5c`. See
+Projects/spanish-companion/decisions/deployment-api-security-hardening.md
+(includes a 9-step deploy runbook). Render deployment itself not yet done —
+hard cutoff 6pm 2026-09-10.
 
 ---
 
