@@ -8,21 +8,23 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-09-03-1650.md — app-hardening pass,
-explicitly reprioritized over hackathon submission logistics this session
-(Sep 18 deadline may now slip). Landed Wave 8 (Voice Conversation six-layer
-migration — 3 new Brokers, 4 new Foundations, Orchestrator rewired onto 5
-Foundation deps, zero behavior change verified), plus a same-day follow-up
-fix (user caught that the Orchestrator/CLI entrypoint were left at old flat
-paths — moved to `services/orchestrations/voice_conversation/` and
-`exposers/voice_conversation.py`, `api/controllers/` now fully retired).
-Also: a real pipeline-setup-timeout bug found and fixed (was silently
-exiting 0 instead of crashing), `pipecat-ai` pinned to `==1.8.1`, Flag/
-PracticeLog/ChunkRepository/EmbeddingModel got full test coverage for the
-first time, Tri-Nature gaps 1+2 closed (Judge for Generation, prompts
-extracted to data files), 6+ dead files/folders removed. Two commits:
-`b88ef76`, `9f13120`. See
-Projects/spanish-companion/decisions/wave-8-voice-conversation-six-layer-migration.md.
+Projects/spanish-companion/sessions/2026-09-03-2042.md — Tri-Nature Gate
+(gap #3) resolved as a documented refusal via the Brainstorm Agent: no
+adversary exists on Voice Conversation's transcript-content path, today or
+post-deployment (the real future adversary hits the HTTP/API layer). All 3
+Tri-Nature gaps now closed (2 built, 1 refused). See
+Projects/spanish-companion/decisions/tri-nature-gate-design.md. The Gate
+brainstorm's actual motivating symptom (bot goes quiet in a noisy room)
+turned out to be a VAD/latency bug — fixed (`VAD_STOP_SECS`, env-configurable,
+default 0.5s vs. Silero's stock 0.2s) — plus a new live listening/thinking/
+speaking indicator built end to end (`TurnStateService` Foundation, `/api/events`
+SSE, `ConversationView`). Also fixed 3 user-identified architecture deviations
+in Voice Conversation's Orchestration layer (missing interface file, helper
+classes bundled into one file, no exceptions mixin) to match Session
+Lifecycle/Review's shape: added `VoiceConversationService` Protocol, split
+`_MicGate`/`_TurnStateObserver` into their own files, added
+`ConversationOrchestratorExceptions` mixin (`_try_catch` pattern). 131/131
+unit tests pass. Two commits: `2d2aa87`, `03bbc67`.
 
 ---
 
