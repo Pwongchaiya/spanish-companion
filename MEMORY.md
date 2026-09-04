@@ -8,25 +8,25 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-09-03-2305.md — Session 5: fixed
-two real bugs found while testing the J5 Docker build locally end-to-end
-with Playwright (`ALLOWED_ORIGINS` missing port 10000, 403'ing every static
-asset; embedding-model download hanging past gunicorn's 120s timeout —
-fixed by baking the model into the image at build time with
-`HF_HUB_DISABLE_XET=1`/`HF_HUB_OFFLINE=1`). Also committed pre-existing
-uncommitted work (pg8000 URL-scheme normalization in
-`chunk_repository_broker.py`). Committed: `77a115f`. Investigated (Planner
-Agent, planning-only) adding browser-mic WebRTC voice chat to the public
-deployment — found it needs a full transport rework (`aiortc`, per-connection
-session model, net-new frontend/signaling), and the user ultimately put it
-**on hold**: Render itself is no longer confirmed as the deploy host, and
-separately, local Docker Desktop on Windows can't reach a real mic either
-(no WSL2 host-audio passthrough). See
-Projects/spanish-companion/decisions/voice-conversation-browser-webrtc-transport.md.
-**Security note:** a real `GEMINI_API_KEY` value was printed into tool
-output via an over-broad `docker inspect` — user may want to rotate it.
-Render deployment itself still not done — no GitHub remote configured yet,
-hard cutoff 6pm 2026-09-10.
+Projects/spanish-companion/sessions/2026-09-04-1224.md — Session 6: not
+project feature work — a live diagnosis of how Claude communicates with
+the user (ADHD-related), done via open-ended Q&A and a short roleplay.
+Two durable rules written to the **global** `~/.claude/CLAUDE.md` (not
+this project's CLAUDE.md, applies everywhere): (1) Communication style
+rewritten — root cause is signal-to-noise, not reply length (user reads
+the whole reply but loses the answer inside supporting detail, and a
+single reply is itself fatiguing to read) — new rule is an ~8-line cap,
+one-thing-at-a-time pacing, concrete-before-abstract, structure over
+prose. (2) New "Correction compliance" section — separate trigger found
+from past Broker→Service→Controller sessions: Claude built without
+confirming naming/architecture/task understanding, deviated from set
+rules, then pushed back on direct corrections most of the time with
+justification text — new rule is immediate compliance with a direct
+correction, no pushback, except genuine safety/destructive-action
+conflicts. No spanish-companion repo files touched; nothing committed to
+this repo this session. Pending items from session 5 (J5 Render deploy,
+RAG explanation quality gap, `.env.docker` cleanup, Gemini key rotation,
+Wave 9 pytest+CLAUDE.md sync) are all unchanged — see state.md.
 
 ---
 
