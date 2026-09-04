@@ -8,35 +8,19 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-09-04-1345.md — Session 7: also
-not project feature work — entirely personal `~/.claude/` Claude Code
-tooling, done while in this repo's working directory. Mined ~400 raw
-prompts from this user's own session transcripts to redesign the
-personal `revise-prompt` skill around a fixed Role/Goal/Task/Verify/
-Output template (formalizing the shape the user's own careful prompts
-already used by hand), a pass-through check for reactive one-liners, and
-an auto-guardrail step against established project patterns — the
-biggest recurring gap found. Added a global "Log/output trimming" rule
-to `~/.claude/CLAUDE.md` after finding the same signal-vs-noise problem
-recurs at three boundaries (user pastes, tool output, subagent reports).
-Wired `revise-prompt` to run automatically via a new UserPromptSubmit
-hook (`~/.claude/hooks/revise_prompt_gate.py`) — key finding: this hook
-type can only inject additional context, never replace the raw prompt,
-so a cheap regex-only hook is strictly dominant over one that shells out
-to a second `claude -p` call. All three insights filed to the wiki
-(`wiki/concepts/`), not this project's `decisions/`, since none are
-spanish-companion-specific. Also found and fixed a real bug in
-`state.md`: a duplicated "## Last Session" heading (from a past patch
-failure) had made that section permanently ambiguous to
-`obsidian_patch_content` — `delete_file` was blocked by the auto-mode
-classifier as destructive, so fixed via a direct filesystem Edit instead.
-No spanish-companion repo files touched; nothing committed to this repo
-this session (a pre-existing, unrelated `CLAUDE.md` whitespace-only diff
-was left as-is for the user). Pending items from session 5 (J5 Render
-deploy, RAG explanation quality gap, `.env.docker` cleanup, Gemini key
-rotation, Wave 9 pytest+CLAUDE.md sync) are all unchanged — see state.md.
+Projects/spanish-companion/sessions/2026-09-04-1538.md — Session 8: tooling
+only, no application code. Added YAML frontmatter to all 24 `.claude-toolkit`
+skills in place (filenames unchanged, so the ~70 explicit-path agent
+references still resolve) and shipped two runnable checks. Researched the
+Claude Code ecosystem and captured a pre-refactor baseline: swear-jar is the
+golden reference for layer shape, NL.Core.Users is authoritative for test
+conventions. Measured a Broker Agent build at 10,350 mandatory skill tokens
+with ~55% unused, and found three verified content defects in
+`broker-skill.md` (ABC vs the Protocol waiver; a mislabeled interface sample;
+async SQLAlchemy against a pg8000 sync stack). The skill refactor stands at
+Phase 1.5 of 4 — Phase 2 (brainstorm) is next. Do not delete the control
+worktree `.claude/worktrees/agent-aa34e1126e4b7e69e` before Phase 4.
 
----
 
 ## Entity Manifest
 
