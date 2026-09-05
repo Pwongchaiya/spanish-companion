@@ -8,21 +8,23 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-09-04-2352.md — Session 13: toolkit
-tooling only, no application code. Fixed the toolkit skill refactor Phase 3's
-last known defect (async/await used directly on the now-sync `Session` in
-`storage-broker-implementation-pattern-sqlalchemy.md` — bridged via
-`asyncio.to_thread`), so Phase 3 is now fully complete. Landed Stage 1 of a
-5-stage session-lifecycle redesign (plan:
-`C:\Users\pwong\.claude\plans\quiet-juggling-music.md`): append-only
-checkpoint ledger + shared `scripts/sync_state.py` (8 tests) replacing
-`/checkpoint`'s old destructive-overwrite Step 1c. Reproduced a
-stale-command-cache bug for the second time (a Skill loads a cached copy of a
-command file just edited this session, not the real one on disk) — not yet
-fixed, workaround is to `Read` the actual file first. `state.md`'s Pending
-Work section was corrupted again by `obsidian_patch_content` +
-`operation: replace` (same failure mode as session 9) and recovered via full
-`put_content` rewrite — do not use `replace` on that file's headings.
+Projects/spanish-companion/sessions/2026-09-05-1238.md — toolkit tooling only,
+no application code. Landed Piece A of the session-lifecycle redesign's Stage
+1 follow-up: `sync_state.py --full` now archives full ledger-segment text to
+the session file and writes only pointers into state.md's Pending Work
+(instead of raw ledger prose), with the archive write guarded so a failure
+leaves the ledger intact. Wired into `session-end.md` as new Step 3b; deleted
+two dead/redundant steps (6e, 7b). Committed to submodule + parent on
+`fix/pwongchaiya/ledger-flush-data-loss` (not merged to main). `state.md`'s
+Pending Work was corrupted by `obsidian_patch_content` + `operation: replace`
+for a **third** time (sessions 9, 13, now this one) — this is no longer
+"retry patch, fall back on failure": the standing rule is now **never**
+patch this file, always `obsidian_put_content` full-rewrite. Also:
+`obsidian_delete_file` on this file was silently auto-denied by the sandbox
+classifier with no prompt reaching the user, so the documented
+delete+recreate recovery path isn't reliably available either — `put_content`
+alone is the dependable fix. Piece B (`state_md_guard.py`, N3 patch-vs-put
+conflict) and Piece C (template reconciliation) remain deferred.
 
 
 ## Entity Manifest
