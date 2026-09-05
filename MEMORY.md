@@ -8,23 +8,26 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-09-05-1238.md — toolkit tooling only,
-no application code. Landed Piece A of the session-lifecycle redesign's Stage
-1 follow-up: `sync_state.py --full` now archives full ledger-segment text to
-the session file and writes only pointers into state.md's Pending Work
-(instead of raw ledger prose), with the archive write guarded so a failure
-leaves the ledger intact. Wired into `session-end.md` as new Step 3b; deleted
-two dead/redundant steps (6e, 7b). Committed to submodule + parent on
-`fix/pwongchaiya/ledger-flush-data-loss` (not merged to main). `state.md`'s
-Pending Work was corrupted by `obsidian_patch_content` + `operation: replace`
-for a **third** time (sessions 9, 13, now this one) — this is no longer
-"retry patch, fall back on failure": the standing rule is now **never**
-patch this file, always `obsidian_put_content` full-rewrite. Also:
-`obsidian_delete_file` on this file was silently auto-denied by the sandbox
-classifier with no prompt reaching the user, so the documented
-delete+recreate recovery path isn't reliably available either — `put_content`
-alone is the dependable fix. Piece B (`state_md_guard.py`, N3 patch-vs-put
-conflict) and Piece C (template reconciliation) remain deferred.
+Projects/spanish-companion/sessions/2026-09-05-1320.md — toolkit tooling only,
+no application code. Closed Pieces A+B of the session-lifecycle redesign:
+`session-end.md` Step 6 rewritten to always do a single
+`obsidian_get_file_contents` + `obsidian_put_content` for state.md, never
+`patch_content`/`delete_file` (patch had corrupted this file 3x — sessions 9,
+13, and last session). Built `.claude-toolkit/.claude/hooks/state_md_guard.py`
+(9 passing tests) as the actual enforcement — a PostToolUse hook that
+re-reads state.md from disk after any write and flags a duplicate heading or
+an over-25-line Pending Work section; wired into this project's
+`.claude/settings.local.json`. Also fixed while restructuring the command
+(418→316 lines): `{OBSIDIAN_VAULT_PATH}` in Step 3b now resolves from
+`settings.local.json` instead of being guessed, and Step 5's entity template
+now reads the canonical `Projects/_templates/entity-tracker.md` (the inline
+copy was missing frontmatter). Decision record:
+`wiki/decisions/session-end-state-md-guard.md`. Piece C (template
+reconciliation) remains open. **`.claude-toolkit` changes are staged but
+deliberately uncommitted this session — held for user review on request.**
+Also hit the documented stale-command-cache bug a third time (Skill tool
+served the pre-edit session-end.md) — worked around by reading the file
+directly, as state.md's Pending Work already prescribes.
 
 
 ## Entity Manifest
