@@ -9,16 +9,10 @@
 
 ## Repository Overview
 
-A voice-first Spanish conversation partner. The user talks to it like a friend;
-the agent responds conversationally in real time. Errors are quietly flagged
-during conversation (no interruption). After the conversation ends, the user
-reviews flagged errors, picks one, and gets a grounded, sourced explanation
-with a chance to practice the correction.
+A voice-first Spanish conversation partner. The user talks to it like a friend; the agent responds conversationally in real time. Errors are quietly flagged during conversation (no interruption). After the conversation ends, the user reviews flagged errors, picks one, and gets a grounded, sourced explanation with a chance to practice the correction.
 
-**Design principle driving every scope decision:** live conversation must stay
-fast and natural — nothing expensive (RAG, verification) runs during
-Conversation Mode. All grounding and correction work happens in the separate,
-untimed Review Mode.
+**Design principle driving every scope decision:** 
+live conversation must stay fast and natural — nothing expensive (RAG, verification) runs during Conversation Mode. All grounding and correction work happens in the separate,untimed Review Mode.
 
 Full MVP scope, explicit out-of-scope list, and build order:
 `spanish-companion-mvp-scope.md`.
@@ -30,8 +24,7 @@ submodule. All agents, skills, and slash commands are loaded from that path.
 
 ## Ask Before Building
 
-Before generating any schema, table, or API contract, confirm the structure
-with the user. Never invent field names, data types, or relationships.
+Before generating any schema, table, or API contract, confirm the structure with the user. Never invent field names, data types, or relationships.
 
 ---
 
@@ -76,16 +69,7 @@ hardware/mic testing.
 
 **Phase 2 (in design, not yet built) reverses this** — see the full
 decision record: `Projects/spanish-companion/decisions/companion-architecture-broker-service-controller.md`.
-Phase 2 adopts a simplified **Broker → Service → Controller** layering with
-constructor-based dependency injection (`typing.Protocol` abstractions, no
-DI framework), applied per-feature across six features: Session Lifecycle,
-Voice Conversation, Ingestion, Retrieval, Generation, Review — split across
-two top-level packages, `api` (Session Lifecycle, Voice Conversation,
-Review) and `rag` (Ingestion, Retrieval, Generation), with `api` depending
-on `rag` and never the reverse. Both packages are laid out layer-first,
-then feature (`brokers/`, `models/`, `services/<feature>/`,
-`controllers/<feature>/`). Retrieval internally uses a Strategy pattern for
-hybrid search (dense now, lexical as a deferred seam). The frontend is being redesigned as React + TypeScript
+Phase 2 adopts a simplified **Broker → Service → Controller** layering with constructor-based dependency injection (`typing.Protocol` abstractions, no DI framework), applied per-feature across six features: Session Lifecycle, Voice Conversation, Ingestion, Retrieval, Generation, Review — split across two top-level packages, `api` (Session Lifecycle, Voice Conversation, Review) and `rag` (Ingestion, Retrieval, Generation), with `api` depending on `rag` and never the reverse. Both packages are laid out layer-first, then feature (`brokers/`, `models/`, `services/<feature>/`, `controllers/<feature>/`). Retrieval internally uses a Strategy pattern for hybrid search (dense now, lexical as a deferred seam). The frontend is being redesigned as React + TypeScript
 (Vite static build, same-origin, no Next.js) with the same layering
 expressed as hooks. Phase 1's code is not being patched — findings from a
 four-agent Phase 1 review (code, design, security, live UI) feed Phase 2's
@@ -119,8 +103,7 @@ Two runtime modes (unchanged across both phases):
   ("preterite vs imperfect") returns the expected chunk — no framework,
   matches the scope doc's manual retrieval-quality check.
 - Review Mode (Step 4+): unit tests for the flag-selection → retrieval →
-  explanation flow are reasonable once the shape stabilizes; don't write them
-  ahead of the code.
+  explanation flow are reasonable once the shape stabilizes; don't write them ahead of the code.
 
 **Phase 2 (pytest, three tiers) — the standing rule for all new test code.**
 Modeled on the user's `NL.Core.Entitlements` .NET project ("The Standard"
@@ -141,6 +124,11 @@ Phase 2 test strategy" section.
 - No new test dependencies — stdlib `unittest.mock` and plain `assert` on
   dataclasses cover everything Moq/FluentAssertions did in the reference
   project.
+
+**Scripts, hooks, and one-off tooling** are covered by the global "Leave one
+runnable check" rule in `~/.claude/CLAUDE.md`, not by the three tiers above —
+an `assert`-based `__main__` self-check, written in the same turn as the code.
+The tiers apply to `api/` and `rag/` production code only.
 
 **Frontend (vitest + @testing-library/react, added Phase 3).** Pairs with the
 already-installed Vite, no new build tooling. Scope deliberately minimal —
@@ -182,8 +170,7 @@ their own `.env`; let them make the edit themselves.
 
 Phase 1 had no Standard entity/layer build sequence (see Architecture).
 Phase 2 does — entities will be registered via `/new-entity` once Phase 2
-build work starts, using the Broker/Service/Controller layer agents against
-the six features named in the Phase 2 decision record. The Planner Agent
+build work starts, using the Broker/Service/Controller layer agents against the six features named in the Phase 2 decision record. The Planner Agent
 owns session continuity via `/session-start` / `/session-end` in both
 phases, reading and writing `Projects/spanish-companion/state.md`.
 
@@ -277,11 +264,7 @@ example: `Projects/spanish-companion/decisions/hierarchical-agent-delegation.md`
 | Audit/Build | Sonnet | The existing Broker/Foundation/Processing/Orchestration/Aggregation/Exposer Agents, and the Auditor Agent | Unchanged from current practice — actual code generation and Standard-rule checking |
 | Worker | Haiku | Bounded, mechanical, no-judgment sub-tasks against a fully self-contained input | Parallel fan-out extraction/transformation — each sub-task independent, no synthesis required |
 
-**Verification-bounce protocol** (mirrors the existing Auditor Agent convention): a
-Plan/Orchestrate-tier pass checks Worker or Audit/Build output against its source
-input before accepting it. On failure, bounce back to the originating tier for
-correction — cap at 3 cycles, then escalate to the user rather than looping
-indefinitely.
+**Verification-bounce protocol** (mirrors the existing Auditor Agent convention): a Plan/Orchestrate-tier pass checks Worker or Audit/Build output against its source input before accepting it. On failure, bounce back to the originating tier for correction — cap at 3 cycles, then escalate to the user rather than looping indefinitely.
 
 **Do not apply this for its own sake.** A single bug fix, a small sequential task, or
 work with no natural judgment/mechanical split doesn't need tiering — dispatch
