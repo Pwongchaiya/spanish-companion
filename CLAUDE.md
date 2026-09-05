@@ -348,4 +348,8 @@ Vault path: `c:\Users\pwong\OneDrive\Documents\Obsidian\Notes`
 - `.env` and any `*.env` file
 - `data/corpus/` (raw fetched RAE pages)
 - `.venv/`, `__pycache__/`, `*.pyc`, `.pytest_cache/`
-- `.claude/` (machine-specific symlinks + settings, not committed)
+- `.claude/` (machine-specific settings, not committed — `commands/`/`agents/`
+  are synced copies of `.claude-toolkit/.claude/{commands,agents}`, not
+  symlinks: this repo lives under OneDrive, which re-materializes NTFS
+  symlinks as independent copies, so a `SessionStart` hook runs
+  `.claude-toolkit/scripts/sync_commands.py` to keep them current instead)
