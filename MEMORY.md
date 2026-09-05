@@ -8,24 +8,21 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-09-04-1644.md — Session 9: tooling
-only, no application code. Verified every source the toolkit refactor tests
-against before acting on it (control worktree intact at exactly 27 generated
-files; swear-jar; NL.Core.Users under `source/repos/`, not Documents) and
-re-confirmed the three `broker-skill.md` defects independently against disk.
-**Phase 2 of the skill refactor is now DECIDED** — six settled constraints,
-recorded in `wiki/decisions/toolkit-skill-refactor-phase-2-decisions.md`:
-split by heading name; `references/<skill>/` plus one shared file; Import
-Scaffolding becomes a `scripts/` generator; Style A agents keep the mandatory
-load list; extend `verify_frontmatter.py`; and **split first, then fix
-D1-D3**. Scope is 19 skills (the 5 `rag-*` are out). **Phase 3 (write the
-plan) is next.** Also fixed a real gap: the project had no `SessionStart`
-hook, so `/checkpoint` never auto-injected despite claiming it would. Two
-corrections logged — the baseline's NL.Core.Users count is 128, not 122, and
-`/next-session-prompt` is not blocked by its freshness check after
-`/checkpoint` (the real conflict is that `/checkpoint` leaves `state.md`
-untouched). Do not delete the control worktree
-`.claude/worktrees/agent-aa34e1126e4b7e69e` before Phase 4.
+Projects/spanish-companion/sessions/2026-09-04-2352.md — Session 13: toolkit
+tooling only, no application code. Fixed the toolkit skill refactor Phase 3's
+last known defect (async/await used directly on the now-sync `Session` in
+`storage-broker-implementation-pattern-sqlalchemy.md` — bridged via
+`asyncio.to_thread`), so Phase 3 is now fully complete. Landed Stage 1 of a
+5-stage session-lifecycle redesign (plan:
+`C:\Users\pwong\.claude\plans\quiet-juggling-music.md`): append-only
+checkpoint ledger + shared `scripts/sync_state.py` (8 tests) replacing
+`/checkpoint`'s old destructive-overwrite Step 1c. Reproduced a
+stale-command-cache bug for the second time (a Skill loads a cached copy of a
+command file just edited this session, not the real one on disk) — not yet
+fixed, workaround is to `Read` the actual file first. `state.md`'s Pending
+Work section was corrupted again by `obsidian_patch_content` +
+`operation: replace` (same failure mode as session 9) and recovered via full
+`put_content` rewrite — do not use `replace` on that file's headings.
 
 
 ## Entity Manifest
