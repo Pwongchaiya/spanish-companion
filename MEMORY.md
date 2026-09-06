@@ -8,29 +8,30 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-09-05-2158.md — toolkit
-session-lifecycle tooling only, no application code. Measured the current
-lifecycle from 76 real invocations (`/session-end` costs 3.04M tokens
-median, 99.5% cache-read) and named 7 defects (L1-L7). Fixed and committed:
-**L4** (ledger staleness — only the newest checkpoint segment ever survived
-a `/clear`; now the whole unflushed chain does), **L5** (session
-open/closed state, advisory not a lock — a `/clear` false-positive shipped
-and was caught and fixed same session), **L6** (`state.md`'s
-checkpoint-sync sentinel integrity now enforced, was ordering-by-prose
-only), and **L1** (`/session-end` Step 1 no longer reconstructs facts from
-context — `session_facts.py` gets date/branch/commits/files in one call).
-A rebuild-the-lifecycle recommendation was made, then flipped by a
-devil's-advocate pass, then both sides of that debate were found wrong when
-the falsification test exposed a 2.1x turn-counting bug in the measuring
-instrument itself. `next-session-prompt.md` deleted (137 lines, zero
-invocations ever). 79 tests, seven suites, all passing at session end.
-Decision records: `wiki/decisions/session-lifecycle-cost-and-stability-audit.md`,
-`wiki/decisions/session-lifecycle-redesign-brainstorm.md`. **Open:** L2
-(step batching) untouched; the auto-close hook is disabled pending one real
-session without misfiring; L1's actual saving is unmeasured until the next
-`/session-end` — check with `lifecycle_cost.py --since 2026-09-06`. Also
-hit the documented stale-command-cache bug a 4th time, on this exact
-`/session-end` invocation — worked around by reading the file directly.
+Projects/spanish-companion/sessions/2026-09-05-2235.md — continued the
+21:58 toolkit session-lifecycle work, no application code. Measured L1 for
+the first time: n=1, landed exactly on the pre-L1 median (19 turns) — no
+signal yet, recheck with `lifecycle_cost.py --project spanish-companion
+--commands session-end --detail` after 3-5 more runs. Enabled
+`session_tracker.py` (L5) for real via `.claude/settings.local.json`'s
+`PostToolUse`/`Bash` hook — this session's own flush is its first live
+close test. Closed Piece C, but not by its filed remedy: the
+`Architecture Reference` section it asked to add to
+`Projects/_templates/state.md` no longer exists in `session-end.md` (the
+418→316 rewrite deleted the step that read it); the real defect was
+`/project-init` and `/init-rag` both hand-rolling their own `state.md`
+missing its frontmatter — both now read the canonical template instead.
+Also fixed a genuinely red test found along the way:
+`test_split_result.py` had asserted byte-identity on
+`references/shared/dotnet-to-python.md` since 2026-09-04, but that file
+was correctly hand-edited the same day (async→sync SQLAlchemy) — changed
+to a structural check. New checks added: `test_settings_template.py`,
+`test_command_templates.py` (caught `/project-init`'s inlined-template
+copy on its first run, not named in the original plan). 6 toolkit
+commits, 4 submodule bumps. **Open:** L2 (step batching) deliberately
+held until L1 has a real sample — doing it now would make the two deltas
+unattributable. Decision record updated:
+`wiki/decisions/session-end-state-md-guard.md`.
 
 
 ## Entity Manifest
