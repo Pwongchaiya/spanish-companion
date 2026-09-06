@@ -8,30 +8,21 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-09-05-2235.md — continued the
-21:58 toolkit session-lifecycle work, no application code. Measured L1 for
-the first time: n=1, landed exactly on the pre-L1 median (19 turns) — no
-signal yet, recheck with `lifecycle_cost.py --project spanish-companion
---commands session-end --detail` after 3-5 more runs. Enabled
-`session_tracker.py` (L5) for real via `.claude/settings.local.json`'s
-`PostToolUse`/`Bash` hook — this session's own flush is its first live
-close test. Closed Piece C, but not by its filed remedy: the
-`Architecture Reference` section it asked to add to
-`Projects/_templates/state.md` no longer exists in `session-end.md` (the
-418→316 rewrite deleted the step that read it); the real defect was
-`/project-init` and `/init-rag` both hand-rolling their own `state.md`
-missing its frontmatter — both now read the canonical template instead.
-Also fixed a genuinely red test found along the way:
-`test_split_result.py` had asserted byte-identity on
-`references/shared/dotnet-to-python.md` since 2026-09-04, but that file
-was correctly hand-edited the same day (async→sync SQLAlchemy) — changed
-to a structural check. New checks added: `test_settings_template.py`,
-`test_command_templates.py` (caught `/project-init`'s inlined-template
-copy on its first run, not named in the original plan). 6 toolkit
-commits, 4 submodule bumps. **Open:** L2 (step batching) deliberately
-held until L1 has a real sample — doing it now would make the two deltas
-unattributable. Decision record updated:
-`wiki/decisions/session-end-state-md-guard.md`.
+Projects/spanish-companion/sessions/2026-09-05-2305.md — continued the
+22:35 toolkit session-lifecycle work, no application code. Closed L3
+(`/checkpoint` no longer inlines a 37-line transcript parser —
+`session_facts.py` gained `session_tokens()`) and most of L7: found
+`sync_commands.py` was copy-only and had left `next-session-prompt.md`
+(137 lines, zero recorded invocations) loading for a full session after
+its deletion from the toolkit — fixed to prune orphans, guarded so an
+absent toolkit source deletes nothing; and replaced `/session-start`'s
+Steps 2b/2c (96 lines of failsafe-slug/staleness prose) with
+`session_precheck.py`. Loaded lifecycle spec: 907 → 687 lines. 3 toolkit
+commits (`a518b8f` L3, `426fdd0` sync pruning, `1bea38f` L7 session-start),
+each its own submodule bump. **Open:** L1 still n=1 (this /session-end
+makes n=2, still no signal); L2 and `session-end.md`'s 334 lines remain
+deliberately held until L1 has data. Decision record updated:
+`wiki/decisions/session-lifecycle-cost-and-stability-audit.md`.
 
 
 ## Entity Manifest
