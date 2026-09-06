@@ -8,23 +8,14 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-09-05-2305.md — continued the
-22:35 toolkit session-lifecycle work, no application code. Closed L3
-(`/checkpoint` no longer inlines a 37-line transcript parser —
-`session_facts.py` gained `session_tokens()`) and most of L7: found
-`sync_commands.py` was copy-only and had left `next-session-prompt.md`
-(137 lines, zero recorded invocations) loading for a full session after
-its deletion from the toolkit — fixed to prune orphans, guarded so an
-absent toolkit source deletes nothing; and replaced `/session-start`'s
-Steps 2b/2c (96 lines of failsafe-slug/staleness prose) with
-`session_precheck.py`. Loaded lifecycle spec: 907 → 687 lines. 3 toolkit
-commits (`a518b8f` L3, `426fdd0` sync pruning, `1bea38f` L7 session-start),
-each its own submodule bump. **Open:** L1 still n=1 (this /session-end
-makes n=2, still no signal); L2 and `session-end.md`'s 334 lines remain
-deliberately held until L1 has data. Decision record updated:
-`wiki/decisions/session-lifecycle-cost-and-stability-audit.md`.
-
-
+Projects/spanish-companion/sessions/2026-09-05-2359.md — toolkit
+session-lifecycle work, no application code. Landed L2 (`/session-end` now
+carries a 7-turn batching table against a measured 20) and closed L6 in both
+halves: `state_md_guard.py` exits 2 on stderr so its warnings reach the model,
+and `/checkpoint` no longer writes `state.md` at all — `sync_state.py --full`
+is the only writer. 8 files, -128 net lines, all 12 toolkit self-checks pass.
+L1/L2 stay unverified until `lifecycle_cost.py` has post-fix runs; this
+session is n=4. See wiki/decisions/pending-work-single-writer.md.
 ## Entity Manifest
 
 | Feature | Path |
