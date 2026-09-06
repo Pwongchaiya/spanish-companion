@@ -8,26 +8,29 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-09-05-1320.md — toolkit tooling only,
-no application code. Closed Pieces A+B of the session-lifecycle redesign:
-`session-end.md` Step 6 rewritten to always do a single
-`obsidian_get_file_contents` + `obsidian_put_content` for state.md, never
-`patch_content`/`delete_file` (patch had corrupted this file 3x — sessions 9,
-13, and last session). Built `.claude-toolkit/.claude/hooks/state_md_guard.py`
-(9 passing tests) as the actual enforcement — a PostToolUse hook that
-re-reads state.md from disk after any write and flags a duplicate heading or
-an over-25-line Pending Work section; wired into this project's
-`.claude/settings.local.json`. Also fixed while restructuring the command
-(418→316 lines): `{OBSIDIAN_VAULT_PATH}` in Step 3b now resolves from
-`settings.local.json` instead of being guessed, and Step 5's entity template
-now reads the canonical `Projects/_templates/entity-tracker.md` (the inline
-copy was missing frontmatter). Decision record:
-`wiki/decisions/session-end-state-md-guard.md`. Piece C (template
-reconciliation) remains open. **`.claude-toolkit` changes are staged but
-deliberately uncommitted this session — held for user review on request.**
-Also hit the documented stale-command-cache bug a third time (Skill tool
-served the pre-edit session-end.md) — worked around by reading the file
-directly, as state.md's Pending Work already prescribes.
+Projects/spanish-companion/sessions/2026-09-05-2158.md — toolkit
+session-lifecycle tooling only, no application code. Measured the current
+lifecycle from 76 real invocations (`/session-end` costs 3.04M tokens
+median, 99.5% cache-read) and named 7 defects (L1-L7). Fixed and committed:
+**L4** (ledger staleness — only the newest checkpoint segment ever survived
+a `/clear`; now the whole unflushed chain does), **L5** (session
+open/closed state, advisory not a lock — a `/clear` false-positive shipped
+and was caught and fixed same session), **L6** (`state.md`'s
+checkpoint-sync sentinel integrity now enforced, was ordering-by-prose
+only), and **L1** (`/session-end` Step 1 no longer reconstructs facts from
+context — `session_facts.py` gets date/branch/commits/files in one call).
+A rebuild-the-lifecycle recommendation was made, then flipped by a
+devil's-advocate pass, then both sides of that debate were found wrong when
+the falsification test exposed a 2.1x turn-counting bug in the measuring
+instrument itself. `next-session-prompt.md` deleted (137 lines, zero
+invocations ever). 79 tests, seven suites, all passing at session end.
+Decision records: `wiki/decisions/session-lifecycle-cost-and-stability-audit.md`,
+`wiki/decisions/session-lifecycle-redesign-brainstorm.md`. **Open:** L2
+(step batching) untouched; the auto-close hook is disabled pending one real
+session without misfiring; L1's actual saving is unmeasured until the next
+`/session-end` — check with `lifecycle_cost.py --since 2026-09-06`. Also
+hit the documented stale-command-cache bug a 4th time, on this exact
+`/session-end` invocation — worked around by reading the file directly.
 
 
 ## Entity Manifest
