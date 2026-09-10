@@ -190,3 +190,48 @@ button.primary {
 .done {
   color: #2ecc71;
 }
+
+/* --- Error boundary --- */
+
+.error-fallback {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px;
+}
+
+/* --- Toasts --- */
+
+.toast-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 100;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  background: var(--bg);
+  color: var(--text-h);
+  box-shadow: var(--shadow);
+}
+
+.toast-dismiss {
+  border: none;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}

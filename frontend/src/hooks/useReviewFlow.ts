@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiClient } from "../api/client";
 import type { Explanation, Flag, PracticeAttempt } from "../api/types";
+import { useToastStore } from "../state/toastStore";
 
 export function useReviewFlow() {
   const [flags, setFlags] = useState<Flag[]>([]);
@@ -8,10 +9,17 @@ export function useReviewFlow() {
   const [explanation, setExplanation] = useState<Explanation | null>(null);
   const [attempt, setAttempt] = useState<PracticeAttempt | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const addToast = useToastStore((s) => s.addToast);
 
   useEffect(() => {
-    apiClient.listFlags().then(setFlags).catch((e) => setError(e.message));
-  }, []);
+    apiClient
+      .listFlags()
+      .then(setFlags)
+      .catch((e) => {
+        setError(e.message);
+        addToast(`Couldn't load flagged errors: ${e.message}`);
+      });
+  }, [addToast]);
 
   async function selectFlag(flagId: string) {
     setSelectedFlagId(flagId);

@@ -2,6 +2,8 @@ import { useState } from "react";
 import "./App.css";
 import { ConversationView } from "./views/ConversationView";
 import { ReviewView } from "./views/ReviewView";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { ToastContainer } from "./components/Toast";
 
 type Tab = "conversation" | "review";
 
@@ -20,8 +22,11 @@ function App() {
           <h1>Spanish Companion</h1>
         </header>
         <main>
-          <ReviewView />
+          <ErrorBoundary>
+            <ReviewView />
+          </ErrorBoundary>
         </main>
+        <ToastContainer />
       </>
     );
   }
@@ -40,7 +45,10 @@ function App() {
         </nav>
       </header>
 
-      <main>{tab === "conversation" ? <ConversationView /> : <ReviewView />}</main>
+      <main>
+        <ErrorBoundary key={tab}>{tab === "conversation" ? <ConversationView /> : <ReviewView />}</ErrorBoundary>
+      </main>
+      <ToastContainer />
     </>
   );
 }
