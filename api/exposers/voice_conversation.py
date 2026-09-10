@@ -48,9 +48,9 @@ def main() -> None:
     orchestrator = ConversationOrchestrator(
         stt_broker=AzureSttBroker(),
         prompt_broker=FilePromptBroker(),
-        session_log_service=SessionLogService(session_log_broker),
-        live_transcript_service=LiveTranscriptService(session_log_broker),
-        flag_service=FlagService(JsonFileFlagBroker()),
+        session_log_service=SessionLogService(session_log_broker, logging_broker=logging_broker),
+        live_transcript_service=LiveTranscriptService(session_log_broker, logging_broker=logging_broker),
+        flag_service=FlagService(JsonFileFlagBroker(), logging_broker=logging_broker),
         session_log_broker=session_log_broker,
         logging_broker=logging_broker,
         configuration_broker=configuration_broker,

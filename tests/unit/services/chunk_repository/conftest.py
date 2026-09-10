@@ -2,11 +2,8 @@
 
 Per CLAUDE.md's Phase 2 test strategy and the Foundation layer's mock
 target: ChunkRepositoryBroker is mocked via unittest.mock.Mock(spec=...) --
-no real Postgres/pgvector. Mirrors tests/unit/services/generation/conftest.py's
-shape one broker over, and tests/unit/services/ingestion/conftest.py's choice
-not to mock a logging_broker: ChunkRepositoryService defaults its own
-(StdlibLoggingBroker), matching Ingestion's identical default-and-don't-assert
-posture cited in chunk_repository_service_exceptions.py's own docstring.
+no real Postgres/pgvector. logging_broker is now a required constructor
+argument (audit M4), mocked here rather than defaulted.
 """
 
 from unittest.mock import Mock
@@ -14,6 +11,7 @@ from unittest.mock import Mock
 import pytest
 
 from rag.brokers.chunk_repository import ChunkRepositoryBroker
+from rag.brokers.logging import LoggingBroker
 from rag.models.retrieval import ScoredChunk
 from rag.services.foundations.chunk_repository import ChunkRepositoryService
 
@@ -24,8 +22,13 @@ def mock_broker():
 
 
 @pytest.fixture
-def service(mock_broker):
-    return ChunkRepositoryService(chunk_repository=mock_broker)
+def mock_logging_broker():
+    return Mock(spec=LoggingBroker)
+
+
+@pytest.fixture
+def service(mock_broker, mock_logging_broker):
+    return ChunkRepositoryService(chunk_repository=mock_broker, logging_broker=mock_logging_broker)
 
 
 @pytest.fixture

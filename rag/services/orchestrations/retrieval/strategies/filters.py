@@ -13,7 +13,7 @@ call with it. The Protocol below does not change.
 import re
 from typing import List, Optional, Protocol
 
-from rag.brokers.logging import LoggingBroker, StdlibLoggingBroker
+from rag.brokers.logging import LoggingBroker
 from rag.models.retrieval import ScoredChunk
 
 
@@ -107,7 +107,8 @@ class CategoryBoostFilter:
     def __init__(
         self,
         category: Optional[str] = None,
-        logging_broker: LoggingBroker = StdlibLoggingBroker(),
+        *,
+        logging_broker: LoggingBroker,
     ) -> None:
         # None means "no category known for this call" — pass-through, so the
         # caller never needs a conditional around this filter.

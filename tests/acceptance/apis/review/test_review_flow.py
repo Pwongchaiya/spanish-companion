@@ -18,6 +18,7 @@ import pytest
 from flask import Flask
 
 from api.brokers.flag import JsonFileFlagBroker
+from api.brokers.logging import StdlibLoggingBroker
 from api.brokers.practice_log import JsonLinesPracticeLogBroker
 from api.exposers.review import make_review_blueprint
 from api.models.flag import Flag
@@ -64,12 +65,12 @@ def practice_log_broker(tmp_path):
 
 @pytest.fixture
 def flag_service(flag_broker):
-    return FlagService(flag_broker=flag_broker)
+    return FlagService(flag_broker=flag_broker, logging_broker=StdlibLoggingBroker())
 
 
 @pytest.fixture
 def practice_log_service(practice_log_broker):
-    return PracticeLogService(practice_log_broker=practice_log_broker)
+    return PracticeLogService(practice_log_broker=practice_log_broker, logging_broker=StdlibLoggingBroker())
 
 
 @pytest.fixture
@@ -104,6 +105,7 @@ def client(flag_service, practice_log_service, mock_retrieval_service, mock_gene
         practice_log_service=practice_log_service,
         retrieval_service=mock_retrieval_service,
         generation_service=mock_generation_service,
+        logging_broker=StdlibLoggingBroker(),
     )
     app = Flask(__name__)
     app.register_blueprint(make_review_blueprint(orchestrator))

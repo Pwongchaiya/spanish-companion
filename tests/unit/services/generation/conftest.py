@@ -10,6 +10,7 @@ from unittest.mock import Mock
 import pytest
 
 from rag.brokers.generation import GenerationBroker
+from rag.brokers.logging import LoggingBroker
 from rag.models.retrieval import ScoredChunk
 from rag.services.foundations.generation import GenerationService
 
@@ -29,8 +30,13 @@ def mock_broker():
 
 
 @pytest.fixture
-def service(mock_broker):
-    return GenerationService(broker=mock_broker)
+def mock_logging_broker():
+    return Mock(spec=LoggingBroker)
+
+
+@pytest.fixture
+def service(mock_broker, mock_logging_broker):
+    return GenerationService(broker=mock_broker, logging_broker=mock_logging_broker)
 
 
 @pytest.fixture

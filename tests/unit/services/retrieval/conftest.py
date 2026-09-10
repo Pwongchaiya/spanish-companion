@@ -2,17 +2,11 @@
 
 Per CLAUDE.md's Phase 2 test strategy: every dependency is mocked via
 unittest.mock.Mock(spec=Protocol), with strict call-count verification on
-every mock touched, and deterministic data only. This service's dependencies
-are the two Foundation services (IEmbeddingModelService,
-IChunkRepositoryService), not raw brokers -- the brokers now sit one layer
-further down, behind those services.
-
-Seam note: the service never calls IChunkRepositoryService itself -- it only
-passes it to the default DenseVectorStrategy it builds when `strategies` is
-not overridden (see HybridRetrievalService.__init__). These tests override
-`strategies`, so the repository service is a mock that must stay untouched;
-that is asserted in test_retrieve_logic.py rather than assumed. The real
-repository path is covered by the Integration tier instead.
+every mock touched, and deterministic data only. This service's only
+Foundation dependency is IEmbeddingModelService -- audit finding M7 moved
+DenseVectorStrategy construction (and the IChunkRepositoryService it needs)
+to the composition root, since this service never called that Foundation
+service itself; strategies/fusion now arrive pre-built.
 """
 
 from unittest.mock import Mock
@@ -21,7 +15,6 @@ import pytest
 
 from rag.brokers.logging import LoggingBroker
 from rag.models.retrieval import ScoredChunk
-from rag.services.foundations.chunk_repository import IChunkRepositoryService
 from rag.services.foundations.embedding_model import IEmbeddingModelService
 from rag.services.orchestrations.retrieval import HybridRetrievalService
 from rag.services.orchestrations.retrieval.strategies.dense import RetrievalStrategy
@@ -64,11 +57,6 @@ def mock_embedding_model():
 
 
 @pytest.fixture
-def mock_chunk_repository():
-    return Mock(spec=IChunkRepositoryService)
-
-
-@pytest.fixture
 def mock_strategy():
     """Stands in for DenseVectorStrategy at the seam the service depends on."""
     return Mock(spec=RetrievalStrategy)
@@ -80,7 +68,7 @@ def mock_logging_broker():
 
 
 @pytest.fixture
-def service_factory(mock_embedding_model, mock_chunk_repository, mock_strategy, mock_logging_broker):
+def service_factory(mock_embedding_model, mock_strategy, mock_logging_broker):
     """Builds the service under test, defaulting every injectable stage.
 
     Fusion defaults to the real PassThroughRankFusion: it is a pure,
@@ -91,9 +79,8 @@ def service_factory(mock_embedding_model, mock_chunk_repository, mock_strategy, 
     def build(strategies=None, fusion=None, filters=None):
         return HybridRetrievalService(
             embedding_model_service=mock_embedding_model,
-            chunk_repository_service=mock_chunk_repository,
             strategies=[mock_strategy] if strategies is None else strategies,
-            fusion=PassThroughRankFusion() if fusion is None else fusion,
+            fusion=PassThroughRankFusion(logging_broker=mock_logging_broker) if fusion is None else fusion,
             filters=filters,
             logging_broker=mock_logging_broker,
         )

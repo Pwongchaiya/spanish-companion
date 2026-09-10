@@ -24,6 +24,7 @@ from unittest.mock import Mock
 import pytest
 
 from api.brokers.flag import JsonFileFlagBroker
+from api.brokers.logging import StdlibLoggingBroker
 from api.brokers.practice_log import JsonLinesPracticeLogBroker
 from api.models.flag import Flag
 from api.models.flag.exceptions import FlagValidationException, NotFoundFlagException
@@ -67,12 +68,12 @@ def practice_log_broker(tmp_path):
 
 @pytest.fixture
 def flag_service(flag_broker):
-    return FlagService(flag_broker=flag_broker)
+    return FlagService(flag_broker=flag_broker, logging_broker=StdlibLoggingBroker())
 
 
 @pytest.fixture
 def practice_log_service(practice_log_broker):
-    return PracticeLogService(practice_log_broker=practice_log_broker)
+    return PracticeLogService(practice_log_broker=practice_log_broker, logging_broker=StdlibLoggingBroker())
 
 
 @pytest.fixture
@@ -93,6 +94,7 @@ def service(flag_service, practice_log_service, mock_retrieval_service, mock_gen
         retrieval_service=mock_retrieval_service,
         generation_service=mock_generation_service,
         clock=lambda: FIXED_NOW,
+        logging_broker=StdlibLoggingBroker(),
         configuration_broker=FakeConfigurationBroker({"RETRIEVAL_TOP_K": str(RETRIEVAL_TOP_K)}),
     )
 

@@ -24,9 +24,12 @@ from unittest.mock import Mock
 import pytest
 
 from rag.brokers.chunk_repository import EMBEDDING_DIM
+from rag.brokers.logging import StdlibLoggingBroker
 from rag.services.foundations.chunk_repository import ChunkRepositoryService
 from rag.services.foundations.embedding_model import IEmbeddingModelService
 from rag.services.orchestrations.retrieval import HybridRetrievalService
+from rag.services.orchestrations.retrieval.strategies.dense import DenseVectorStrategy
+from rag.services.orchestrations.retrieval.strategies.fusion import PassThroughRankFusion
 
 EMBEDDING_MODEL_VERSION = "test-model-v1"
 CHUNKING_STRATEGY_VERSION = "test-chunking-v1"
@@ -82,14 +85,19 @@ def seeded_chunk_ids(chunk_repository):
 
 @pytest.fixture
 def service(mock_embedding_model, chunk_repository):
-    # No strategies/fusion/filters override: the real DenseVectorStrategy and
-    # the real pgvector query are the point of this tier. The `chunk_repository`
-    # fixture is the real broker, wrapped here in the real Foundation service
-    # the Orchestration tier now depends on -- so the SQL under test is
+    # Real DenseVectorStrategy and the real pgvector query are the point of
+    # this tier -- built here rather than defaulted inside the service (audit
+    # M7 moved that construction to the composition root). The
+    # `chunk_repository` fixture is the real broker, wrapped in the real
+    # Foundation service the strategy depends on -- so the SQL under test is
     # unchanged, just reached through one more real layer.
+    logging_broker = StdlibLoggingBroker()
+    chunk_repository_service = ChunkRepositoryService(chunk_repository, logging_broker=logging_broker)
     return HybridRetrievalService(
         embedding_model_service=mock_embedding_model,
-        chunk_repository_service=ChunkRepositoryService(chunk_repository),
+        strategies=[DenseVectorStrategy(chunk_repository_service, logging_broker=logging_broker)],
+        fusion=PassThroughRankFusion(logging_broker=logging_broker),
+        logging_broker=logging_broker,
     )
 
 

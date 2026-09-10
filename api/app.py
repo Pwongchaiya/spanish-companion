@@ -47,6 +47,8 @@ from rag.services.foundations.chunk_repository import ChunkRepositoryService
 from rag.services.foundations.embedding_model import EmbeddingModelService
 from rag.services.foundations.generation import GenerationService
 from rag.services.orchestrations.retrieval import HybridRetrievalService
+from rag.services.orchestrations.retrieval.strategies.dense import DenseVectorStrategy
+from rag.services.orchestrations.retrieval.strategies.fusion import PassThroughRankFusion
 
 load_dotenv()
 
@@ -155,7 +157,10 @@ def create_app() -> Flask:
         logging_broker=logging_broker,
     )
     retrieval_service = HybridRetrievalService(
-        embedding_model_service, chunk_repository_service, logging_broker=logging_broker
+        embedding_model_service,
+        strategies=[DenseVectorStrategy(chunk_repository_service, logging_broker=logging_broker)],
+        fusion=PassThroughRankFusion(logging_broker=logging_broker),
+        logging_broker=logging_broker,
     )
     generation_service = GenerationService(GeminiGenerationBroker(), logging_broker=logging_broker)
     flag_service = FlagService(JsonFileFlagBroker(), logging_broker=logging_broker)

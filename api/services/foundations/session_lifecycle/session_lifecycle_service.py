@@ -25,7 +25,7 @@ from typing import Callable, Optional
 
 from api.brokers.bot_process import BotProcessBroker
 from api.brokers.configuration import ConfigurationBroker, EnvConfigurationBroker
-from api.brokers.logging import LoggingBroker, StdlibLoggingBroker
+from api.brokers.logging import LoggingBroker
 from api.models.session_lifecycle.session_status import SessionStatus
 
 # ponytail: no IPC channel from the subprocess back to this service yet --
@@ -52,7 +52,8 @@ class _ConversationSessionServiceBase:
         self,
         broker: BotProcessBroker,
         time_source: Callable[[], float] = time.monotonic,
-        logging_broker: LoggingBroker = StdlibLoggingBroker(),
+        *,
+        logging_broker: LoggingBroker,
         configuration_broker: ConfigurationBroker = EnvConfigurationBroker(),
     ) -> None:
         self._broker = broker

@@ -18,7 +18,7 @@ combined into the concrete EmbeddingModelService in __init__.py -- the same
 from typing import List
 
 from rag.brokers.embedding_model import EmbeddingModelBroker
-from rag.brokers.logging import LoggingBroker, StdlibLoggingBroker
+from rag.brokers.logging import LoggingBroker
 from rag.models.embedding_model.exceptions import EmbeddingModelUnavailableError
 
 
@@ -33,7 +33,8 @@ class _EmbeddingModelServiceBase:
     def __init__(
         self,
         embedding_model: EmbeddingModelBroker,
-        logging_broker: LoggingBroker = StdlibLoggingBroker(),
+        *,
+        logging_broker: LoggingBroker,
     ) -> None:
         self._embedding_model = embedding_model
         # Mirrors the `ILoggingBroker loggingBroker` constructor parameter

@@ -20,7 +20,7 @@ would silently ask the broker for zero rows.
 """
 
 from rag.brokers.chunk_repository import ChunkRepositoryBroker
-from rag.brokers.logging import LoggingBroker, StdlibLoggingBroker
+from rag.brokers.logging import LoggingBroker
 from rag.models.chunk_repository.exceptions import ChunkRepositoryUnavailableError
 from rag.models.retrieval import ScoredChunk
 
@@ -36,7 +36,8 @@ class _ChunkRepositoryServiceBase:
     def __init__(
         self,
         chunk_repository: ChunkRepositoryBroker,
-        logging_broker: LoggingBroker = StdlibLoggingBroker(),
+        *,
+        logging_broker: LoggingBroker,
     ) -> None:
         self._chunk_repository = chunk_repository
         self._logging_broker = logging_broker

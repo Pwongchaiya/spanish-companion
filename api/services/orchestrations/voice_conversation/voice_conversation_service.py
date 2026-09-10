@@ -96,7 +96,7 @@ from pipecat.turns.user_mute import AlwaysUserMuteStrategy
 from pipecat.workers.runner import WorkerRunner
 
 from api.brokers.configuration import ConfigurationBroker, EnvConfigurationBroker
-from api.brokers.logging import LoggingBroker, StdlibLoggingBroker
+from api.brokers.logging import LoggingBroker
 from api.brokers.prompt import PromptBroker
 from api.brokers.session_log import SessionLogBroker
 from api.brokers.stt import SttBroker
@@ -197,7 +197,8 @@ class _ConversationOrchestratorBase:
         live_transcript_service: ILiveTranscriptService,
         flag_service: IFlagService,
         session_log_broker: SessionLogBroker,
-        logging_broker: LoggingBroker = StdlibLoggingBroker(),
+        *,
+        logging_broker: LoggingBroker,
         configuration_broker: ConfigurationBroker = EnvConfigurationBroker(),
     ) -> None:
         self._stt_broker = stt_broker

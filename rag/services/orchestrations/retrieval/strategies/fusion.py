@@ -8,7 +8,7 @@ interface, and never the service that calls it.
 
 from typing import List, Protocol
 
-from rag.brokers.logging import LoggingBroker, StdlibLoggingBroker
+from rag.brokers.logging import LoggingBroker
 from rag.models.retrieval import ScoredChunk
 
 
@@ -47,7 +47,7 @@ class PassThroughRankFusion:
     # survives that flip unchanged).
     """
 
-    def __init__(self, logging_broker: LoggingBroker = StdlibLoggingBroker()) -> None:
+    def __init__(self, *, logging_broker: LoggingBroker) -> None:
         self._logging_broker = logging_broker
 
     def fuse(self, candidate_lists: List[List[ScoredChunk]]) -> List[ScoredChunk]:

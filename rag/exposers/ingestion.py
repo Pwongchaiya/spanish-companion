@@ -22,6 +22,7 @@ from bs4 import BeautifulSoup
 from rag.brokers.chunk_repository import SqlAlchemyChunkRepositoryBroker
 from rag.brokers.configuration import EnvConfigurationBroker
 from rag.brokers.embedding_model import SentenceTransformerEmbeddingModelBroker
+from rag.brokers.logging import StdlibLoggingBroker
 from rag.services.foundations.chunk_repository import ChunkRepositoryService
 from rag.services.foundations.embedding_model import EmbeddingModelService
 from rag.services.orchestrations.ingestion import IngestionService
@@ -76,14 +77,18 @@ def fetch_page_text(url: str, timeout_seconds: int) -> str:
 
 
 def main() -> None:
+    logging_broker = StdlibLoggingBroker()
     configuration_broker = EnvConfigurationBroker()
     request_timeout_seconds = int(configuration_broker.get("REQUEST_TIMEOUT_SECONDS", "15"))
     database_url = configuration_broker.require("DATABASE_URL")
     chunk_repository_service = ChunkRepositoryService(
-        SqlAlchemyChunkRepositoryBroker(connection_string=database_url)
+        SqlAlchemyChunkRepositoryBroker(connection_string=database_url),
+        logging_broker=logging_broker,
     )
-    embedding_model_service = EmbeddingModelService(SentenceTransformerEmbeddingModelBroker())
-    service = IngestionService(chunk_repository_service, embedding_model_service)
+    embedding_model_service = EmbeddingModelService(
+        SentenceTransformerEmbeddingModelBroker(), logging_broker=logging_broker
+    )
+    service = IngestionService(chunk_repository_service, embedding_model_service, logging_broker=logging_broker)
 
     for topic, url in TOPICS:
         try:

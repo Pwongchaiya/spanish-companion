@@ -9,6 +9,7 @@ from unittest.mock import Mock
 
 import pytest
 
+from api.brokers.logging import LoggingBroker
 from api.brokers.session_log import SessionLogBroker
 from api.models.flag import Flag
 from api.services.foundations.session_log import SessionLogService
@@ -20,8 +21,13 @@ def mock_session_log_broker():
 
 
 @pytest.fixture
-def service(mock_session_log_broker):
-    return SessionLogService(session_log_broker=mock_session_log_broker)
+def mock_logging_broker():
+    return Mock(spec=LoggingBroker)
+
+
+@pytest.fixture
+def service(mock_session_log_broker, mock_logging_broker):
+    return SessionLogService(session_log_broker=mock_session_log_broker, logging_broker=mock_logging_broker)
 
 
 @pytest.fixture

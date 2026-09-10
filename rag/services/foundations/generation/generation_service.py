@@ -38,7 +38,7 @@ from pathlib import Path
 
 import rag
 from rag.brokers.generation import GenerationBroker, GenerationError
-from rag.brokers.logging import LoggingBroker, StdlibLoggingBroker
+from rag.brokers.logging import LoggingBroker
 from rag.models.generation import Explanation
 from rag.models.retrieval import ScoredChunk
 from rag.services.foundations.generation.i_generation_service import FlagLike
@@ -61,7 +61,8 @@ class _GenerationServiceBase:
     def __init__(
         self,
         broker: GenerationBroker,
-        logging_broker: LoggingBroker = StdlibLoggingBroker(),
+        *,
+        logging_broker: LoggingBroker,
     ) -> None:
         self._broker = broker
         self._logging_broker = logging_broker

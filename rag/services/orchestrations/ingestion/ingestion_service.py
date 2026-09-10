@@ -23,7 +23,7 @@ codebase.
 """
 
 from rag.brokers.configuration import ConfigurationBroker, EnvConfigurationBroker
-from rag.brokers.logging import LoggingBroker, StdlibLoggingBroker
+from rag.brokers.logging import LoggingBroker
 from rag.services.foundations.chunk_repository import IChunkRepositoryService
 from rag.services.foundations.embedding_model import IEmbeddingModelService
 
@@ -69,17 +69,17 @@ class _IngestionServiceBase:
         self,
         chunk_repository_service: IChunkRepositoryService,
         embedding_model_service: IEmbeddingModelService,
-        logging_broker: LoggingBroker = StdlibLoggingBroker(),
+        *,
+        logging_broker: LoggingBroker,
         configuration_broker: ConfigurationBroker = EnvConfigurationBroker(),
     ) -> None:
         self._chunk_repository_service = chunk_repository_service
         self._embedding_model_service = embedding_model_service
         # Mirrors the `ILoggingBroker loggingBroker` constructor parameter on
         # EntitlementCodesOrchestrationService.cs:22-33 — every
-        # _create_and_log_* method logs through it before raising. Defaulted
-        # (unlike the reference's required DI parameter) so the hand-written
-        # CLI at rag/controllers/ingestion.py:82 keeps working unchanged;
-        # CLAUDE.md's waiver table forbids reshaping that file.
+        # _create_and_log_* method logs through it before raising. Required,
+        # matching the reference's DI parameter (audit M4) -- the CLI at
+        # rag/exposers/ingestion.py now passes one explicitly.
         self._logging_broker = logging_broker
         # Read inside __init__, not at import time (H1) -- same env var and
         # same default as Phase 1's chunker, so re-ingesting produces

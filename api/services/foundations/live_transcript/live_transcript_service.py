@@ -25,7 +25,7 @@ FlagService's precedent of skipping a file that would be empty.
 
 import json
 
-from api.brokers.logging import LoggingBroker, StdlibLoggingBroker
+from api.brokers.logging import LoggingBroker
 from api.brokers.session_log import SessionLogBroker
 from api.models.live_transcript.exceptions import LiveTranscriptUnavailableError
 
@@ -41,7 +41,8 @@ class _LiveTranscriptServiceBase:
     def __init__(
         self,
         session_log_broker: SessionLogBroker,
-        logging_broker: LoggingBroker = StdlibLoggingBroker(),
+        *,
+        logging_broker: LoggingBroker,
     ) -> None:
         self._session_log_broker = session_log_broker
         self._logging_broker = logging_broker

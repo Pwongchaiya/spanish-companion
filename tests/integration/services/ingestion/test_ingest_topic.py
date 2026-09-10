@@ -23,6 +23,7 @@ import pytest
 from rag.brokers.chunk_repository import EMBEDDING_DIM
 from rag.brokers.configuration import ConfigurationBroker
 from rag.brokers.embedding_model import EmbeddingModelBroker
+from rag.brokers.logging import StdlibLoggingBroker
 from rag.services.foundations.chunk_repository import ChunkRepositoryService
 from rag.services.foundations.embedding_model import EmbeddingModelService
 from rag.services.orchestrations.ingestion import IngestionService
@@ -61,10 +62,12 @@ def mock_configuration_broker():
 
 @pytest.fixture
 def service(chunk_repository, mock_embedding_model, mock_configuration_broker):
+    logging_broker = StdlibLoggingBroker()
     return IngestionService(
-        chunk_repository_service=ChunkRepositoryService(chunk_repository),
-        embedding_model_service=EmbeddingModelService(mock_embedding_model),
+        chunk_repository_service=ChunkRepositoryService(chunk_repository, logging_broker=logging_broker),
+        embedding_model_service=EmbeddingModelService(mock_embedding_model, logging_broker=logging_broker),
         configuration_broker=mock_configuration_broker,
+        logging_broker=logging_broker,
     )
 
 

@@ -8,11 +8,10 @@ behaviour is swappable. Today exactly one strategy (dense) is wired and
 fusion is a pass-through; LexicalStrategy and reranking are seams, not
 placeholders — see strategies/fusion.py and strategies/filters.py.
 
-Depends on exactly two Foundation services -- IEmbeddingModelService and
-IChunkRepositoryService -- so the Florance Pattern (ORC-001, 2-3 deps) and
-ORC-002 (no direct broker deps) are both satisfied outright; the CLAUDE.md
-Phase 2 waiver that previously covered this service's raw-broker deps no
-longer needs to apply to it.
+Depends directly on IEmbeddingModelService plus the already-built strategies/
+fusion pipeline stages (audit M7 moved DenseVectorStrategy construction, and
+the IChunkRepositoryService dependency it needs, to the composition root --
+this service never called that Foundation service itself).
 
 Split into this base logic file plus an Exceptions mixin
 (retrieval_service_exceptions.py), combined into the concrete
@@ -32,23 +31,22 @@ can produce.
 
 from typing import List, Optional, Sequence
 
-from rag.brokers.logging import LoggingBroker, StdlibLoggingBroker
+from rag.brokers.logging import LoggingBroker
 from rag.models.retrieval import ScoredChunk
-from rag.services.foundations.chunk_repository import IChunkRepositoryService
 from rag.services.foundations.embedding_model import IEmbeddingModelService
-from rag.services.orchestrations.retrieval.strategies.dense import DenseVectorStrategy, RetrievalStrategy
+from rag.services.orchestrations.retrieval.strategies.dense import RetrievalStrategy
 from rag.services.orchestrations.retrieval.strategies.filters import CategoryBoostFilter, ResultFilter
-from rag.services.orchestrations.retrieval.strategies.fusion import PassThroughRankFusion, RankFusionStrategy
+from rag.services.orchestrations.retrieval.strategies.fusion import RankFusionStrategy
 
 
 class _HybridRetrievalServiceBase:
     """Finds the corpus chunks that ground a Review Mode explanation.
 
     Direct dependencies are the EmbeddingModel Foundation service (query
-    embedding) plus the pipeline stages it composes. The ChunkRepository
-    Foundation service is passed in only to build the default
-    DenseVectorStrategy — that strategy owns it, and this service never
-    calls it.
+    embedding) plus the pipeline stages it composes. Strategies/fusion are
+    built at the composition root (audit M7) — this service no longer
+    constructs a default pipeline or accepts a ChunkRepository dependency
+    it never calls itself.
 
     The public `retrieve` delegates to a private `_retrieve` through
     `_try_catch` (defined in the Exceptions mixin), mirroring
@@ -59,27 +57,18 @@ class _HybridRetrievalServiceBase:
     def __init__(
         self,
         embedding_model_service: IEmbeddingModelService,
-        chunk_repository_service: IChunkRepositoryService,
-        strategies: Optional[Sequence[RetrievalStrategy]] = None,
-        fusion: Optional[RankFusionStrategy] = None,
+        strategies: Sequence[RetrievalStrategy],
+        fusion: RankFusionStrategy,
+        *,
         filters: Optional[Sequence[ResultFilter]] = None,
-        logging_broker: LoggingBroker = StdlibLoggingBroker(),
+        logging_broker: LoggingBroker,
     ) -> None:
         self._embedding_model_service = embedding_model_service
         # Mirrors the `ILoggingBroker loggingBroker` constructor parameter on
         # EntitlementCodesOrchestrationService.cs:22-33.
         self._logging_broker = logging_broker
-        # Defaults are the whole MVP pipeline, so app.py wires two Foundation
-        # services and is done — no caller has to assemble stages by hand to
-        # get the behaviour everything currently expects.
-        self._strategies: Sequence[RetrievalStrategy] = (
-            strategies
-            if strategies is not None
-            else [DenseVectorStrategy(chunk_repository_service, logging_broker=self._logging_broker)]
-        )
-        self._fusion: RankFusionStrategy = (
-            fusion if fusion is not None else PassThroughRankFusion(logging_broker=self._logging_broker)
-        )
+        self._strategies: Sequence[RetrievalStrategy] = strategies
+        self._fusion: RankFusionStrategy = fusion
         self._filters: Sequence[ResultFilter] = filters if filters is not None else []
 
     def retrieve(self, query: str, top_k: int, category: Optional[str] = None) -> List[ScoredChunk]:

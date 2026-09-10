@@ -10,7 +10,7 @@ fusion stage's interface, or the filters.
 
 from typing import List, Protocol
 
-from rag.brokers.logging import LoggingBroker, StdlibLoggingBroker
+from rag.brokers.logging import LoggingBroker
 from rag.models.retrieval import ScoredChunk
 from rag.services.foundations.chunk_repository import IChunkRepositoryService
 
@@ -51,7 +51,8 @@ class DenseVectorStrategy:
     def __init__(
         self,
         chunk_repository_service: IChunkRepositoryService,
-        logging_broker: LoggingBroker = StdlibLoggingBroker(),
+        *,
+        logging_broker: LoggingBroker,
     ) -> None:
         self._chunk_repository_service = chunk_repository_service
         self._logging_broker = logging_broker

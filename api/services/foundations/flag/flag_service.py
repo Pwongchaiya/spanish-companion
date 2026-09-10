@@ -27,7 +27,7 @@ is nothing to validate) rather than inventing an empty one.
 from typing import List
 
 from api.brokers.flag import FlagBroker
-from api.brokers.logging import LoggingBroker, StdlibLoggingBroker
+from api.brokers.logging import LoggingBroker
 from api.models.flag import Flag
 from api.models.flag.exceptions import FlagUnavailableError, NotFoundFlagException
 
@@ -43,7 +43,8 @@ class _FlagServiceBase:
     def __init__(
         self,
         flag_broker: FlagBroker,
-        logging_broker: LoggingBroker = StdlibLoggingBroker(),
+        *,
+        logging_broker: LoggingBroker,
     ) -> None:
         self._flag_broker = flag_broker
         self._logging_broker = logging_broker

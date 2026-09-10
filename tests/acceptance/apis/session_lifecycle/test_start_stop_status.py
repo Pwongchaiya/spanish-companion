@@ -16,6 +16,7 @@ import pytest
 from flask import Flask
 
 from api.brokers.bot_process import SubprocessBotProcessBroker
+from api.brokers.logging import StdlibLoggingBroker
 from api.exposers.session_lifecycle import make_session_lifecycle_blueprint
 from api.services.foundations.session_lifecycle import ConversationSessionService
 
@@ -46,7 +47,7 @@ def broker(tmp_path):
 @pytest.fixture
 def client(broker):
     app = Flask(__name__)
-    service = ConversationSessionService(broker=broker)
+    service = ConversationSessionService(broker=broker, logging_broker=StdlibLoggingBroker())
     app.register_blueprint(make_session_lifecycle_blueprint(service))
     app.config["TESTING"] = True
     return app.test_client()

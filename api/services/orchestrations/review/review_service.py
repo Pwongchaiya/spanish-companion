@@ -39,7 +39,7 @@ from functools import lru_cache
 from typing import Callable, List
 
 from api.brokers.configuration import ConfigurationBroker, EnvConfigurationBroker
-from api.brokers.logging import LoggingBroker, StdlibLoggingBroker
+from api.brokers.logging import LoggingBroker
 from api.brokers.practice_log import PracticeAttempt
 from api.models.flag import Flag
 from api.services.foundations.flag import IFlagService
@@ -65,7 +65,8 @@ class _ReviewOrchestratorBase:
         retrieval_service: HybridRetrievalService,
         generation_service: GenerationService,
         clock: Callable[[], datetime] = datetime.now,
-        logging_broker: LoggingBroker = StdlibLoggingBroker(),
+        *,
+        logging_broker: LoggingBroker,
         configuration_broker: ConfigurationBroker = EnvConfigurationBroker(),
     ) -> None:
         self._flag_service = flag_service

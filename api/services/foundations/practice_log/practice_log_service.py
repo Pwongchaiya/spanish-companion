@@ -20,7 +20,7 @@ as ConversationSessionService.
 
 from typing import List, Optional
 
-from api.brokers.logging import LoggingBroker, StdlibLoggingBroker
+from api.brokers.logging import LoggingBroker
 from api.brokers.practice_log import PracticeAttempt, PracticeLogBroker
 from api.models.practice_log.exceptions import PracticeLogUnavailableError
 
@@ -35,7 +35,8 @@ class _PracticeLogServiceBase:
     def __init__(
         self,
         practice_log_broker: PracticeLogBroker,
-        logging_broker: LoggingBroker = StdlibLoggingBroker(),
+        *,
+        logging_broker: LoggingBroker,
     ) -> None:
         self._practice_log_broker = practice_log_broker
         self._logging_broker = logging_broker

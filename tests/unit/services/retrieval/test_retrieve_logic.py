@@ -74,21 +74,6 @@ class TestHybridRetrievalServiceRetrieveLogic:
         assert results == []
         mock_strategy.search.assert_called_once_with(query_embedding, 3)
 
-    def test_should_never_call_chunk_repository_directly(
-        self, service, mock_chunk_repository, mock_strategy, make_chunk
-    ):
-        # given -- chunk_repository_service is constructor-only: it exists to
-        # build the default DenseVectorStrategy, which owns it. With
-        # `strategies` overridden, nothing in the pipeline may touch it.
-        mock_strategy.search.return_value = [make_chunk(1)]
-
-        # when
-        service.retrieve(query="ser vs estar", top_k=3)
-
-        # then
-        mock_chunk_repository.search_by_vector.assert_not_called()
-        mock_chunk_repository.insert_chunk.assert_not_called()
-
     def test_should_pass_every_strategys_candidates_to_fusion(
         self, service_factory, mock_embedding_model, make_chunk, query_embedding
     ):

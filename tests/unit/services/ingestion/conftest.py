@@ -15,6 +15,7 @@ from unittest.mock import Mock
 import pytest
 
 from rag.brokers.configuration import ConfigurationBroker
+from rag.brokers.logging import LoggingBroker
 from rag.services.foundations.chunk_repository import IChunkRepositoryService
 from rag.services.foundations.embedding_model import IEmbeddingModelService
 from rag.services.orchestrations.ingestion import IngestionService
@@ -40,9 +41,15 @@ def mock_configuration_broker():
 
 
 @pytest.fixture
-def service(mock_chunk_repository, mock_embedding_model, mock_configuration_broker):
+def mock_logging_broker():
+    return Mock(spec=LoggingBroker)
+
+
+@pytest.fixture
+def service(mock_chunk_repository, mock_embedding_model, mock_configuration_broker, mock_logging_broker):
     return IngestionService(
         chunk_repository_service=mock_chunk_repository,
         embedding_model_service=mock_embedding_model,
         configuration_broker=mock_configuration_broker,
+        logging_broker=mock_logging_broker,
     )
