@@ -8,7 +8,7 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-09-05-2359.md — toolkit
+Projects/spanish-companion/sessions/2026-09-09-2032.md
 session-lifecycle work, no application code. Landed L2 (`/session-end` now
 carries a 7-turn batching table against a measured 20) and closed L6 in both
 halves: `state_md_guard.py` exits 2 on stderr so its warnings reach the model,
