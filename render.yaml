@@ -1,0 +1,51 @@
+# Render blueprint for the "J5" public deployment (api/app_public.py).
+#
+# Review Mode only -- no Voice Conversation, no /api/events (see
+# api/app_public.py's docstring for why: pipecat/Azure needs a local mic).
+# Build and runtime are entirely the Dockerfile's; this file only declares
+# the service, the database, and the four env vars the public app actually
+# reads that the Dockerfile cannot supply.
+
+databases:
+  - name: spanish-companion-db
+    plan: free
+    postgresMajorVersion: "16"
+    # pgvector is available on Render Postgres but is not enabled by
+    # default -- `CREATE EXTENSION vector` runs as part of the alembic
+    # migration, which is a manual one-off step after first deploy.
+
+services:
+  - type: web
+    name: spanish-companion
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    # ponytail: starter (512MB) because it is the cheapest tier that is not
+    # spun down between requests. SentenceTransformer's 384-dim
+    # paraphrase-multilingual-MiniLM-L12-v2 is ~470MB baked into the image
+    # and loaded lazily on the first /explain call, so a 512MB instance is
+    # genuinely tight -- if the first /explain OOM-kills the worker, this is
+    # the line to change (standard = 2GB), not the app.
+    plan: starter
+    healthCheckPath: /
+    envVars:
+      # The only two the app hard-requires (os.environ[...], no default):
+      # DATABASE_URL here, GEMINI_API_KEY below.
+      # SqlAlchemyChunkRepositoryBroker rewrites a "postgresql://" scheme to
+      # "postgresql+pg8000://" itself, so Render's connectionString needs no
+      # massaging.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: spanish-companion-db
+          property: connectionString
+      - key: GEMINI_API_KEY
+        sync: false
+      # Must be the real https://<service>.onrender.com origin. sync: false
+      # because that hostname does not exist until the first deploy has run
+      # -- set it in the dashboard afterwards. Leaving the Dockerfile's
+      # localhost default in place 403s every browser request.
+      - key: ALLOWED_ORIGINS
+        sync: false
+      # JsonFileFlagBroker defaults to data/flags.json, which the Dockerfile
+      # does not copy -- only data/demo_flags.json ships in the image.
+      - key: FLAGS_FILE_PATH
+        value: /app/data/demo_flags.json
