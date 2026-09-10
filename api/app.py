@@ -48,6 +48,7 @@ from rag.services.foundations.embedding_model import EmbeddingModelService
 from rag.services.foundations.generation import GenerationService
 from rag.services.orchestrations.retrieval import HybridRetrievalOrchestrationService
 from rag.services.orchestrations.retrieval.strategies.dense import DenseVectorStrategy
+from rag.services.orchestrations.retrieval.strategies.filters import MaxDistanceFilter
 from rag.services.orchestrations.retrieval.strategies.fusion import PassThroughRankFusion
 
 load_dotenv()
@@ -160,6 +161,12 @@ def create_app() -> Flask:
         embedding_model_service,
         strategies=[DenseVectorStrategy(chunk_repository_service, logging_broker=logging_broker)],
         fusion=PassThroughRankFusion(logging_broker=logging_broker),
+        filters=[
+            MaxDistanceFilter(
+                float(configuration_broker.get("RETRIEVAL_MAX_DISTANCE", "0.65")),
+                logging_broker=logging_broker,
+            )
+        ],
         logging_broker=logging_broker,
     )
     generation_service = GenerationService(GeminiGenerationBroker(), logging_broker=logging_broker)

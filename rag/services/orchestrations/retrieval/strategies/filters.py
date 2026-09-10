@@ -134,3 +134,42 @@ class CategoryBoostFilter:
             [chunk.chunk_id for chunk in boosted],
         )
         return boosted
+
+
+class MaxDistanceFilter:
+    """Drops chunks whose cosine distance exceeds a configured ceiling.
+
+    Root cause of the "RAG explanation quality gap" pending item (diagnosed
+    2026-09-10): search_by_vector's `ORDER BY distance LIMIT top_k` has no
+    floor, so a query about a topic the corpus doesn't cover (e.g. "gender
+    agreement" against a 3-topic MVP corpus) still confidently returns the
+    least-bad chunk from an unrelated topic. Review already has a correct
+    fallback for "no chunk" (ReviewOrchestrationService._explain_flag logs and
+    short-circuits before calling Generation) -- it just never fired, because
+    nothing upstream ever returned zero results. This filter is what makes it
+    fire: unlike CategoryBoostFilter, it drops rather than reorders.
+
+    # ponytail: a single global ceiling, not per-topic or learned. score
+    # semantics are pgvector cosine distance today (lower = closer, see
+    # CategoryBoostFilter's docstring on why filters don't touch score
+    # directly) -- 0.65 is a documented starting guess, not measured against
+    # this corpus's real distance distribution. Calibration knob:
+    # RETRIEVAL_MAX_DISTANCE env var. Upgrade path if it's cutting good
+    # matches or letting bad ones through: log actual scores at INFO (already
+    # done below) for a week of real flags, then tighten/loosen from data.
+    """
+
+    def __init__(self, max_distance: float, *, logging_broker: LoggingBroker) -> None:
+        self._max_distance = max_distance
+        self._logging_broker = logging_broker
+
+    def apply(self, chunks: List[ScoredChunk]) -> List[ScoredChunk]:
+        kept = [chunk for chunk in chunks if chunk.score <= self._max_distance]
+        dropped = [chunk.chunk_id for chunk in chunks if chunk.score > self._max_distance]
+        if dropped:
+            self._logging_broker.log_info(
+                "MaxDistanceFilter max_distance=%.3f dropped=%s (no chunk close enough)",
+                self._max_distance,
+                dropped,
+            )
+        return kept
