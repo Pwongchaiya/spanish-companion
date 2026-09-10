@@ -1,9 +1,12 @@
 """Broker for Voice Conversation's three file-writing concerns: the
 end-of-session review log, the live streaming transcript (Review Mode /
-SSE), and the live turn-state signal (SSE). One broker, three Foundation
-services in front of it (SessionLogService, LiveTranscriptService,
-TurnStateService) -- each owns one concern's validation/formatting, this
-broker does only the raw file I/O.
+SSE), and the live turn-state signal (SSE). Two Foundation services sit in
+front of it (SessionLogService, LiveTranscriptService) -- each owns one
+concern's validation/formatting, this broker does only the raw file I/O.
+The turn-state signal has no service: W3 of the architecture conformance
+audit deleted TurnStateService as a pure pass-through (M5), so
+ConversationOrchestrator and _TurnStateObserver call write_turn_state()
+here directly.
 """
 
 from pathlib import Path

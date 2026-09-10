@@ -28,7 +28,6 @@ from api.brokers.stt import AzureSttBroker
 from api.services.foundations.flag import FlagService
 from api.services.foundations.live_transcript import LiveTranscriptService
 from api.services.foundations.session_log import SessionLogService
-from api.services.foundations.turn_state import TurnStateService
 from api.services.orchestrations.voice_conversation import ConversationOrchestrator
 
 
@@ -41,7 +40,8 @@ def main() -> None:
     configuration_broker = EnvConfigurationBroker()
 
     # One SessionLogBroker instance shared by every Foundation service that
-    # fronts it (SessionLogService, LiveTranscriptService, TurnStateService)
+    # fronts it (SessionLogService, LiveTranscriptService), plus the
+    # orchestrator itself for the turn-state signal
     # -- see api/brokers/session_log/i_session_log_broker.py.
     session_log_broker = FileSessionLogBroker()
 
@@ -51,7 +51,7 @@ def main() -> None:
         session_log_service=SessionLogService(session_log_broker),
         live_transcript_service=LiveTranscriptService(session_log_broker),
         flag_service=FlagService(JsonFileFlagBroker()),
-        turn_state_service=TurnStateService(session_log_broker),
+        session_log_broker=session_log_broker,
         logging_broker=logging_broker,
         configuration_broker=configuration_broker,
     )

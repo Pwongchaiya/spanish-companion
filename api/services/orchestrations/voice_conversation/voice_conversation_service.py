@@ -12,9 +12,9 @@ api/brokers/bot_process/bot_process_broker.py's module docstring).
 
 Wave 8 six-layer migration (hand-written, no agent, per CLAUDE.md): this
 Orchestration service coordinates SessionLogService,
-LiveTranscriptService, FlagService, and TurnStateService (added
-post-Wave-8, see decisions/tri-nature-gate-design.md's follow-up 2) —
-replacing what used to be inline pipecat/Azure construction and
+LiveTranscriptService, and FlagService (TurnStateService was added
+post-Wave-8, see decisions/tri-nature-gate-design.md's follow-up 2, and
+deleted in W3 as a pass-through) — replacing what used to be inline pipecat/Azure construction and
 free-function file I/O directly in this class. STT and the system prompt
 are taken as bare SttBroker/PromptBroker: W3 of the architecture
 conformance audit (M5) deleted the pure-pass-through SttService and
@@ -97,6 +97,7 @@ from pipecat.workers.runner import WorkerRunner
 from api.brokers.configuration import ConfigurationBroker, EnvConfigurationBroker
 from api.brokers.logging import LoggingBroker, StdlibLoggingBroker
 from api.brokers.prompt import PromptBroker
+from api.brokers.session_log import SessionLogBroker
 from api.brokers.stt import SttBroker
 from api.models.flag import Flag
 from api.models.flag.exceptions import FlagDependencyException, FlagServiceException
@@ -104,7 +105,6 @@ from api.models.voice_conversation.exceptions import VoiceConversationPipelineEr
 from api.services.foundations.flag import IFlagService
 from api.services.foundations.live_transcript import ILiveTranscriptService
 from api.services.foundations.session_log import ISessionLogService
-from api.services.foundations.turn_state import ITurnStateService
 from api.services.orchestrations.voice_conversation._mic_gate import _MicGate
 from api.services.orchestrations.voice_conversation._turn_state_observer import _TurnStateObserver
 
@@ -170,9 +170,9 @@ class _ConversationOrchestratorBase:
     pass-through SttService that used to sit in front of it, and this
     Orchestration service already takes LoggingBroker/ConfigurationBroker
     directly, so a direct broker dependency is the established shape.
-    PromptBroker is injected directly for the same reason. FlagService,
-    SessionLogService, and LiveTranscriptService are the Foundation-tier
-    dependencies.
+    PromptBroker and SessionLogBroker (for the turn-state signal only) are
+    injected directly for the same reason. FlagService, SessionLogService,
+    and LiveTranscriptService are the Foundation-tier dependencies.
 
     run() delegates its setup phase to a private _setup() method through
     _try_catch (defined in the Exceptions mixin), mirroring Session
@@ -187,7 +187,7 @@ class _ConversationOrchestratorBase:
         session_log_service: ISessionLogService,
         live_transcript_service: ILiveTranscriptService,
         flag_service: IFlagService,
-        turn_state_service: ITurnStateService,
+        session_log_broker: SessionLogBroker,
         logging_broker: LoggingBroker = StdlibLoggingBroker(),
         configuration_broker: ConfigurationBroker = EnvConfigurationBroker(),
     ) -> None:
@@ -196,7 +196,7 @@ class _ConversationOrchestratorBase:
         self._session_log_service = session_log_service
         self._live_transcript_service = live_transcript_service
         self._flag_service = flag_service
-        self._turn_state_service = turn_state_service
+        self._session_log_broker = session_log_broker
         # Mirrors the LoggingBroker constructor parameter on
         # ConversationSessionService/_ReviewOrchestratorBase -- _create_and_log_*
         # methods (Exceptions mixin) log through it before raising.
@@ -225,7 +225,6 @@ class _ConversationOrchestratorBase:
         finally:
             live_transcript_task.cancel()
             stop_watch_task.cancel()
-            self._turn_state_service.set("idle")
             turns = self._extract_turns(context)
             log_path = self._session_log_service.save(turns, session_flags)
             if log_path:
@@ -233,6 +232,15 @@ class _ConversationOrchestratorBase:
             try:
                 self._flag_service.save_flags(session_flags)
             except (FlagDependencyException, FlagServiceException) as e:
+                self._logging_broker.log_error(e)
+            # The turn-state write is a UI indicator, not data, so it goes
+            # last and swallows its own failure. It used to run first here,
+            # unguarded -- an OSError from it aborted the rest of this block
+            # and lost both the session log and the flags with it (W3 of the
+            # architecture conformance audit).
+            try:
+                self._session_log_broker.write_turn_state("idle")
+            except OSError as e:
                 self._logging_broker.log_error(e)
 
         if self._setup_timed_out:
@@ -334,7 +342,7 @@ class _ConversationOrchestratorBase:
 
         # Initialize live transcript file for Review Mode / later SSE
         self._live_transcript_service.clear()
-        self._turn_state_service.set("listening")
+        self._session_log_broker.write_turn_state("listening")
 
         # Voice Conversation's own stop-signal file is out of the 3-broker
         # scope (Stt/SessionLog/Prompt) -- single-purpose, already simple,
@@ -354,7 +362,7 @@ class _ConversationOrchestratorBase:
                 transport.input(),
                 FunctionFilter(filter=_MicGate(), filter_system_frames=True),
                 FunctionFilter(
-                    filter=_TurnStateObserver(self._turn_state_service), filter_system_frames=True
+                    filter=_TurnStateObserver(self._session_log_broker), filter_system_frames=True
                 ),
                 stt,
                 user_aggregator,

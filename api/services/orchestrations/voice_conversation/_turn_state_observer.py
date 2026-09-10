@@ -10,13 +10,13 @@ from pipecat.frames.frames import (
     UserStoppedSpeakingFrame,
 )
 
-from api.services.foundations.turn_state import ITurnStateService
+from api.brokers.session_log import SessionLogBroker
 
 
 class _TurnStateObserver:
     """Tracks the pipeline's live turn state (listening/thinking/speaking)
     from Bot/User *SpeakingFrame system frames and persists each
-    transition via TurnStateService, for the frontend's SSE-driven turn
+    transition via SessionLogBroker, for the frontend's SSE-driven turn
     indicator.
 
     Both frame pairs are broadcast upstream and downstream by pipecat (same
@@ -29,16 +29,16 @@ class _TurnStateObserver:
     FunctionFilter auto-passes without invoking the filter otherwise.
     """
 
-    def __init__(self, turn_state_service: ITurnStateService) -> None:
-        self._turn_state_service = turn_state_service
+    def __init__(self, session_log_broker: SessionLogBroker) -> None:
+        self._session_log_broker = session_log_broker
 
     async def __call__(self, frame) -> bool:
         if isinstance(frame, UserStartedSpeakingFrame):
-            self._turn_state_service.set("listening")
+            self._session_log_broker.write_turn_state("listening")
         elif isinstance(frame, UserStoppedSpeakingFrame):
-            self._turn_state_service.set("thinking")
+            self._session_log_broker.write_turn_state("thinking")
         elif isinstance(frame, BotStartedSpeakingFrame):
-            self._turn_state_service.set("speaking")
+            self._session_log_broker.write_turn_state("speaking")
         elif isinstance(frame, BotStoppedSpeakingFrame):
-            self._turn_state_service.set("listening")
+            self._session_log_broker.write_turn_state("listening")
         return True
