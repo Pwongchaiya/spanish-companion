@@ -270,6 +270,24 @@ example: `Projects/spanish-companion/decisions/hierarchical-agent-delegation.md`
 work with no natural judgment/mechanical split doesn't need tiering — dispatch
 directly.
 
+**Model tiering is enforced, not advisory.** `.claude-toolkit/checks/check_agent_models.py`
+fails if an agent's `model:` frontmatter drifts from its tier, or if a new agent
+isn't listed. Four of eleven agents had silently inverted tiers before this landed
+(2026-09-10). When dispatching ad-hoc subagents, pass the tier's model explicitly —
+a fan-out that defaults to Opus is how this project exhausted a session limit.
+
+**Register every background dispatch before launching it.** An agent killed by an
+HTTP 429 cannot run cleanup, so the record has to exist beforehand:
+
+```bash
+python .claude-toolkit/scripts/stall_ledger.py register --vault "$VAULT" --project spanish-companion --id <id> --label "<what it is>"
+python .claude-toolkit/scripts/stall_ledger.py done     --vault "$VAULT" --project spanish-companion --id <id>
+python .claude-toolkit/scripts/stall_ledger.py stalled  --vault "$VAULT" --project spanish-companion --id <id> --reset "<reset text from the 429>"
+```
+
+`SessionStart` reports anything left standing. Resume is a decision — confirm with
+the user before relaunching stalled work, even once the limit has reset.
+
 ### Slash Commands
 
 | Command | Purpose |
