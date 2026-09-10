@@ -8,16 +8,17 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-09-09-2154.md
-Audited `.claude-toolkit/.claude/commands/` (10 files, 1813 lines). 9/10 had
-no `description:` frontmatter and 7 wrapped their body in a stray
-```markdown fence, so the command listing rendered "```markdown" instead of
-a description. Fixed, plus 2 descriptions that broke plain-YAML parsing on
-an inline `: `, `{slug}`/`{project-name}` normalized to `{project}`, and two
-out-of-order steps renumbered. `sync_commands.py` now rejects a `--root`
-that isn't a `.claude` dir — root cause of 3 stray untracked copies
-(`commands/`, `agents/`, `skills/`) found and deleted. Guard tests 3→7,
-all pass. No entities touched, no application code.
+Projects/spanish-companion/sessions/2026-09-09-2240.md
+Final `.claude-toolkit` audit: fixed a real data-loss bug (`--full` flush
+archived only `### In flight`, destroying 4 of 5 checkpoint sections on
+every `/session-end`), wired up 58 embedded self-checks that had never run
+under any suite invocation (24→106 tests), fixed `sync_commands.py`
+mirroring `__pycache__` bytecode into consumers, fixed `/project-init` still
+instructing the symlink setup that caused this repo's own OneDrive
+incident, and closed 5 README staleness items. Also built two generated
+Obsidian canvases (`build_canvases.py`) for the toolkit workflow and the
+session lifecycle, each validated against the toolkit tree it describes.
+No entities touched, no application code.
 ## Entity Manifest
 
 | Feature | Path |
