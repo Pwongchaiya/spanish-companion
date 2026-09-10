@@ -1,4 +1,4 @@
-"""Shared fixtures for HybridRetrievalService unit tests.
+"""Shared fixtures for HybridRetrievalOrchestrationService unit tests.
 
 Per CLAUDE.md's Phase 2 test strategy: every dependency is mocked via
 unittest.mock.Mock(spec=Protocol), with strict call-count verification on
@@ -14,9 +14,9 @@ from unittest.mock import Mock
 import pytest
 
 from rag.brokers.logging import LoggingBroker
-from rag.models.retrieval import ScoredChunk
+from rag.models.orchestrations.retrieval import ScoredChunk
 from rag.services.foundations.embedding_model import IEmbeddingModelService
-from rag.services.orchestrations.retrieval import HybridRetrievalService
+from rag.services.orchestrations.retrieval import HybridRetrievalOrchestrationService
 from rag.services.orchestrations.retrieval.strategies.dense import RetrievalStrategy
 from rag.services.orchestrations.retrieval.strategies.fusion import PassThroughRankFusion
 
@@ -77,7 +77,7 @@ def service_factory(mock_embedding_model, mock_strategy, mock_logging_broker):
     """
 
     def build(strategies=None, fusion=None, filters=None):
-        return HybridRetrievalService(
+        return HybridRetrievalOrchestrationService(
             embedding_model_service=mock_embedding_model,
             strategies=[mock_strategy] if strategies is None else strategies,
             fusion=PassThroughRankFusion(logging_broker=mock_logging_broker) if fusion is None else fusion,

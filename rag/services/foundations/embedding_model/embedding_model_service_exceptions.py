@@ -13,13 +13,13 @@ Same three-wrapper-tier collapse Ingestion already made, unchanged here:
    beneath (there is no layer beneath a Foundation service; it wraps its one
    broker directly).
 2. No intermediate Failed*ServiceException before the catch-all -- see
-   rag/models/embedding_model/exceptions/embedding_model_service_exception.py
+   rag/models/foundations/embedding_model/exceptions/embedding_model_service_exception.py
    for the full reasoning, cited from Ingestion's equivalent file.
 """
 
 from typing import Callable, TypeVar
 
-from rag.models.embedding_model.exceptions import (
+from rag.models.foundations.embedding_model.exceptions import (
     EmbeddingModelDependencyException,
     EmbeddingModelServiceException,
     EmbeddingModelUnavailableError,

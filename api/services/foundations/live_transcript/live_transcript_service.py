@@ -14,7 +14,7 @@ in turn mirrors C#'s `partial class`.
 
 H3 of the architecture conformance audit found this service with no
 exception handling at all: append() is called from _write_live_transcript,
-a background task that sits *outside* ConversationOrchestrator's _try_catch
+a background task that sits *outside* ConversationOrchestrationService's _try_catch
 (which only wraps _setup), so a raw OSError from the broker escaped
 straight into it. Every public method now routes through _try_catch.
 
@@ -27,7 +27,7 @@ import json
 
 from api.brokers.logging import LoggingBroker
 from api.brokers.session_log import SessionLogBroker
-from api.models.live_transcript.exceptions import LiveTranscriptUnavailableError
+from api.models.foundations.live_transcript.exceptions import LiveTranscriptUnavailableError
 
 
 class _LiveTranscriptServiceBase:

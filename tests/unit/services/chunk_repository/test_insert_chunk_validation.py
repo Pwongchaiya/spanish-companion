@@ -7,7 +7,7 @@ refused before the broker is ever touched.
 
 import pytest
 
-from rag.models.chunk_repository.exceptions import (
+from rag.models.foundations.chunk_repository.exceptions import (
     ChunkRepositoryValidationException,
     InvalidChunkRepositoryInputError,
 )

@@ -7,7 +7,7 @@ practice_log_service_validations.py.
 
 import pytest
 
-from api.models.practice_log.exceptions import (
+from api.models.foundations.practice_log.exceptions import (
     InvalidPracticeAttemptException,
     PracticeLogValidationException,
 )

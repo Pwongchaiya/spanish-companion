@@ -33,7 +33,7 @@ from dataclasses import asdict
 
 from flask import Blueprint, jsonify
 
-from api.models.session_lifecycle.exceptions import (
+from api.models.foundations.session_lifecycle.exceptions import (
     AlreadyRunningSessionException,
     NotRunningSessionException,
     SessionServiceException,

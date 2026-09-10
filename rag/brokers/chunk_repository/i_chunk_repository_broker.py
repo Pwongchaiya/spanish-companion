@@ -2,7 +2,7 @@
 
 from typing import Protocol
 
-from rag.models.retrieval import ScoredChunk
+from rag.models.orchestrations.retrieval import ScoredChunk
 
 
 class ChunkRepositoryBroker(Protocol):

@@ -1,4 +1,4 @@
-"""Unit tests for ReviewOrchestrator.record_practice() -- unknown flag_id.
+"""Unit tests for ReviewOrchestrationService.record_practice() -- unknown flag_id.
 
 An attempt against a flag that is not in the list is a client-side state
 mismatch, not an orphan row worth writing -- so nothing must reach the
@@ -14,8 +14,8 @@ attempt_text refusal likewise moved down, to PracticeLogService's tier.
 
 import pytest
 
-from api.models.flag.exceptions import FlagValidationException, NotFoundFlagException
-from api.models.review.exceptions import ReviewOrchestrationValidationException
+from api.models.foundations.flag.exceptions import FlagValidationException, NotFoundFlagException
+from api.models.orchestrations.review.exceptions import ReviewOrchestrationValidationException
 
 
 class TestReviewOrchestratorRecordPracticeExceptions:

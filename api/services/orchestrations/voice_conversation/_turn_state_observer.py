@@ -1,4 +1,4 @@
-"""Pipecat frame filter: live turn-state signal for ConversationOrchestrator's
+"""Pipecat frame filter: live turn-state signal for ConversationOrchestrationService's
 pipeline. Split out of voice_conversation_service.py, same reason as
 _mic_gate.py.
 """

@@ -11,7 +11,7 @@ import pytest
 
 from api.brokers.logging import LoggingBroker
 from api.brokers.session_log import SessionLogBroker
-from api.models.flag import Flag
+from api.models.foundations.flag import Flag
 from api.services.foundations.session_log import SessionLogService
 
 

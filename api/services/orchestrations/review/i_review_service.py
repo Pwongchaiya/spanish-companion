@@ -12,14 +12,14 @@ Naming follows the Session Lifecycle precedent exactly -- there the
 Protocol is `SessionLifecycleService` (feature name) and the concrete
 class is `ConversationSessionService`. Here the Protocol is
 `ReviewService` (feature name) and the concrete class stays
-`ReviewOrchestrator`.
+`ReviewOrchestrationService`.
 """
 
 from typing import List, Protocol
 
 from api.brokers.practice_log import PracticeAttempt
-from api.models.flag import Flag
-from rag.models.generation import Explanation
+from api.models.foundations.flag import Flag
+from rag.models.foundations.generation import Explanation
 
 
 class ReviewService(Protocol):

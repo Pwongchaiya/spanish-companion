@@ -19,7 +19,7 @@ class EmbeddingModelService(
 ):
     """Combines the base logic, validations, and exceptions mixins into the
     concrete Foundation service -- mirrors C#'s `partial class` merging
-    pattern, same as rag.services.ingestion.IngestionService one layer up.
+    pattern, same as rag.services.ingestion.IngestionOrchestrationService one layer up.
     """
 
 

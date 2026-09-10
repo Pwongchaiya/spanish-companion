@@ -1,4 +1,4 @@
-"""Catch/wrap/log helpers for IngestionService.
+"""Catch/wrap/log helpers for IngestionOrchestrationService.
 
 Mirrors NL.Core.Entitlements.Api/Services/Orchestrations/EntitlementCodes/
 EntitlementCodesOrchestrationService.Exeptions.cs:19-135's TryCatch: catch
@@ -24,7 +24,7 @@ Cited omissions from the reference's tier set:
    the right home for it.
 2. No intermediate Failed*ServiceException before the catch-all
    (Exeptions.cs:79-82). Reasoning in
-   rag/models/ingestion/exceptions/ingestion_orchestration_service_exception.py.
+   rag/models/orchestrations/ingestion/exceptions/ingestion_orchestration_service_exception.py.
 
 Before this rebuild `ingest_topic` had no TryCatch at all: it raised
 IngestionValidationError bare and let every broker exception through raw.
@@ -32,9 +32,9 @@ IngestionValidationError bare and let every broker exception through raw.
 
 from typing import Callable, TypeVar
 
-from rag.models.chunk_repository.exceptions import ChunkRepositoryDependencyException
-from rag.models.embedding_model.exceptions import EmbeddingModelDependencyException
-from rag.models.ingestion.exceptions import (
+from rag.models.foundations.chunk_repository.exceptions import ChunkRepositoryDependencyException
+from rag.models.foundations.embedding_model.exceptions import EmbeddingModelDependencyException
+from rag.models.orchestrations.ingestion.exceptions import (
     IngestionOrchestrationDependencyException,
     IngestionOrchestrationServiceException,
     IngestionOrchestrationValidationException,
@@ -44,7 +44,7 @@ from rag.models.ingestion.exceptions import (
 T = TypeVar("T")
 
 
-class IngestionServiceExceptions:
+class IngestionOrchestrationServiceExceptions:
     """Mixin: centralised try/catch + exception creation/logging."""
 
     def _try_catch(self, fn: Callable[[], T]) -> T:
@@ -81,7 +81,7 @@ class IngestionServiceExceptions:
         That is the reference's own cross-service shape, Exeptions.cs:53-76:
         the outer service catches the *wrapper* types the layer beneath it
         raises, never that layer's raw leaves. Identical to how
-        ReviewOrchestratorExceptions catches
+        ReviewOrchestrationServiceExceptions catches
         RetrievalOrchestrationDependencyException one layer up.
 
         Cited divergence retained from the reference: it unwraps one level

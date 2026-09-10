@@ -16,7 +16,7 @@ class ChunkRepositoryService(
     """Combines the base logic, validations, and exceptions mixins into the
     concrete Foundation service -- mirrors C#'s `partial class` merging
     EntitlementService.cs / .Validations.cs / .Exeptions.cs into one class,
-    the same pattern IngestionService uses one layer up.
+    the same pattern IngestionOrchestrationService uses one layer up.
     """
 
 

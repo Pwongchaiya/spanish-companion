@@ -7,7 +7,7 @@ check, called from the main service file's public-method bodies rather than
 inlined there.
 """
 
-from api.models.session_lifecycle.exceptions import (
+from api.models.foundations.session_lifecycle.exceptions import (
     AlreadyRunningSessionException,
     NotRunningSessionException,
 )

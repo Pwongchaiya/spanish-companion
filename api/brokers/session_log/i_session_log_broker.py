@@ -5,7 +5,7 @@ front of it (SessionLogService, LiveTranscriptService) -- each owns one
 concern's validation/formatting, this broker does only the raw file I/O.
 The turn-state signal has no service: W3 of the architecture conformance
 audit deleted TurnStateService as a pure pass-through (M5), so
-ConversationOrchestrator and _TurnStateObserver call write_turn_state()
+ConversationOrchestrationService and _TurnStateObserver call write_turn_state()
 here directly.
 """
 

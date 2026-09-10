@@ -5,7 +5,7 @@ then the grounding judge call (GAP 1, Tri-Nature gap analysis). See
 test_explain_exceptions.py for the GenerationError / not-grounded fallback.
 """
 
-from rag.models.generation import Explanation
+from rag.models.foundations.generation import Explanation
 
 
 class TestGenerationServiceExplain:

@@ -11,7 +11,7 @@ EntitlementServiceTests.Validations.RetrieveById.cs:59-101
 
 import pytest
 
-from api.models.session_lifecycle.exceptions import (
+from api.models.foundations.session_lifecycle.exceptions import (
     NotRunningSessionException,
     SessionValidationException,
 )

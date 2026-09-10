@@ -1,4 +1,4 @@
-"""Validation checks for HybridRetrievalService.
+"""Validation checks for HybridRetrievalOrchestrationService.
 
 Mirrors NL.Core.Entitlements.Api/Services/Orchestrations/EntitlementCodes/
 EntitlementCodesOrchestrationService.Validations.cs:12-30 — a named
@@ -23,10 +23,10 @@ Cited divergence: the reference's rule/accumulator machinery
 Session Lifecycle, and Review already made.
 """
 
-from rag.models.retrieval.exceptions import RetrievalValidationError
+from rag.models.orchestrations.retrieval.exceptions import RetrievalValidationError
 
 
-class HybridRetrievalServiceValidations:
+class HybridRetrievalOrchestrationServiceValidations:
     """Mixin: raises the leaf validation exception when input is unusable.
 
     See retrieval_service_exceptions.py for how these get wrapped and logged

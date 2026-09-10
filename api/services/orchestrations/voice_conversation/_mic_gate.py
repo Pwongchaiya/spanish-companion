@@ -1,4 +1,4 @@
-"""Pipecat frame filter: echo suppression for ConversationOrchestrator's
+"""Pipecat frame filter: echo suppression for ConversationOrchestrationService's
 pipeline. Split out of voice_conversation_service.py so the orchestration
 file holds only the orchestrator itself, matching Review's one-class(-ish)
 per file precedent (review_service.py / review_service_exceptions.py).

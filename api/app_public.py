@@ -24,14 +24,14 @@ from api.brokers.practice_log import JsonLinesPracticeLogBroker
 from api.exposers.review import make_review_blueprint
 from api.services.foundations.flag import FlagService
 from api.services.foundations.practice_log import PracticeLogService
-from api.services.orchestrations.review import ReviewOrchestrator
+from api.services.orchestrations.review import ReviewOrchestrationService
 from rag.brokers.chunk_repository import SqlAlchemyChunkRepositoryBroker
 from rag.brokers.embedding_model import SentenceTransformerEmbeddingModelBroker
 from rag.brokers.generation import GeminiGenerationBroker
 from rag.services.foundations.chunk_repository import ChunkRepositoryService
 from rag.services.foundations.embedding_model import EmbeddingModelService
 from rag.services.foundations.generation import GenerationService
-from rag.services.orchestrations.retrieval import HybridRetrievalService
+from rag.services.orchestrations.retrieval import HybridRetrievalOrchestrationService
 from rag.services.orchestrations.retrieval.strategies.dense import DenseVectorStrategy
 from rag.services.orchestrations.retrieval.strategies.fusion import PassThroughRankFusion
 
@@ -60,7 +60,7 @@ def create_public_app() -> Flask:
         SentenceTransformerEmbeddingModelBroker(),
         logging_broker=logging_broker,
     )
-    retrieval_service = HybridRetrievalService(
+    retrieval_service = HybridRetrievalOrchestrationService(
         embedding_model_service,
         strategies=[DenseVectorStrategy(chunk_repository_service, logging_broker=logging_broker)],
         fusion=PassThroughRankFusion(logging_broker=logging_broker),
@@ -69,7 +69,7 @@ def create_public_app() -> Flask:
     generation_service = GenerationService(GeminiGenerationBroker(), logging_broker=logging_broker)
     flag_service = FlagService(JsonFileFlagBroker(), logging_broker=logging_broker)
     practice_log_service = PracticeLogService(JsonLinesPracticeLogBroker(), logging_broker=logging_broker)
-    review_orchestrator = ReviewOrchestrator(
+    review_orchestrator = ReviewOrchestrationService(
         flag_service=flag_service,
         practice_log_service=practice_log_service,
         retrieval_service=retrieval_service,

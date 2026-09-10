@@ -15,7 +15,7 @@ turn mirrors C#'s `partial class`.
 
 H3 of the architecture conformance audit found this service with no
 exception handling at all. Its one call site is in
-ConversationOrchestrator.run()'s finally block, which _try_catch never
+ConversationOrchestrationService.run()'s finally block, which _try_catch never
 covered (that only wraps _setup), so a raw OSError from the broker escaped
 straight out of run().
 
@@ -30,8 +30,8 @@ from typing import List, Optional
 
 from api.brokers.logging import LoggingBroker
 from api.brokers.session_log import SessionLogBroker
-from api.models.flag import Flag
-from api.models.session_log.exceptions import SessionLogUnavailableError
+from api.models.foundations.flag import Flag
+from api.models.foundations.session_log.exceptions import SessionLogUnavailableError
 
 
 class _SessionLogServiceBase:

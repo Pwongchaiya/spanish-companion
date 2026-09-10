@@ -11,7 +11,7 @@ there is no separate aggregator method here the way Ingestion's two-field
 
 from typing import List
 
-from rag.models.embedding_model.exceptions import InvalidEmbeddingModelInputError
+from rag.models.foundations.embedding_model.exceptions import InvalidEmbeddingModelInputError
 
 
 class EmbeddingModelServiceValidations:

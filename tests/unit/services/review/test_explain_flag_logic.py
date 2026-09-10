@@ -1,4 +1,4 @@
-"""Unit tests for ReviewOrchestrator.explain_flag() -- happy path and the
+"""Unit tests for ReviewOrchestrationService.explain_flag() -- happy path and the
 no-corpus-match fallback.
 
 See test_explain_flag_exceptions.py for the unknown-flag_id refusal.
@@ -8,7 +8,7 @@ bare literal 3 -- it is the same value the `configuration_broker` fixture
 feeds the service, so tests and service can't silently drift apart.
 """
 
-from rag.models.generation import Explanation
+from rag.models.foundations.generation import Explanation
 
 from tests.unit.services.review.conftest import RETRIEVAL_TOP_K
 

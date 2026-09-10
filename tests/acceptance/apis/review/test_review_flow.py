@@ -21,14 +21,14 @@ from api.brokers.flag import JsonFileFlagBroker
 from api.brokers.logging import StdlibLoggingBroker
 from api.brokers.practice_log import JsonLinesPracticeLogBroker
 from api.exposers.review import make_review_blueprint
-from api.models.flag import Flag
+from api.models.foundations.flag import Flag
 from api.services.foundations.flag import FlagService
 from api.services.foundations.practice_log import PracticeLogService
-from api.services.orchestrations.review import ReviewOrchestrator
-from rag.models.generation import Explanation
-from rag.models.retrieval import ScoredChunk
+from api.services.orchestrations.review import ReviewOrchestrationService
+from rag.models.foundations.generation import Explanation
+from rag.models.orchestrations.retrieval import ScoredChunk
 from rag.services.foundations.generation import GenerationService
-from rag.services.orchestrations.retrieval import HybridRetrievalService
+from rag.services.orchestrations.retrieval import HybridRetrievalOrchestrationService
 
 
 @pytest.fixture
@@ -75,7 +75,7 @@ def practice_log_service(practice_log_broker):
 
 @pytest.fixture
 def mock_retrieval_service():
-    mock = Mock(spec=HybridRetrievalService)
+    mock = Mock(spec=HybridRetrievalOrchestrationService)
     mock.retrieve.return_value = [
         ScoredChunk(
             chunk_id=1,
@@ -100,7 +100,7 @@ def mock_generation_service():
 
 @pytest.fixture
 def client(flag_service, practice_log_service, mock_retrieval_service, mock_generation_service):
-    orchestrator = ReviewOrchestrator(
+    orchestrator = ReviewOrchestrationService(
         flag_service=flag_service,
         practice_log_service=practice_log_service,
         retrieval_service=mock_retrieval_service,

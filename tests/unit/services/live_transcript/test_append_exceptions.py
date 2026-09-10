@@ -6,7 +6,7 @@ the checks that fail if a raw broker error escapes it again.
 
 import pytest
 
-from api.models.live_transcript.exceptions import (
+from api.models.foundations.live_transcript.exceptions import (
     LiveTranscriptDependencyException,
     LiveTranscriptServiceException,
     LiveTranscriptUnavailableError,

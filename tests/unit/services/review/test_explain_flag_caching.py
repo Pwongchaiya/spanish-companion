@@ -1,4 +1,4 @@
-"""Unit test for ReviewOrchestrator.explain_flag()'s lru_cache.
+"""Unit test for ReviewOrchestrationService.explain_flag()'s lru_cache.
 
 Flags are immutable once created and the corpus is static, so a repeat call
 with the same flag_id must not re-hit retrieval/generation. See the

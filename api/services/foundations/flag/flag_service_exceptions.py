@@ -7,7 +7,7 @@ Mirrors session_lifecycle_service_exceptions.py's TryCatch shape, but
 
 from typing import Callable, TypeVar
 
-from api.models.flag.exceptions import (
+from api.models.foundations.flag.exceptions import (
     FlagDependencyException,
     FlagServiceException,
     FlagUnavailableError,

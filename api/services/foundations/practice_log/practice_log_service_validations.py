@@ -3,11 +3,11 @@
 Verbatim port of ReviewOrchestratorValidations._validate_practice_input
 (api/services/review/review_service_validations.py) -- absorbed here per
 this wave's dispatch (the check moves to the new Foundation service; Wave 5
-rewires ReviewOrchestrator to call this service instead of validating the
+rewires ReviewOrchestrationService to call this service instead of validating the
 same field itself).
 """
 
-from api.models.practice_log.exceptions import InvalidPracticeAttemptException
+from api.models.foundations.practice_log.exceptions import InvalidPracticeAttemptException
 
 
 class PracticeLogServiceValidations:

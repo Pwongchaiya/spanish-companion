@@ -10,7 +10,7 @@ Split into this base logic file plus Validations and Exceptions mixins
 combined into the concrete ChunkRepositoryService in __init__.py -- mirrors
 C#'s `partial class` merging EntitlementService.cs / .Validations.cs /
 .Exeptions.cs into one class, the same multi-inheritance-merge pattern
-Ingestion's IngestionService uses one layer up. Unlike Generation, this
+Ingestion's IngestionOrchestrationService uses one layer up. Unlike Generation, this
 service DOES need a Validations mixin: unlike explain()'s flag/chunk
 objects (already validated upstream by the time Generation sees them),
 insert_chunk/search_by_vector are the first stop for raw caller input, and
@@ -21,8 +21,8 @@ would silently ask the broker for zero rows.
 
 from rag.brokers.chunk_repository import ChunkRepositoryBroker
 from rag.brokers.logging import LoggingBroker
-from rag.models.chunk_repository.exceptions import ChunkRepositoryUnavailableError
-from rag.models.retrieval import ScoredChunk
+from rag.models.foundations.chunk_repository.exceptions import ChunkRepositoryUnavailableError
+from rag.models.orchestrations.retrieval import ScoredChunk
 
 
 class _ChunkRepositoryServiceBase:
@@ -30,7 +30,7 @@ class _ChunkRepositoryServiceBase:
 
     Each public method delegates through `_try_catch` (defined in the
     Exceptions mixin) to a private method of the same name, mirroring
-    IngestionService's `ingest_topic` -> `_ingest_topic` split one layer up.
+    IngestionOrchestrationService's `ingest_topic` -> `_ingest_topic` split one layer up.
     """
 
     def __init__(

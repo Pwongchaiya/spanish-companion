@@ -8,7 +8,7 @@ Anything else falls through the final `except Exception` safety net.
 
 from typing import Callable, TypeVar
 
-from api.models.practice_log.exceptions import (
+from api.models.foundations.practice_log.exceptions import (
     InvalidPracticeAttemptException,
     PracticeLogDependencyException,
     PracticeLogServiceException,

@@ -41,8 +41,8 @@ inconsistency rather than a deliberate exception.
 No Validations mixin: no input validation happens at this tier (same as
 Review's own file -- see review_service.py's docstring). Exceptions mixin
 now exists (voice_conversation_service_exceptions.py,
-ConversationOrchestratorExceptions), combined into the concrete
-ConversationOrchestrator in __init__.py -- mirrors Session Lifecycle/
+ConversationOrchestrationServiceExceptions), combined into the concrete
+ConversationOrchestrationService in __init__.py -- mirrors Session Lifecycle/
 Review's `partial class` merge exactly. One honest caveat this mirroring
 does NOT change: unlike Session Lifecycle/Review, there is still no
 second, distinct wrapper-tier exception class here -- _try_catch catches
@@ -66,7 +66,7 @@ Everything else DOES follow the pattern: i_voice_conversation_service.py
 interface files), and the two pipecat frame-filter helper classes
 (_MicGate, _TurnStateObserver) live in their own files
 (_mic_gate.py, _turn_state_observer.py) rather than bundled into this one
-— this file now holds only _ConversationOrchestratorBase and the small
+— this file now holds only _ConversationOrchestrationServiceBase and the small
 module-level flag-parsing functions it directly uses.
 """
 
@@ -99,17 +99,17 @@ from api.brokers.configuration import ConfigurationBroker, EnvConfigurationBroke
 from api.brokers.logging import LoggingBroker
 from api.brokers.session_log import SessionLogBroker
 from api.brokers.stt import SttBroker
-from api.models.flag import Flag
-from api.models.flag.exceptions import FlagDependencyException, FlagServiceException
-from api.models.session_log.exceptions import (
+from api.models.foundations.flag import Flag
+from api.models.foundations.flag.exceptions import FlagDependencyException, FlagServiceException
+from api.models.foundations.session_log.exceptions import (
     SessionLogDependencyException,
     SessionLogServiceException,
 )
-from api.models.live_transcript.exceptions import (
+from api.models.foundations.live_transcript.exceptions import (
     LiveTranscriptDependencyException,
     LiveTranscriptServiceException,
 )
-from api.models.voice_conversation.exceptions import VoiceConversationPipelineError
+from api.models.orchestrations.voice_conversation.exceptions import VoiceConversationPipelineError
 from api.services.foundations.flag import IFlagService
 from api.services.foundations.live_transcript import ILiveTranscriptService
 from api.services.foundations.session_log import ISessionLogService
@@ -167,7 +167,7 @@ def parse_flag(content: str, logging_broker: LoggingBroker) -> Optional[dict]:
     return {key: flag[key] for key in FLAG_KEYS}
 
 
-class _ConversationOrchestratorBase:
+class _ConversationOrchestrationServiceBase:
     """Owns the live voice conversation — Pipecat pipeline construction,
     error-flag capture, and periodic persistence.
 
@@ -214,7 +214,7 @@ class _ConversationOrchestratorBase:
         self._flag_service = flag_service
         self._session_log_broker = session_log_broker
         # Mirrors the LoggingBroker constructor parameter on
-        # ConversationSessionService/_ReviewOrchestratorBase -- _create_and_log_*
+        # ConversationSessionService/_ReviewOrchestrationServiceBase -- _create_and_log_*
         # methods (Exceptions mixin) log through it before raising.
         self._logging_broker = logging_broker
         self._configuration_broker = configuration_broker

@@ -1,4 +1,4 @@
-"""Unit tests for IngestionService.ingest_topic() -- ValueError contracts.
+"""Unit tests for IngestionOrchestrationService.ingest_topic() -- ValueError contracts.
 
 Writes to `chunks` are one-way (the broker has no delete path), so a blank
 topic/source_url must be refused before either broker is touched. The
@@ -10,7 +10,7 @@ mismatch inserts zero rows, not some.
 
 import pytest
 
-from rag.models.ingestion.exceptions import (
+from rag.models.orchestrations.ingestion.exceptions import (
     IngestionOrchestrationValidationException,
     IngestionValidationError,
 )

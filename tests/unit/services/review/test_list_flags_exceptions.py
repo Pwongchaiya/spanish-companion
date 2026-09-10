@@ -1,4 +1,4 @@
-"""Unit tests for ReviewOrchestrator.list_flags() -- broker-failure path.
+"""Unit tests for ReviewOrchestrationService.list_flags() -- broker-failure path.
 
 H7 of the architecture conformance audit: this method bypassed _try_catch, so
 a FlagService failure escaped the orchestrator unwrapped and reached Flask
@@ -9,8 +9,8 @@ lands in the service-tier safety net -- which is what the route now maps.
 
 import pytest
 
-from api.models.flag.exceptions import FlagDependencyException, FlagUnavailableError
-from api.models.review.exceptions import ReviewOrchestrationServiceException
+from api.models.foundations.flag.exceptions import FlagDependencyException, FlagUnavailableError
+from api.models.orchestrations.review.exceptions import ReviewOrchestrationServiceException
 
 
 class TestReviewOrchestratorListFlagsExceptions:

@@ -8,7 +8,7 @@ Phase 1's rag/db.py:init_schema created a 5-column `chunks` table via raw
 DDL (missing embedding_model_version and chunking_strategy_version). Per
 user decision this migration drops and recreates rather than migrating in
 place — backfilling version columns for pre-existing rows would be
-fabricated data. The corpus is re-ingested from scratch once IngestionService
+fabricated data. The corpus is re-ingested from scratch once IngestionOrchestrationService
 exists (later wave, not this migration's concern).
 """
 from typing import Sequence, Union

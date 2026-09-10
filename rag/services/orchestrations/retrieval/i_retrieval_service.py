@@ -11,12 +11,12 @@ implementation in the same folder.
 
 Naming follows the Session Lifecycle / Review precedent -- the Protocol is
 named for the feature (`RetrievalService`) and the concrete class keeps its
-existing name (`HybridRetrievalService`).
+existing name (`HybridRetrievalOrchestrationService`).
 """
 
 from typing import List, Optional, Protocol
 
-from rag.models.retrieval import ScoredChunk
+from rag.models.orchestrations.retrieval import ScoredChunk
 
 
 class RetrievalService(Protocol):

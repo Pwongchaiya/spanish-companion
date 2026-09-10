@@ -12,7 +12,7 @@ import pytest
 
 from rag.brokers.chunk_repository import ChunkRepositoryBroker
 from rag.brokers.logging import LoggingBroker
-from rag.models.retrieval import ScoredChunk
+from rag.models.orchestrations.retrieval import ScoredChunk
 from rag.services.foundations.chunk_repository import ChunkRepositoryService
 
 

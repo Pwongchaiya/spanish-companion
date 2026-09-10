@@ -1,4 +1,4 @@
-"""Unit tests for ReviewOrchestrator.list_flags() -- the happy paths.
+"""Unit tests for ReviewOrchestrationService.list_flags() -- the happy paths.
 
 FlagService.list_flags() returns [] for a missing or corrupt file by
 contract, so "no flags yet" comes back as [] rather than an exception. Its

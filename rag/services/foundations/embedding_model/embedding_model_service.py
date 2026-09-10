@@ -19,7 +19,7 @@ from typing import List
 
 from rag.brokers.embedding_model import EmbeddingModelBroker
 from rag.brokers.logging import LoggingBroker
-from rag.models.embedding_model.exceptions import EmbeddingModelUnavailableError
+from rag.models.foundations.embedding_model.exceptions import EmbeddingModelUnavailableError
 
 
 class _EmbeddingModelServiceBase:
@@ -27,7 +27,7 @@ class _EmbeddingModelServiceBase:
 
     The public `embed` method delegates to a private `_embed` through
     `_try_catch` (defined in the Exceptions mixin), mirroring
-    `_IngestionServiceBase.ingest_topic`'s same delegation one layer up.
+    `_IngestionOrchestrationServiceBase.ingest_topic`'s same delegation one layer up.
     """
 
     def __init__(
@@ -47,7 +47,7 @@ class _EmbeddingModelServiceBase:
     def model_name(self) -> str:
         # ponytail: pure passthrough, no failure mode on the broker's
         # `model_name` property to wrap -- not routed through _try_catch,
-        # same reasoning as ReviewOrchestrator.list_flags()
+        # same reasoning as ReviewOrchestrationService.list_flags()
         # (api/services/review/review_service.py:90-99)'s deliberately
         # unwrapped passthrough.
         return self._embedding_model.model_name

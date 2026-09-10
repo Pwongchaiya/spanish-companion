@@ -12,7 +12,7 @@ from pgvector.sqlalchemy import Vector
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
-from rag.models.retrieval import ScoredChunk
+from rag.models.orchestrations.retrieval import ScoredChunk
 
 EMBEDDING_DIM = 384
 

@@ -6,7 +6,7 @@ the checks that fail if a raw broker error escapes it again.
 
 import pytest
 
-from api.models.session_log.exceptions import (
+from api.models.foundations.session_log.exceptions import (
     SessionLogDependencyException,
     SessionLogServiceException,
     SessionLogUnavailableError,

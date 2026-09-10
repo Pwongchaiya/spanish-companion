@@ -11,7 +11,7 @@ import pytest
 
 from api.brokers.flag import FlagBroker
 from api.brokers.logging import LoggingBroker
-from api.models.flag import Flag
+from api.models.foundations.flag import Flag
 from api.services.foundations.flag import FlagService
 
 

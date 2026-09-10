@@ -1,4 +1,4 @@
-"""Unit test for ConversationOrchestrator.run()'s finally-block cleanup.
+"""Unit test for ConversationOrchestrationService.run()'s finally-block cleanup.
 
 W3 of the architecture conformance audit: the turn-state write used to run
 first and unguarded in that block, so an OSError from it aborted the rest
@@ -22,11 +22,11 @@ from api.brokers.configuration import ConfigurationBroker
 from api.brokers.logging import LoggingBroker
 from api.brokers.session_log import SessionLogBroker
 from api.brokers.stt import SttBroker
-from api.models.session_log.exceptions import SessionLogDependencyException
+from api.models.foundations.session_log.exceptions import SessionLogDependencyException
 from api.services.foundations.flag import IFlagService
 from api.services.foundations.live_transcript import ILiveTranscriptService
 from api.services.foundations.session_log import ISessionLogService
-from api.services.orchestrations.voice_conversation import ConversationOrchestrator
+from api.services.orchestrations.voice_conversation import ConversationOrchestrationService
 
 
 @pytest.fixture
@@ -47,7 +47,7 @@ def mocks():
 
 @pytest.fixture
 def orchestrator(mocks):
-    instance = ConversationOrchestrator(**mocks)
+    instance = ConversationOrchestrationService(**mocks)
     context = Mock()
     context.messages = []
     runner = Mock()

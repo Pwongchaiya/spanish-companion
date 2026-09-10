@@ -6,7 +6,7 @@ count of) rows, so it is refused before the broker is touched.
 
 import pytest
 
-from rag.models.chunk_repository.exceptions import (
+from rag.models.foundations.chunk_repository.exceptions import (
     ChunkRepositoryValidationException,
     InvalidChunkRepositoryInputError,
 )

@@ -8,7 +8,7 @@ docstring), so there is no validation branch to add.
 
 from typing import Callable, TypeVar
 
-from api.models.session_log.exceptions import (
+from api.models.foundations.session_log.exceptions import (
     SessionLogDependencyException,
     SessionLogServiceException,
     SessionLogUnavailableError,

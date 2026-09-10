@@ -1,4 +1,4 @@
-"""Unit tests for ReviewOrchestrator.record_practice() -- happy path.
+"""Unit tests for ReviewOrchestrationService.record_practice() -- happy path.
 
 See test_record_practice_exceptions.py for the unknown-flag_id refusal.
 

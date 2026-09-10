@@ -8,7 +8,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from api.models.flag import Flag
+from api.models.foundations.flag import Flag
 
 load_dotenv()
 

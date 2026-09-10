@@ -15,7 +15,7 @@ SQLAlchemy, no Alembic — there is no table backing this.
 
 from typing import Protocol
 
-from api.models.flag import Flag
+from api.models.foundations.flag import Flag
 
 
 class FlagBroker(Protocol):

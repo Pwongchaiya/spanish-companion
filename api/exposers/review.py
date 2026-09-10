@@ -6,7 +6,7 @@ this wraps. Routes are unversioned per CLAUDE.md's Phase 2 Layer-Agent
 Mapping & Waivers (/api/V1.0/ is waived), prefixed /review per the
 architecture decision record's /review* naming.
 
-ReviewOrchestrator is constructed from its dependencies by api/app.py and
+ReviewOrchestrationService is constructed from its dependencies by api/app.py and
 injected here via make_review_blueprint(). This module never constructs the
 orchestrator or any of its dependencies itself.
 
@@ -15,7 +15,7 @@ app-wide in api/app.py, applied uniformly across /start /stop /status and
 /review*.
 
 Every route is wrapped, matching UserProfilesController.cs:25-52. GET
-/review/flags carries two tiers rather than four: ReviewOrchestrator.list_flags()
+/review/flags carries two tiers rather than four: ReviewOrchestrationService.list_flags()
 takes no input, so nothing validation-shaped can reach it, and it has no
 NotFoundFlagException case. It was unwrapped entirely until H7 of the
 architecture conformance audit.
@@ -44,16 +44,16 @@ from dataclasses import asdict
 
 from flask import Blueprint, jsonify, request
 
-from api.models.flag.exceptions import NotFoundFlagException
-from api.models.review.exceptions import (
+from api.models.foundations.flag.exceptions import NotFoundFlagException
+from api.models.orchestrations.review.exceptions import (
     ReviewOrchestrationDependencyException,
     ReviewOrchestrationServiceException,
     ReviewOrchestrationValidationException,
 )
-from api.services.orchestrations.review import ReviewOrchestrator
+from api.services.orchestrations.review import ReviewOrchestrationService
 
 
-def make_review_blueprint(orchestrator: ReviewOrchestrator) -> Blueprint:
+def make_review_blueprint(orchestrator: ReviewOrchestrationService) -> Blueprint:
     review_blueprint = Blueprint("review", __name__, url_prefix="/review")
 
     @review_blueprint.route("/flags", methods=["GET"])

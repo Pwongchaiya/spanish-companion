@@ -13,7 +13,7 @@ InvalidChunkRepositoryInputError guards.
 
 import pytest
 
-from rag.models.chunk_repository.exceptions import (
+from rag.models.foundations.chunk_repository.exceptions import (
     ChunkRepositoryDependencyException,
     ChunkRepositoryServiceException,
 )

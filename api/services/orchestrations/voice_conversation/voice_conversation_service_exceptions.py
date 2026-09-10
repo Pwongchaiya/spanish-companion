@@ -1,6 +1,6 @@
-"""Catch/wrap/log helpers for ConversationOrchestrator.
+"""Catch/wrap/log helpers for ConversationOrchestrationService.
 
-Mirrors ConversationSessionServiceExceptions/ReviewOrchestratorExceptions's
+Mirrors ConversationSessionServiceExceptions/ReviewOrchestrationServiceExceptions's
 shape: catch each known leaf, wrap + log it, re-raise the wrapper. One
 structural difference from both of those, stated plainly rather than
 glossed over: there is no distinct wrapper-tier exception class behind
@@ -16,7 +16,7 @@ The leaves it catches are KeyError and OSError plus, since W3 of the
 architecture conformance audit, the two wrapper-tier exceptions
 LiveTranscriptService now raises in place of a raw OSError.
 
-_try_catch only wraps ConversationOrchestrator._setup() -- the live
+_try_catch only wraps ConversationOrchestrationService._setup() -- the live
 conversation loop (runner.run()) and its finally-block cleanup are
 deliberately not routed through this, same scope the old inline
 try/except covered before this file existed.
@@ -24,11 +24,11 @@ try/except covered before this file existed.
 
 from typing import Awaitable, Callable, TypeVar
 
-from api.models.live_transcript.exceptions import (
+from api.models.foundations.live_transcript.exceptions import (
     LiveTranscriptDependencyException,
     LiveTranscriptServiceException,
 )
-from api.models.voice_conversation.exceptions import (
+from api.models.orchestrations.voice_conversation.exceptions import (
     VoiceConversationConfigError,
     VoiceConversationPipelineError,
 )
@@ -36,9 +36,9 @@ from api.models.voice_conversation.exceptions import (
 T = TypeVar("T")
 
 
-class ConversationOrchestratorExceptions:
+class ConversationOrchestrationServiceExceptions:
     """Mixin: centralised try/catch + exception creation/logging for
-    ConversationOrchestrator._setup()."""
+    ConversationOrchestrationService._setup()."""
 
     async def _try_catch(self, fn: Callable[[], Awaitable[T]]) -> T:
         try:

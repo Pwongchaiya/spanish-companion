@@ -12,7 +12,7 @@ the InvalidEmbeddingModelInputError guards.
 
 import pytest
 
-from rag.models.embedding_model.exceptions import (
+from rag.models.foundations.embedding_model.exceptions import (
     EmbeddingModelDependencyException,
     EmbeddingModelServiceException,
 )

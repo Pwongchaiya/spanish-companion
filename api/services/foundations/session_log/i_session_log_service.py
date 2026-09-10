@@ -7,7 +7,7 @@ waiver (CLAUDE.md's Phase 2 Layer-Agent Mapping & Waivers table).
 from pathlib import Path
 from typing import List, Optional, Protocol
 
-from api.models.flag import Flag
+from api.models.foundations.flag import Flag
 
 
 class ISessionLogService(Protocol):

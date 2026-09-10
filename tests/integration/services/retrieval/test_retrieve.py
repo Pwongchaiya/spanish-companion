@@ -1,4 +1,4 @@
-"""Integration tests for HybridRetrievalService against a real test Postgres.
+"""Integration tests for HybridRetrievalOrchestrationService against a real test Postgres.
 
 Per CLAUDE.md's Phase 2 test strategy: real test Postgres (the
 `chunk_repository` fixture in tests/integration/conftest.py), external APIs
@@ -27,7 +27,7 @@ from rag.brokers.chunk_repository import EMBEDDING_DIM
 from rag.brokers.logging import StdlibLoggingBroker
 from rag.services.foundations.chunk_repository import ChunkRepositoryService
 from rag.services.foundations.embedding_model import IEmbeddingModelService
-from rag.services.orchestrations.retrieval import HybridRetrievalService
+from rag.services.orchestrations.retrieval import HybridRetrievalOrchestrationService
 from rag.services.orchestrations.retrieval.strategies.dense import DenseVectorStrategy
 from rag.services.orchestrations.retrieval.strategies.fusion import PassThroughRankFusion
 
@@ -93,7 +93,7 @@ def service(mock_embedding_model, chunk_repository):
     # unchanged, just reached through one more real layer.
     logging_broker = StdlibLoggingBroker()
     chunk_repository_service = ChunkRepositoryService(chunk_repository, logging_broker=logging_broker)
-    return HybridRetrievalService(
+    return HybridRetrievalOrchestrationService(
         embedding_model_service=mock_embedding_model,
         strategies=[DenseVectorStrategy(chunk_repository_service, logging_broker=logging_broker)],
         fusion=PassThroughRankFusion(logging_broker=logging_broker),

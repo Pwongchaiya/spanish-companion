@@ -14,12 +14,12 @@ Same three wrapper tiers Ingestion settled on, same two cited omissions:
    beneath (there is no layer beneath a Foundation service; it calls the
    broker directly).
 2. No intermediate Failed*ServiceException before the catch-all -- see
-   rag/models/chunk_repository/exceptions/chunk_repository_service_exception.py.
+   rag/models/foundations/chunk_repository/exceptions/chunk_repository_service_exception.py.
 """
 
 from typing import Callable, TypeVar
 
-from rag.models.chunk_repository.exceptions import (
+from rag.models.foundations.chunk_repository.exceptions import (
     ChunkRepositoryDependencyException,
     ChunkRepositoryServiceException,
     ChunkRepositoryUnavailableError,

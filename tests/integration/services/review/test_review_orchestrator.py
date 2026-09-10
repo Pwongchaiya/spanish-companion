@@ -1,4 +1,4 @@
-"""Integration tests for ReviewOrchestrator's real file I/O.
+"""Integration tests for ReviewOrchestrationService's real file I/O.
 
 Review has two kinds of dependency and they get different treatment here:
 
@@ -9,7 +9,7 @@ Review has two kinds of dependency and they get different treatment here:
   line on disk). So they are REAL, pointed at pytest's tmp_path rather than
   the default data/ paths.
 
-- HybridRetrievalService / GenerationService wrap Retrieval (Postgres +
+- HybridRetrievalOrchestrationService / GenerationService wrap Retrieval (Postgres +
   embedding model) and Generation (Gemini). Both already have their own
   Integration tiers; exercising them again through Review would be duplicate
   coverage of someone else's feature, so they stay mocked.
@@ -26,16 +26,16 @@ import pytest
 from api.brokers.flag import JsonFileFlagBroker
 from api.brokers.logging import StdlibLoggingBroker
 from api.brokers.practice_log import JsonLinesPracticeLogBroker
-from api.models.flag import Flag
-from api.models.flag.exceptions import FlagValidationException, NotFoundFlagException
-from api.models.review.exceptions import ReviewOrchestrationValidationException
+from api.models.foundations.flag import Flag
+from api.models.foundations.flag.exceptions import FlagValidationException, NotFoundFlagException
+from api.models.orchestrations.review.exceptions import ReviewOrchestrationValidationException
 from api.services.foundations.flag import FlagService
 from api.services.foundations.practice_log import PracticeLogService
-from api.services.orchestrations.review import ReviewOrchestrator
-from rag.models.generation import Explanation
-from rag.models.retrieval import ScoredChunk
+from api.services.orchestrations.review import ReviewOrchestrationService
+from rag.models.foundations.generation import Explanation
+from rag.models.orchestrations.retrieval import ScoredChunk
 from rag.services.foundations.generation import GenerationService
-from rag.services.orchestrations.retrieval import HybridRetrievalService
+from rag.services.orchestrations.retrieval import HybridRetrievalOrchestrationService
 
 FIXED_NOW = datetime(2026, 1, 2, 3, 4, 5)
 RETRIEVAL_TOP_K = 3
@@ -78,7 +78,7 @@ def practice_log_service(practice_log_broker):
 
 @pytest.fixture
 def mock_retrieval_service():
-    return Mock(spec=HybridRetrievalService)
+    return Mock(spec=HybridRetrievalOrchestrationService)
 
 
 @pytest.fixture
@@ -88,7 +88,7 @@ def mock_generation_service():
 
 @pytest.fixture
 def service(flag_service, practice_log_service, mock_retrieval_service, mock_generation_service):
-    return ReviewOrchestrator(
+    return ReviewOrchestrationService(
         flag_service=flag_service,
         practice_log_service=practice_log_service,
         retrieval_service=mock_retrieval_service,

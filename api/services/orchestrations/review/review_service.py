@@ -1,7 +1,7 @@
 """Orchestration service for Review Mode.
 
 Composes four service dependencies -- two api Foundation services
-(FlagService, PracticeLogService) and two rag services (HybridRetrievalService,
+(FlagService, PracticeLogService) and two rag services (HybridRetrievalOrchestrationService,
 GenerationService) -- into the Review Mode flow: flagged list -> selection ->
 grounded explanation -> single practice attempt.
 
@@ -25,7 +25,7 @@ two or three. ORC-002 no longer applies -- nothing here touches a broker
 directly any more.
 
 Split into a base logic file plus an Exceptions mixin (this file,
-review_service_exceptions.py), combined into the concrete ReviewOrchestrator
+review_service_exceptions.py), combined into the concrete ReviewOrchestrationService
 in __init__.py -- mirrors C#'s `partial class` merging
 EntitlementCodesOrchestrationService.cs / .Exeptions.cs into one class, the
 same multi-inheritance-merge already used for Session Lifecycle in this
@@ -41,15 +41,15 @@ from typing import Callable, List
 from api.brokers.configuration import ConfigurationBroker, EnvConfigurationBroker
 from api.brokers.logging import LoggingBroker
 from api.brokers.practice_log import PracticeAttempt
-from api.models.flag import Flag
+from api.models.foundations.flag import Flag
 from api.services.foundations.flag import IFlagService
 from api.services.foundations.practice_log import IPracticeLogService
-from rag.models.generation import Explanation
+from rag.models.foundations.generation import Explanation
 from rag.services.foundations.generation import GenerationService
-from rag.services.orchestrations.retrieval import HybridRetrievalService
+from rag.services.orchestrations.retrieval import HybridRetrievalOrchestrationService
 
 
-class _ReviewOrchestratorBase:
+class _ReviewOrchestrationServiceBase:
     """Owns Review Mode's flow across flags, retrieval, generation, practice.
 
     Public methods delegate to a private `_do_thing` method through
@@ -62,7 +62,7 @@ class _ReviewOrchestratorBase:
         self,
         flag_service: IFlagService,
         practice_log_service: IPracticeLogService,
-        retrieval_service: HybridRetrievalService,
+        retrieval_service: HybridRetrievalOrchestrationService,
         generation_service: GenerationService,
         clock: Callable[[], datetime] = datetime.now,
         *,
@@ -102,7 +102,7 @@ class _ReviewOrchestratorBase:
     # forever instead of re-running retrieval + an LLM call on every repeat
     # view. lru_cache only caches successful returns, so a _try_catch-raised
     # exception is never cached. Caches on (self, flag_id); safe because
-    # exactly one ReviewOrchestrator is constructed per process.
+    # exactly one ReviewOrchestrationService is constructed per process.
     @lru_cache(maxsize=None)
     def explain_flag(self, flag_id: str) -> Explanation:
         return self._try_catch(lambda: self._explain_flag(flag_id))

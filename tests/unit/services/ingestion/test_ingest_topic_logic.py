@@ -1,4 +1,4 @@
-"""Unit tests for IngestionService.ingest_topic() -- chunk/embed/insert flow.
+"""Unit tests for IngestionOrchestrationService.ingest_topic() -- chunk/embed/insert flow.
 
 See test_ingest_topic_validation.py for the ValueError contracts (blank topic
 or source_url, and the strict-zip length mismatch).

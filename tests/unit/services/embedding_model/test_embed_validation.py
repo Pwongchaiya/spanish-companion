@@ -7,7 +7,7 @@ returns zero vectors, or a blank entry gets embedded as if it were real text.
 
 import pytest
 
-from rag.models.embedding_model.exceptions import (
+from rag.models.foundations.embedding_model.exceptions import (
     EmbeddingModelValidationException,
     InvalidEmbeddingModelInputError,
 )

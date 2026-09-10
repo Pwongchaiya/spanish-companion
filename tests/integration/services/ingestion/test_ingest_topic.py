@@ -1,8 +1,8 @@
-"""Integration tests for IngestionService against a real test Postgres.
+"""Integration tests for IngestionOrchestrationService against a real test Postgres.
 
 Real SqlAlchemyChunkRepositoryBroker (tests/integration/conftest.py's
 `chunk_repository` fixture, TEST_DATABASE_URL, truncated per test), wrapped in
-the real ChunkRepositoryService that IngestionService now depends on;
+the real ChunkRepositoryService that IngestionOrchestrationService now depends on;
 EmbeddingModelBroker mocked -- it is a local sentence-transformers model, so it
 falls under CLAUDE.md's "external APIs mocked at the Broker boundary" rule for
 the same reason a network API does: loading it makes the test slow and
@@ -26,7 +26,7 @@ from rag.brokers.embedding_model import EmbeddingModelBroker
 from rag.brokers.logging import StdlibLoggingBroker
 from rag.services.foundations.chunk_repository import ChunkRepositoryService
 from rag.services.foundations.embedding_model import EmbeddingModelService
-from rag.services.orchestrations.ingestion import IngestionService
+from rag.services.orchestrations.ingestion import IngestionOrchestrationService
 
 TOPIC = "preterite-vs-imperfect"
 
@@ -63,7 +63,7 @@ def mock_configuration_broker():
 @pytest.fixture
 def service(chunk_repository, mock_embedding_model, mock_configuration_broker):
     logging_broker = StdlibLoggingBroker()
-    return IngestionService(
+    return IngestionOrchestrationService(
         chunk_repository_service=ChunkRepositoryService(chunk_repository, logging_broker=logging_broker),
         embedding_model_service=EmbeddingModelService(mock_embedding_model, logging_broker=logging_broker),
         configuration_broker=mock_configuration_broker,

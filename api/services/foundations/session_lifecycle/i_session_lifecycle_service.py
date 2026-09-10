@@ -10,7 +10,7 @@ file with its implementation in the same folder.
 
 from typing import Protocol
 
-from api.models.session_lifecycle.session_status import SessionStatus
+from api.models.foundations.session_lifecycle.session_status import SessionStatus
 
 
 class SessionLifecycleService(Protocol):

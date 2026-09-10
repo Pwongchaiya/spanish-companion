@@ -2,7 +2,7 @@
 
 Per CLAUDE.md's Phase 2 test strategy: PracticeLogBroker is mocked via
 unittest.mock.Mock(spec=BrokerProtocol) -- no live file I/O. Attempt
-timestamps are supplied by the caller (ReviewOrchestrator's injected clock),
+timestamps are supplied by the caller (ReviewOrchestrationService's injected clock),
 not read live here, so no fake clock is needed at this layer.
 """
 

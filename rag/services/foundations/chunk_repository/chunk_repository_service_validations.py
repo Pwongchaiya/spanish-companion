@@ -11,7 +11,7 @@ rule/accumulator machinery, just `if condition: raise LeafException(message)`,
 failing on the first bad field rather than accumulating all of them.
 """
 
-from rag.models.chunk_repository.exceptions import InvalidChunkRepositoryInputError
+from rag.models.foundations.chunk_repository.exceptions import InvalidChunkRepositoryInputError
 
 
 class ChunkRepositoryServiceValidations:

@@ -10,7 +10,7 @@ EntitlementService.Exeptions.cs:85-93), matching the reference project's
 import subprocess
 from typing import Callable
 
-from api.models.session_lifecycle.exceptions import (
+from api.models.foundations.session_lifecycle.exceptions import (
     AlreadyRunningSessionException,
     NotRunningSessionException,
     SessionServiceException,

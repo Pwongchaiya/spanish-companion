@@ -1,4 +1,4 @@
-"""Catch/wrap/log helpers for ReviewOrchestrator.
+"""Catch/wrap/log helpers for ReviewOrchestrationService.
 
 Mirrors NL.Core.Entitlements.Api/Services/Orchestrations/EntitlementCodes/
 EntitlementCodesOrchestrationService.Exeptions.cs:19-135's TryCatch: catch
@@ -10,7 +10,7 @@ this service unwrapped" guarantee.
 Three wrapper tiers, one more than Session Lifecycle collapsed to, because
 Review has a genuine dependency-failure category that Session Lifecycle
 lacks: RetrievalOrchestrationDependencyException from
-HybridRetrievalService.retrieve().
+HybridRetrievalOrchestrationService.retrieve().
 
 The validation tier catches the *wrappers* the services beneath raise --
 FlagValidationException (holding NotFoundFlagException),
@@ -18,7 +18,7 @@ PracticeLogValidationException (holding InvalidPracticeAttemptException),
 and RetrievalOrchestrationValidationException (holding
 RetrievalValidationError) -- never their raw leaves, the same shape already used here for
 RetrievalOrchestrationDependencyException and one tier down in
-IngestionServiceExceptions. Consequence: those leaves now sit at
+IngestionOrchestrationServiceExceptions. Consequence: those leaves now sit at
 `.inner_exception.inner_exception` on the ReviewOrchestrationValidationException,
 one level deeper than before.
 
@@ -46,15 +46,15 @@ caught by name in the validation tier above.
 
 from typing import Callable, TypeVar
 
-from api.models.flag.exceptions import FlagValidationException
-from api.models.practice_log.exceptions import PracticeLogValidationException
-from api.models.review.exceptions import (
+from api.models.foundations.flag.exceptions import FlagValidationException
+from api.models.foundations.practice_log.exceptions import PracticeLogValidationException
+from api.models.orchestrations.review.exceptions import (
     FailedReviewOrchestrationServiceException,
     ReviewOrchestrationDependencyException,
     ReviewOrchestrationServiceException,
     ReviewOrchestrationValidationException,
 )
-from rag.models.retrieval.exceptions import (
+from rag.models.orchestrations.retrieval.exceptions import (
     RetrievalOrchestrationDependencyException,
     RetrievalOrchestrationValidationException,
 )
@@ -62,7 +62,7 @@ from rag.models.retrieval.exceptions import (
 T = TypeVar("T")
 
 
-class ReviewOrchestratorExceptions:
+class ReviewOrchestrationServiceExceptions:
     """Mixin: centralised try/catch + exception creation/logging."""
 
     def _try_catch(self, fn: Callable[[], T]) -> T:

@@ -15,7 +15,7 @@ a pure text -> rows operation.
 
 Split into a base logic file plus Validations/Exceptions mixins (this file,
 ingestion_service_validations.py, ingestion_service_exceptions.py), combined
-into the concrete IngestionService in __init__.py — mirrors C#'s `partial
+into the concrete IngestionOrchestrationService in __init__.py — mirrors C#'s `partial
 class` merging EntitlementCodesOrchestrationService.cs /
 .Validations.cs / .Exeptions.cs into one class, the same
 multi-inheritance-merge already used for Session Lifecycle and Review in this
@@ -54,7 +54,7 @@ def chunk_text(text: str, chunk_size: int) -> list[str]:
     return chunks
 
 
-class _IngestionServiceBase:
+class _IngestionOrchestrationServiceBase:
     """Chunks, embeds, and persists corpus text for one topic.
 
     The public method delegates to a private `_ingest_topic` through

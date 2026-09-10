@@ -1,4 +1,4 @@
-"""Shared fixtures for ReviewOrchestrator unit tests.
+"""Shared fixtures for ReviewOrchestrationService unit tests.
 
 Per CLAUDE.md's Phase 2 test strategy: all four dependencies are mocked via
 unittest.mock.Mock(spec=...) -- the two api Foundation services at their
@@ -20,13 +20,13 @@ from unittest.mock import Mock
 import pytest
 
 from api.brokers.logging import LoggingBroker
-from api.models.flag import Flag
+from api.models.foundations.flag import Flag
 from api.services.foundations.flag import IFlagService
 from api.services.foundations.practice_log import IPracticeLogService
-from api.services.orchestrations.review import ReviewOrchestrator
-from rag.models.retrieval import ScoredChunk
+from api.services.orchestrations.review import ReviewOrchestrationService
+from rag.models.orchestrations.retrieval import ScoredChunk
 from rag.services.foundations.generation import GenerationService
-from rag.services.orchestrations.retrieval import HybridRetrievalService
+from rag.services.orchestrations.retrieval import HybridRetrievalOrchestrationService
 
 FIXED_NOW = datetime(2026, 1, 2, 3, 4, 5)
 RETRIEVAL_TOP_K = 3
@@ -70,7 +70,7 @@ def mock_practice_log_service():
 
 @pytest.fixture
 def mock_retrieval_service():
-    return Mock(spec=HybridRetrievalService)
+    return Mock(spec=HybridRetrievalOrchestrationService)
 
 
 @pytest.fixture
@@ -103,7 +103,7 @@ def service(
     configuration_broker,
     mock_logging_broker,
 ):
-    return ReviewOrchestrator(
+    return ReviewOrchestrationService(
         flag_service=mock_flag_service,
         practice_log_service=mock_practice_log_service,
         retrieval_service=mock_retrieval_service,

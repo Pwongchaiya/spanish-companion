@@ -24,12 +24,12 @@ side instead.
 
 from typing import Protocol
 
-from rag.models.generation import Explanation
-from rag.models.retrieval import ScoredChunk
+from rag.models.foundations.generation import Explanation
+from rag.models.orchestrations.retrieval import ScoredChunk
 
 
 class FlagLike(Protocol):
-    """Local Protocol — do NOT import api.models.flag.Flag here. rag must
+    """Local Protocol — do NOT import api.models.foundations.flag.Flag here. rag must
     never import from api (one-directional dependency: api -> rag). Flag
     (in api/models/flag.py) satisfies this structurally, no import needed.
     """

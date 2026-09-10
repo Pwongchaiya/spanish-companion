@@ -12,7 +12,7 @@ failing the same way.
 
 import pytest
 
-from api.models.flag.exceptions import FlagDependencyException, FlagUnavailableError
+from api.models.foundations.flag.exceptions import FlagDependencyException, FlagUnavailableError
 
 
 class TestFlagServiceListFlagsExceptions:

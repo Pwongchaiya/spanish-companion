@@ -8,7 +8,7 @@ Absorbs the blank-check validation that used to live in
 ReviewOrchestratorValidations._validate_practice_input
 (api/services/review/review_service_validations.py). That file and
 review_service.py are untouched by this wave -- Wave 5 rewires
-ReviewOrchestrator to call this service instead.
+ReviewOrchestrationService to call this service instead.
 
 Split into a base logic file plus Validations/Exceptions mixins (this file,
 practice_log_service_validations.py, practice_log_service_exceptions.py),
@@ -22,7 +22,7 @@ from typing import List, Optional
 
 from api.brokers.logging import LoggingBroker
 from api.brokers.practice_log import PracticeAttempt, PracticeLogBroker
-from api.models.practice_log.exceptions import PracticeLogUnavailableError
+from api.models.foundations.practice_log.exceptions import PracticeLogUnavailableError
 
 
 class _PracticeLogServiceBase:

@@ -9,7 +9,7 @@ interface, and never the service that calls it.
 from typing import List, Protocol
 
 from rag.brokers.logging import LoggingBroker
-from rag.models.retrieval import ScoredChunk
+from rag.models.orchestrations.retrieval import ScoredChunk
 
 
 class RankFusionStrategy(Protocol):

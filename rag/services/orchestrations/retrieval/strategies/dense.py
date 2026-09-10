@@ -4,14 +4,14 @@ One strategy = one way of finding candidate chunks for a query. Today there
 is exactly one (dense vector search over pgvector). `LexicalStrategy` (BM25 /
 tsvector) is a deferred seam per the Phase 2 architecture decision record:
 when it lands it implements this same Protocol and is appended to
-HybridRetrievalService's `strategies` list — no change to the service, the
+HybridRetrievalOrchestrationService's `strategies` list — no change to the service, the
 fusion stage's interface, or the filters.
 """
 
 from typing import List, Protocol
 
 from rag.brokers.logging import LoggingBroker
-from rag.models.retrieval import ScoredChunk
+from rag.models.orchestrations.retrieval import ScoredChunk
 from rag.services.foundations.chunk_repository import IChunkRepositoryService
 
 
@@ -45,7 +45,7 @@ class DenseVectorStrategy:
     No exception handling here: ChunkRepositoryService already wraps its own
     broker failures (ChunkRepositoryDependencyException et al), and those
     propagate raw through this class to be caught one level up in
-    HybridRetrievalServiceExceptions._try_catch.
+    HybridRetrievalOrchestrationServiceExceptions._try_catch.
     """
 
     def __init__(

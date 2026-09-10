@@ -4,8 +4,8 @@ Layer-Agent Mapping (not worth the waivers for ~20 lines of argparse).
     python -m rag.exposers.ingestion
 
 Fetches each RAE grammar page, hands the extracted text to
-IngestionService, and prints a per-topic row count. Fetching (requests +
-BeautifulSoup) lives here rather than in IngestionService so the service
+IngestionOrchestrationService, and prints a per-topic row count. Fetching (requests +
+BeautifulSoup) lives here rather than in IngestionOrchestrationService so the service
 stays a pure text -> rows operation.
 
 Known limitation: re-running this against an already-populated corpus
@@ -25,7 +25,7 @@ from rag.brokers.embedding_model import SentenceTransformerEmbeddingModelBroker
 from rag.brokers.logging import StdlibLoggingBroker
 from rag.services.foundations.chunk_repository import ChunkRepositoryService
 from rag.services.foundations.embedding_model import EmbeddingModelService
-from rag.services.orchestrations.ingestion import IngestionService
+from rag.services.orchestrations.ingestion import IngestionOrchestrationService
 
 # RAE grammar topics and their corresponding URLs — same corpus as Phase 1
 # (rag/ingest.py's TOPICS), carried forward unchanged.
@@ -88,7 +88,7 @@ def main() -> None:
     embedding_model_service = EmbeddingModelService(
         SentenceTransformerEmbeddingModelBroker(), logging_broker=logging_broker
     )
-    service = IngestionService(chunk_repository_service, embedding_model_service, logging_broker=logging_broker)
+    service = IngestionOrchestrationService(chunk_repository_service, embedding_model_service, logging_broker=logging_broker)
 
     for topic, url in TOPICS:
         try:

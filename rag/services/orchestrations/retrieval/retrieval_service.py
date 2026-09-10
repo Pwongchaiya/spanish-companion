@@ -15,7 +15,7 @@ this service never called that Foundation service itself).
 
 Split into this base logic file plus an Exceptions mixin
 (retrieval_service_exceptions.py), combined into the concrete
-HybridRetrievalService in __init__.py -- mirrors C#'s `partial class`
+HybridRetrievalOrchestrationService in __init__.py -- mirrors C#'s `partial class`
 merging EntitlementCodesOrchestrationService.cs /
 EntitlementCodesOrchestrationService.Exeptions.cs into one class, the same
 multi-inheritance-merge already used for Session Lifecycle and Review in
@@ -32,14 +32,14 @@ can produce.
 from typing import List, Optional, Sequence
 
 from rag.brokers.logging import LoggingBroker
-from rag.models.retrieval import ScoredChunk
+from rag.models.orchestrations.retrieval import ScoredChunk
 from rag.services.foundations.embedding_model import IEmbeddingModelService
 from rag.services.orchestrations.retrieval.strategies.dense import RetrievalStrategy
 from rag.services.orchestrations.retrieval.strategies.filters import CategoryBoostFilter, ResultFilter
 from rag.services.orchestrations.retrieval.strategies.fusion import RankFusionStrategy
 
 
-class _HybridRetrievalServiceBase:
+class _HybridRetrievalOrchestrationServiceBase:
     """Finds the corpus chunks that ground a Review Mode explanation.
 
     Direct dependencies are the EmbeddingModel Foundation service (query

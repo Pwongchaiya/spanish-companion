@@ -13,12 +13,12 @@ import pytest
 from flask import Flask
 
 from api.exposers.session_lifecycle import make_session_lifecycle_blueprint
-from api.models.session_lifecycle.exceptions import (
+from api.models.foundations.session_lifecycle.exceptions import (
     AlreadyRunningSessionException,
     NotRunningSessionException,
     SessionValidationException,
 )
-from api.models.session_lifecycle.session_status import SessionStatus
+from api.models.foundations.session_lifecycle.session_status import SessionStatus
 from api.services.foundations.session_lifecycle import SessionLifecycleService
 
 

@@ -9,7 +9,7 @@ co-locates the interface file with its implementation in the same folder.
 
 from typing import List, Protocol
 
-from api.models.flag import Flag
+from api.models.foundations.flag import Flag
 
 
 class IFlagService(Protocol):

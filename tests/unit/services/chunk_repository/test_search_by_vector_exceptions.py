@@ -8,7 +8,7 @@ is not duplicated per method.
 
 import pytest
 
-from rag.models.chunk_repository.exceptions import ChunkRepositoryDependencyException
+from rag.models.foundations.chunk_repository.exceptions import ChunkRepositoryDependencyException
 
 EMBEDDING = [0.1, 0.2, 0.3]
 

@@ -14,7 +14,7 @@ import re
 from typing import List, Optional, Protocol
 
 from rag.brokers.logging import LoggingBroker
-from rag.models.retrieval import ScoredChunk
+from rag.models.orchestrations.retrieval import ScoredChunk
 
 
 def _normalize(text: str) -> str:

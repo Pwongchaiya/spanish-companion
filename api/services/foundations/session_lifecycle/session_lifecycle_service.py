@@ -26,7 +26,7 @@ from typing import Callable, Optional
 from api.brokers.bot_process import BotProcessBroker
 from api.brokers.configuration import ConfigurationBroker, EnvConfigurationBroker
 from api.brokers.logging import LoggingBroker
-from api.models.session_lifecycle.session_status import SessionStatus
+from api.models.foundations.session_lifecycle.session_status import SessionStatus
 
 # ponytail: no IPC channel from the subprocess back to this service yet --
 # that lands when Voice Conversation's subprocess side is manually ported.

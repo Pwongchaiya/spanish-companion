@@ -21,8 +21,8 @@ as it was before this rebuild.
 
 from typing import Callable
 
-from rag.models.generation import Explanation
-from rag.models.generation.exceptions import GenerationServiceException
+from rag.models.foundations.generation import Explanation
+from rag.models.foundations.generation.exceptions import GenerationServiceException
 
 
 class GenerationServiceExceptions:

@@ -1,7 +1,7 @@
 """Foundation service for flagged-grammar-error persistence.
 
 Wraps FlagBroker (api/brokers/flag/) with the lookup logic Review currently
-does inline. list_flags() and _get_flag() moved here from ReviewOrchestrator
+does inline. list_flags() and _get_flag() moved here from ReviewOrchestrationService
 (api/services/orchestrations/review/review_service.py) -- same linear-scan
 approach. list_flags() came over as an unwrapped pass-through and stayed one
 until H7 of the architecture conformance audit; every public method here now
@@ -20,7 +20,7 @@ this codebase.
 No Validations mixin/file: get_flag()'s only failure mode is not-found,
 which is validation-shaped via NotFoundFlagException itself -- there is no
 separate rejected-input case to check before calling the broker. Matches
-HybridRetrievalService's precedent (no validations file at all when there
+HybridRetrievalOrchestrationService's precedent (no validations file at all when there
 is nothing to validate) rather than inventing an empty one.
 """
 
@@ -28,8 +28,8 @@ from typing import List
 
 from api.brokers.flag import FlagBroker
 from api.brokers.logging import LoggingBroker
-from api.models.flag import Flag
-from api.models.flag.exceptions import FlagUnavailableError, NotFoundFlagException
+from api.models.foundations.flag import Flag
+from api.models.foundations.flag.exceptions import FlagUnavailableError, NotFoundFlagException
 
 
 class _FlagServiceBase:
@@ -58,7 +58,7 @@ class _FlagServiceBase:
         case, and every other broker failure (unreadable file, permission
         error) escaped raw. H7 of the architecture conformance audit found
         that reaching Flask as an unmapped 500 through
-        ReviewOrchestrator.list_flags(); the guard lives here because
+        ReviewOrchestrationService.list_flags(); the guard lives here because
         api/app.py's /api/events SSE stream calls this method directly too,
         bypassing the orchestrator entirely.
         """

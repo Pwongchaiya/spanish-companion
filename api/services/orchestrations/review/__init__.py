@@ -1,11 +1,11 @@
 from api.services.orchestrations.review.i_review_service import ReviewService
-from api.services.orchestrations.review.review_service import _ReviewOrchestratorBase
-from api.services.orchestrations.review.review_service_exceptions import ReviewOrchestratorExceptions
+from api.services.orchestrations.review.review_service import _ReviewOrchestrationServiceBase
+from api.services.orchestrations.review.review_service_exceptions import ReviewOrchestrationServiceExceptions
 
 
-class ReviewOrchestrator(
-    _ReviewOrchestratorBase,
-    ReviewOrchestratorExceptions,
+class ReviewOrchestrationService(
+    _ReviewOrchestrationServiceBase,
+    ReviewOrchestrationServiceExceptions,
 ):
     """Combines the base logic and exceptions mixins into the concrete
     Orchestration service -- mirrors C#'s `partial class` merging
@@ -18,5 +18,5 @@ class ReviewOrchestrator(
 
 __all__ = [
     "ReviewService",
-    "ReviewOrchestrator",
+    "ReviewOrchestrationService",
 ]

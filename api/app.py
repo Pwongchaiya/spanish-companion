@@ -6,8 +6,8 @@ integration ... owned by the main session, no single feature/agent owns
 it"). Constructs every broker/service exactly once here — the composition
 root — and injects the finished objects into each feature's Blueprint
 factory. Review's four service dependencies (FlagService,
-PracticeLogService, HybridRetrievalService, GenerationService) are wired
-directly into ReviewOrchestrator -- the pass-through
+PracticeLogService, HybridRetrievalOrchestrationService, GenerationService) are wired
+directly into ReviewOrchestrationService -- the pass-through
 RetrievalController/GenerationController this used to route through are
 gone (6-layer Standard rebuild, Wave 7).
 
@@ -39,14 +39,14 @@ from api.exposers.session_lifecycle import make_session_lifecycle_blueprint
 from api.services.foundations.flag import FlagService
 from api.services.foundations.practice_log import PracticeLogService
 from api.services.foundations.session_lifecycle import ConversationSessionService
-from api.services.orchestrations.review import ReviewOrchestrator
+from api.services.orchestrations.review import ReviewOrchestrationService
 from rag.brokers.chunk_repository import SqlAlchemyChunkRepositoryBroker
 from rag.brokers.embedding_model import SentenceTransformerEmbeddingModelBroker
 from rag.brokers.generation import GeminiGenerationBroker
 from rag.services.foundations.chunk_repository import ChunkRepositoryService
 from rag.services.foundations.embedding_model import EmbeddingModelService
 from rag.services.foundations.generation import GenerationService
-from rag.services.orchestrations.retrieval import HybridRetrievalService
+from rag.services.orchestrations.retrieval import HybridRetrievalOrchestrationService
 from rag.services.orchestrations.retrieval.strategies.dense import DenseVectorStrategy
 from rag.services.orchestrations.retrieval.strategies.fusion import PassThroughRankFusion
 
@@ -156,7 +156,7 @@ def create_app() -> Flask:
         SentenceTransformerEmbeddingModelBroker(),
         logging_broker=logging_broker,
     )
-    retrieval_service = HybridRetrievalService(
+    retrieval_service = HybridRetrievalOrchestrationService(
         embedding_model_service,
         strategies=[DenseVectorStrategy(chunk_repository_service, logging_broker=logging_broker)],
         fusion=PassThroughRankFusion(logging_broker=logging_broker),
@@ -165,7 +165,7 @@ def create_app() -> Flask:
     generation_service = GenerationService(GeminiGenerationBroker(), logging_broker=logging_broker)
     flag_service = FlagService(JsonFileFlagBroker(), logging_broker=logging_broker)
     practice_log_service = PracticeLogService(JsonLinesPracticeLogBroker(), logging_broker=logging_broker)
-    review_orchestrator = ReviewOrchestrator(
+    review_orchestrator = ReviewOrchestrationService(
         flag_service=flag_service,
         practice_log_service=practice_log_service,
         retrieval_service=retrieval_service,

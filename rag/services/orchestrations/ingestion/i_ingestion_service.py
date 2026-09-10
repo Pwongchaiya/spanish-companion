@@ -11,9 +11,9 @@ co-locates the interface file with its implementation in the same folder.
 Cited naming divergence: Session Lifecycle and Review both drop the C# `I`
 prefix from the class (Protocol `SessionLifecycleService` -> concrete
 `ConversationSessionService`; Protocol `ReviewService` -> concrete
-`ReviewOrchestrator`), keeping it only in the file name. That works there
+`ReviewOrchestrationService`), keeping it only in the file name. That works there
 because the feature name was free -- the concrete class had a different name.
-Here the concrete class must stay `IngestionService` (its public name,
+Here the concrete class must stay `IngestionOrchestrationService` (its public name,
 imported by rag/controllers/ingestion.py:26 and by three test modules), so the
 feature name is taken (the CLI import is now
 `rag.services.orchestrations.ingestion`). This Protocol therefore keeps the reference's literal

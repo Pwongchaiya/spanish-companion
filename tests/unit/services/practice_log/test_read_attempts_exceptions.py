@@ -2,7 +2,7 @@
 
 import pytest
 
-from api.models.practice_log.exceptions import (
+from api.models.foundations.practice_log.exceptions import (
     PracticeLogDependencyException,
     PracticeLogUnavailableError,
 )

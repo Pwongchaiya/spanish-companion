@@ -12,7 +12,7 @@ work as expected with SQLAlchemy + pgvector.
 import pytest
 
 from rag.brokers.chunk_repository import EMBEDDING_DIM
-from rag.models.retrieval import ScoredChunk
+from rag.models.orchestrations.retrieval import ScoredChunk
 
 
 def axis_vector(axis: int) -> list[float]:

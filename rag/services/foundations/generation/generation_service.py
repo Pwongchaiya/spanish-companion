@@ -39,8 +39,8 @@ from pathlib import Path
 import rag
 from rag.brokers.generation import GenerationBroker, GenerationError
 from rag.brokers.logging import LoggingBroker
-from rag.models.generation import Explanation
-from rag.models.retrieval import ScoredChunk
+from rag.models.foundations.generation import Explanation
+from rag.models.orchestrations.retrieval import ScoredChunk
 from rag.services.foundations.generation.i_generation_service import FlagLike
 
 # ponytail: plain read_text() at import time, no templating framework --

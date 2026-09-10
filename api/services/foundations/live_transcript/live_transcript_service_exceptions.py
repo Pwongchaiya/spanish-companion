@@ -7,7 +7,7 @@ so there is no validation branch to add.
 
 from typing import Callable, TypeVar
 
-from api.models.live_transcript.exceptions import (
+from api.models.foundations.live_transcript.exceptions import (
     LiveTranscriptDependencyException,
     LiveTranscriptServiceException,
     LiveTranscriptUnavailableError,

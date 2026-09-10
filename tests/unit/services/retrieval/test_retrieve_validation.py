@@ -1,4 +1,4 @@
-"""Unit tests for HybridRetrievalService.retrieve() -- input guards.
+"""Unit tests for HybridRetrievalOrchestrationService.retrieve() -- input guards.
 
 Both guards run before anything expensive: a rejected call must not embed the
 query or hit a strategy, which is asserted on every case here rather than
@@ -15,7 +15,7 @@ See test_retrieve_logic.py for the pipeline behaviour.
 
 import pytest
 
-from rag.models.retrieval.exceptions import (
+from rag.models.orchestrations.retrieval.exceptions import (
     RetrievalOrchestrationValidationException,
     RetrievalValidationError,
 )

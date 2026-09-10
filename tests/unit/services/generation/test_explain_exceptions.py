@@ -8,7 +8,7 @@ explanation escape, and never invents a second fallback mechanism.
 """
 
 from rag.brokers.generation import GenerationError
-from rag.models.generation import Explanation
+from rag.models.foundations.generation import Explanation
 
 
 class TestGenerationServiceExplainExceptions:

@@ -4,7 +4,7 @@ Per CLAUDE.md's Phase 2 test strategy and the Exposer Agent's waivers: this
 tier verifies HTTP mapping only (status codes, JSON shape, isoformat
 timestamps, FlagNotFoundException -> 404, attempt_text validation -> 400
 before the orchestrator is ever called) -- never Review's actual flow logic.
-ReviewOrchestrator is mocked via unittest.mock.Mock(spec=ReviewOrchestrator);
+ReviewOrchestrationService is mocked via unittest.mock.Mock(spec=ReviewOrchestrationService);
 tests/unit/services/review/ (a parallel dispatch) covers the real logic.
 """
 
@@ -16,20 +16,20 @@ from flask import Flask
 
 from api.brokers.practice_log import PracticeAttempt
 from api.exposers.review import make_review_blueprint
-from api.models.flag import Flag
-from api.models.flag.exceptions import FlagValidationException, NotFoundFlagException
-from api.models.review.exceptions import (
+from api.models.foundations.flag import Flag
+from api.models.foundations.flag.exceptions import FlagValidationException, NotFoundFlagException
+from api.models.orchestrations.review.exceptions import (
     ReviewOrchestrationDependencyException,
     ReviewOrchestrationServiceException,
     ReviewOrchestrationValidationException,
 )
-from api.services.orchestrations.review import ReviewOrchestrator
-from rag.models.generation import Explanation
+from api.services.orchestrations.review import ReviewOrchestrationService
+from rag.models.foundations.generation import Explanation
 
 
 @pytest.fixture
 def mock_orchestrator():
-    return Mock(spec=ReviewOrchestrator)
+    return Mock(spec=ReviewOrchestrationService)
 
 
 @pytest.fixture

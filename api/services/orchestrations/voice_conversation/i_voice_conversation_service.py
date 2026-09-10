@@ -6,10 +6,10 @@ service interfaces the same way Session Lifecycle/Review's are.
 
 Naming follows the Session Lifecycle/Review precedent exactly -- the
 Protocol is `VoiceConversationService` (feature name) and the concrete
-class stays `ConversationOrchestrator`.
+class stays `ConversationOrchestrationService`.
 
 Not consumed by an injected interface anywhere in this codebase today (the
-CLI entrypoint constructs ConversationOrchestrator directly) -- added to
+CLI entrypoint constructs ConversationOrchestrationService directly) -- added to
 match every other Orchestration service's file layout rather than leaving
 Voice Conversation as the one cited exception.
 """

@@ -1,18 +1,18 @@
 from rag.services.orchestrations.ingestion.i_ingestion_service import IIngestionService
 from rag.services.orchestrations.ingestion.ingestion_service import (
-    _IngestionServiceBase,
+    _IngestionOrchestrationServiceBase,
     chunk_text,
     CHUNKING_STRATEGY_VERSION,
     LoggingBroker,
 )
-from rag.services.orchestrations.ingestion.ingestion_service_validations import IngestionServiceValidations
-from rag.services.orchestrations.ingestion.ingestion_service_exceptions import IngestionServiceExceptions
+from rag.services.orchestrations.ingestion.ingestion_service_validations import IngestionOrchestrationServiceValidations
+from rag.services.orchestrations.ingestion.ingestion_service_exceptions import IngestionOrchestrationServiceExceptions
 
 
-class IngestionService(
-    _IngestionServiceBase,
-    IngestionServiceValidations,
-    IngestionServiceExceptions,
+class IngestionOrchestrationService(
+    _IngestionOrchestrationServiceBase,
+    IngestionOrchestrationServiceValidations,
+    IngestionOrchestrationServiceExceptions,
 ):
     """Combines the base logic, validations, and exceptions mixins into the
     concrete Orchestration service -- mirrors C#'s `partial class` merging
@@ -23,7 +23,7 @@ class IngestionService(
 
 __all__ = [
     "IIngestionService",
-    "IngestionService",
+    "IngestionOrchestrationService",
     "LoggingBroker",
     "chunk_text",
     "CHUNKING_STRATEGY_VERSION",

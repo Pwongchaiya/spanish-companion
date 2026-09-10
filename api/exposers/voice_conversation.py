@@ -12,12 +12,12 @@ the file lives; both CLI entrypoints get the same mechanical folder move
 every other feature's Controller got.
 
 Flask-initiated /stop is handled entirely in the Service
-(ConversationOrchestrator._watch_for_stop_signal, polling BotProcessBroker's
+(ConversationOrchestrationService._watch_for_stop_signal, polling BotProcessBroker's
 stop-flag file) — nothing to wire up here. Ctrl+C still works interactively
 via Python's default SIGINT -> KeyboardInterrupt handling.
 
 Audit H4 (2026-09-10): transport/tts/llm are built here now, not inside
-ConversationOrchestrator -- this is the composition root, so it's the one
+ConversationOrchestrationService -- this is the composition root, so it's the one
 place that should import pipecat's Azure/Google service classes and read
 their credentials + the system prompt. A missing/invalid credential now
 raises KeyError here, before the orchestrator or pipeline exist at all,
@@ -43,7 +43,7 @@ from api.brokers.stt import AzureSttBroker
 from api.services.foundations.flag import FlagService
 from api.services.foundations.live_transcript import LiveTranscriptService
 from api.services.foundations.session_log import SessionLogService
-from api.services.orchestrations.voice_conversation import ConversationOrchestrator
+from api.services.orchestrations.voice_conversation import ConversationOrchestrationService
 
 
 def main() -> None:
@@ -92,7 +92,7 @@ def main() -> None:
         logging_broker.log_error(f"Missing required configuration: {e}")
         raise
 
-    orchestrator = ConversationOrchestrator(
+    orchestrator = ConversationOrchestrationService(
         stt_broker=AzureSttBroker(),
         transport=transport,
         tts=tts,

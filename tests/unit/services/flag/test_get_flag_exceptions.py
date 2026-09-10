@@ -7,7 +7,7 @@ EntitlementServiceTests.Validations.RetrieveById.cs:59-101
 
 import pytest
 
-from api.models.flag.exceptions import (
+from api.models.foundations.flag.exceptions import (
     FlagDependencyException,
     FlagUnavailableError,
     FlagValidationException,

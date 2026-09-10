@@ -1,4 +1,4 @@
-"""Catch/wrap/log helpers for HybridRetrievalService.
+"""Catch/wrap/log helpers for HybridRetrievalOrchestrationService.
 
 Mirrors NL.Core.Entitlements.Api/Services/Orchestrations/EntitlementCodes/
 EntitlementCodesOrchestrationService.Exeptions.cs:19-135's TryCatch: catch
@@ -33,14 +33,14 @@ Three wrapper tiers, matching Review's:
 
 There is likewise no intermediate Failed*ServiceException before the
 Service tier (Exeptions.cs:79-82) -- collapsed per
-api/models/session_lifecycle/exceptions/session_service_exception.py:10-17.
+api/models/foundations/session_lifecycle/exceptions/session_service_exception.py:10-17.
 """
 
 from typing import Callable, TypeVar
 
-from rag.models.chunk_repository.exceptions import ChunkRepositoryDependencyException
-from rag.models.embedding_model.exceptions import EmbeddingModelDependencyException
-from rag.models.retrieval.exceptions import (
+from rag.models.foundations.chunk_repository.exceptions import ChunkRepositoryDependencyException
+from rag.models.foundations.embedding_model.exceptions import EmbeddingModelDependencyException
+from rag.models.orchestrations.retrieval.exceptions import (
     RetrievalOrchestrationDependencyException,
     RetrievalOrchestrationServiceException,
     RetrievalOrchestrationValidationException,
@@ -50,7 +50,7 @@ from rag.models.retrieval.exceptions import (
 T = TypeVar("T")
 
 
-class HybridRetrievalServiceExceptions:
+class HybridRetrievalOrchestrationServiceExceptions:
     """Mixin: centralised try/catch + exception creation/logging."""
 
     def _try_catch(self, fn: Callable[[], T]) -> T:

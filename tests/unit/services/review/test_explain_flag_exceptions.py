@@ -1,4 +1,4 @@
-"""Unit tests for ReviewOrchestrator.explain_flag() -- unknown flag_id.
+"""Unit tests for ReviewOrchestrationService.explain_flag() -- unknown flag_id.
 
 The lookup happens before any retrieval or generation work, so an unknown id
 must cost nothing downstream.
@@ -12,8 +12,8 @@ here -- that distinction belongs to FlagService's own tier.
 
 import pytest
 
-from api.models.flag.exceptions import FlagValidationException, NotFoundFlagException
-from api.models.review.exceptions import ReviewOrchestrationValidationException
+from api.models.foundations.flag.exceptions import FlagValidationException, NotFoundFlagException
+from api.models.orchestrations.review.exceptions import ReviewOrchestrationValidationException
 
 
 class TestReviewOrchestratorExplainFlagExceptions:

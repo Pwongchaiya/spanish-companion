@@ -1,4 +1,4 @@
-"""Unit tests for HybridRetrievalService.retrieve() -- pipeline behaviour.
+"""Unit tests for HybridRetrievalOrchestrationService.retrieve() -- pipeline behaviour.
 
 Covers the stage order the service owns:
     embed once -> every strategy -> fuse -> filters (+ per-call category

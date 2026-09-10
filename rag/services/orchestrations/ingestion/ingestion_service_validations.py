@@ -1,4 +1,4 @@
-"""Validation checks for IngestionService.
+"""Validation checks for IngestionOrchestrationService.
 
 Mirrors NL.Core.Entitlements.Api/Services/Orchestrations/EntitlementCodes/
 EntitlementCodesOrchestrationService.Validations.cs:12-30 — a named
@@ -25,10 +25,10 @@ raise sites sit in one file, which is the point of the .Validations.cs split.
 
 from typing import Sequence
 
-from rag.models.ingestion.exceptions import IngestionValidationError
+from rag.models.orchestrations.ingestion.exceptions import IngestionValidationError
 
 
-class IngestionServiceValidations:
+class IngestionOrchestrationServiceValidations:
     """Mixin: raises the leaf validation exception when input is unusable.
 
     See ingestion_service_exceptions.py for how these get wrapped and logged

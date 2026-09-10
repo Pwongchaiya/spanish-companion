@@ -1,4 +1,4 @@
-"""Unit tests for ReviewOrchestrator.explain_flag() -- Retrieval rejecting input.
+"""Unit tests for ReviewOrchestrationService.explain_flag() -- Retrieval rejecting input.
 
 H5 of the architecture conformance audit. Retrieval used to raise a bare
 ValueError for a blank query or top_k < 1, which fell through to Review's
@@ -14,8 +14,8 @@ the same depth as Review's Foundation-tier leaves.
 
 import pytest
 
-from api.models.review.exceptions import ReviewOrchestrationValidationException
-from rag.models.retrieval.exceptions import (
+from api.models.orchestrations.review.exceptions import ReviewOrchestrationValidationException
+from rag.models.orchestrations.retrieval.exceptions import (
     RetrievalOrchestrationValidationException,
     RetrievalValidationError,
 )

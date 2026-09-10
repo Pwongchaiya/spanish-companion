@@ -1,14 +1,14 @@
 from rag.brokers.logging import StdlibLoggingBroker
 from rag.services.orchestrations.retrieval.i_retrieval_service import RetrievalService
-from rag.services.orchestrations.retrieval.retrieval_service import LoggingBroker, _HybridRetrievalServiceBase
-from rag.services.orchestrations.retrieval.retrieval_service_exceptions import HybridRetrievalServiceExceptions
-from rag.services.orchestrations.retrieval.retrieval_service_validations import HybridRetrievalServiceValidations
+from rag.services.orchestrations.retrieval.retrieval_service import LoggingBroker, _HybridRetrievalOrchestrationServiceBase
+from rag.services.orchestrations.retrieval.retrieval_service_exceptions import HybridRetrievalOrchestrationServiceExceptions
+from rag.services.orchestrations.retrieval.retrieval_service_validations import HybridRetrievalOrchestrationServiceValidations
 
 
-class HybridRetrievalService(
-    _HybridRetrievalServiceBase,
-    HybridRetrievalServiceValidations,
-    HybridRetrievalServiceExceptions,
+class HybridRetrievalOrchestrationService(
+    _HybridRetrievalOrchestrationServiceBase,
+    HybridRetrievalOrchestrationServiceValidations,
+    HybridRetrievalOrchestrationServiceExceptions,
 ):
     """Combines the base logic and exceptions mixins into the concrete
     Orchestration service -- mirrors C#'s `partial class` merging
@@ -20,7 +20,7 @@ class HybridRetrievalService(
 
 __all__ = [
     "RetrievalService",
-    "HybridRetrievalService",
+    "HybridRetrievalOrchestrationService",
     "LoggingBroker",
     "StdlibLoggingBroker",
 ]
