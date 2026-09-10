@@ -15,20 +15,21 @@ Orchestration service coordinates SessionLogService,
 LiveTranscriptService, and FlagService (TurnStateService was added
 post-Wave-8, see decisions/tri-nature-gate-design.md's follow-up 2, and
 deleted in W3 as a pass-through) — replacing what used to be inline pipecat/Azure construction and
-free-function file I/O directly in this class. STT and the system prompt
-are taken as bare SttBroker/PromptBroker: W3 of the architecture
-conformance audit (M5) deleted the pure-pass-through SttService and
-PromptService that used to front them. LLM and TTS remain
-bare pipecat service objects,
-unwrapped, per the architecture decision record (only STT's fragile
-private-API override warranted its own broker — see
-api/brokers/stt/i_stt_broker.py). Zero behavior change from the Wave 8
+free-function file I/O directly in this class. STT is taken as a bare
+SttBroker: W3 of the architecture conformance audit (M5) deleted the
+pure-pass-through SttService that used to front it. LLM and TTS are
+injected as already-built bare pipecat service objects (H4 of the audit
+moved their construction, and the credential/prompt reads it needed, to
+the composition root -- api/exposers/voice_conversation.py -- alongside
+`transport`; this service no longer imports AzureTTSService/
+GoogleLLMService/PromptBroker or reads Azure/Gemini credentials itself,
+only uses the objects it's handed). Zero behavior change from the Wave 8
 move itself: same echo suppression, same sample-rate handling, same flag
 parsing, same stop-signal polling — only the construction/persistence
 plumbing moved to Foundation-tier services matching every other feature's
-shape. New narrow ORC-001 waiver (8 constructor dependencies after W3 --
-3 Foundation services, 5 brokers) per CLAUDE.md's Phase 2
-Layer-Agent Mapping.
+shape. New narrow ORC-001 waiver (10 constructor dependencies after H4 --
+3 Foundation services, 3 bare pipecat service handles, 4 brokers/config)
+per CLAUDE.md's Phase 2 Layer-Agent Mapping.
 
 Lives under api/services/orchestrations/voice_conversation/, matching
 Review's (api/services/orchestrations/review/) and Ingestion's
@@ -90,14 +91,12 @@ from pipecat.processors.filters.function_filter import FunctionFilter
 from pipecat.utils.text.pattern_pair_aggregator import MatchAction, PatternMatch, PatternPairAggregator
 from pipecat.services.azure.tts import AzureTTSService
 from pipecat.services.google.llm import GoogleLLMService
-from pipecat.transcriptions.language import Language
-from pipecat.transports.local.audio import LocalAudioTransport, LocalAudioTransportParams
+from pipecat.transports.local.audio import LocalAudioTransport
 from pipecat.turns.user_mute import AlwaysUserMuteStrategy
 from pipecat.workers.runner import WorkerRunner
 
 from api.brokers.configuration import ConfigurationBroker, EnvConfigurationBroker
 from api.brokers.logging import LoggingBroker
-from api.brokers.prompt import PromptBroker
 from api.brokers.session_log import SessionLogBroker
 from api.brokers.stt import SttBroker
 from api.models.flag import Flag
@@ -172,16 +171,19 @@ class _ConversationOrchestratorBase:
     """Owns the live voice conversation — Pipecat pipeline construction,
     error-flag capture, and periodic persistence.
 
-    Pipecat's own LLM/TTS service objects are this feature's Broker layer
-    (per the architecture decision record — not re-wrapped); STT is wrapped
-    (SttBroker) because of its fragile private-API override, and injected
-    here directly -- W3 of the architecture conformance audit deleted the
-    pass-through SttService that used to sit in front of it, and this
-    Orchestration service already takes LoggingBroker/ConfigurationBroker
-    directly, so a direct broker dependency is the established shape.
-    PromptBroker and SessionLogBroker (for the turn-state signal only) are
-    injected directly for the same reason. FlagService, SessionLogService,
-    and LiveTranscriptService are the Foundation-tier dependencies.
+    transport/tts/llm are pipecat's own service objects, this feature's
+    Broker layer (per the architecture decision record — not re-wrapped),
+    built once at the composition root (api/exposers/voice_conversation.py)
+    and injected here (audit H4) -- this service never reads Azure/Gemini
+    credentials or the system prompt itself. STT is wrapped (SttBroker)
+    because of its fragile private-API override, and injected here directly
+    -- W3 of the architecture conformance audit deleted the pass-through
+    SttService that used to sit in front of it, and this Orchestration
+    service already takes LoggingBroker/ConfigurationBroker directly, so a
+    direct broker dependency is the established shape. SessionLogBroker (for
+    the turn-state signal only) is injected directly for the same reason.
+    FlagService, SessionLogService, and LiveTranscriptService are the
+    Foundation-tier dependencies.
 
     run() delegates its setup phase to a private _setup() method through
     _try_catch (defined in the Exceptions mixin), mirroring Session
@@ -192,7 +194,9 @@ class _ConversationOrchestratorBase:
     def __init__(
         self,
         stt_broker: SttBroker,
-        prompt_broker: PromptBroker,
+        transport: LocalAudioTransport,
+        tts: AzureTTSService,
+        llm: GoogleLLMService,
         session_log_service: ISessionLogService,
         live_transcript_service: ILiveTranscriptService,
         flag_service: IFlagService,
@@ -202,7 +206,9 @@ class _ConversationOrchestratorBase:
         configuration_broker: ConfigurationBroker = EnvConfigurationBroker(),
     ) -> None:
         self._stt_broker = stt_broker
-        self._prompt_broker = prompt_broker
+        self._transport = transport
+        self._tts = tts
+        self._llm = llm
         self._session_log_service = session_log_service
         self._live_transcript_service = live_transcript_service
         self._flag_service = flag_service
@@ -273,10 +279,6 @@ class _ConversationOrchestratorBase:
         and its cleanup. Routed through _try_catch (Exceptions mixin) --
         the only phase this feature wraps, same scope the old inline
         try/except covered before this move."""
-        gemini_model = self._configuration_broker.get("GEMINI_MODEL", "gemini-flash-lite-latest")
-        # Multilingual voice — speaks both the Spanish phrases and the English
-        # explanations naturally, instead of an English accent on a Spanish-only voice.
-        azure_voice = self._configuration_broker.get("AZURE_TTS_VOICE", "es-ES-XimenaMultilingualNeural")
         audio_out_sample_rate = int(self._configuration_broker.get("AUDIO_OUT_SAMPLE_RATE", "24000"))
         # ponytail: hardware calibration knob, not a code fix. Silero VAD's
         # stock default (0.2s) doesn't survive background noise -- brief
@@ -290,31 +292,7 @@ class _ConversationOrchestratorBase:
         # getting cut off.
         vad_stop_secs = float(self._configuration_broker.get("VAD_STOP_SECS", "0.5"))
 
-        transport = LocalAudioTransport(
-            LocalAudioTransportParams(audio_in_enabled=True, audio_out_enabled=True)
-        )
-
         stt = self._stt_broker.create()
-
-        tts = AzureTTSService(
-            api_key=self._configuration_broker.require("AZURE_SPEECH_KEY"),
-            region=self._configuration_broker.require("AZURE_SPEECH_REGION"),
-            settings=AzureTTSService.Settings(voice=azure_voice, language=Language.ES_ES),
-        )
-
-        llm = GoogleLLMService(
-            api_key=self._configuration_broker.require("GEMINI_API_KEY"),
-            settings=GoogleLLMService.Settings(
-                model=gemini_model,
-                system_instruction=self._prompt_broker.get_system_prompt(),
-            ),
-            # A slow first chunk (network blip, API-side latency) otherwise drops
-            # the turn silently with no assistant reply ever recorded — the user
-            # just keeps talking into what looks like silence, and each unanswered
-            # turn piles onto a growing, non-alternating context that makes the
-            # next request slower too. One retry breaks that spiral.
-            retry_on_timeout=True,
-        )
 
         context = LLMContext()
         user_aggregator, assistant_aggregator = LLMContextAggregatorPair(
@@ -375,17 +353,17 @@ class _ConversationOrchestratorBase:
 
         pipeline = Pipeline(
             [
-                transport.input(),
+                self._transport.input(),
                 FunctionFilter(filter=_MicGate(), filter_system_frames=True),
                 FunctionFilter(
                     filter=_TurnStateObserver(self._session_log_broker), filter_system_frames=True
                 ),
                 stt,
                 user_aggregator,
-                llm,
+                self._llm,
                 LLMTextProcessor(text_aggregator=flag_aggregator),
-                tts,
-                transport.output(),
+                self._tts,
+                self._transport.output(),
                 assistant_aggregator,
             ]
         )

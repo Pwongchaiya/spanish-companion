@@ -24,9 +24,14 @@ class VoiceConversationService(Protocol):
     async def run(self) -> None:
         """Run the live voice conversation pipeline until stopped.
 
-        Raises VoiceConversationConfigError (missing/invalid Azure Speech or
-        Gemini credentials) or VoiceConversationPipelineError (audio device
-        init failure, pipeline setup timeout).
+        Raises VoiceConversationPipelineError (audio device init failure,
+        pipeline setup timeout). Missing/invalid Azure Speech or Gemini
+        credentials now fail earlier, at the composition root
+        (api/exposers/voice_conversation.py) when transport/tts/llm are
+        built -- audit H4 moved that construction out of this service, so
+        VoiceConversationConfigError's KeyError trigger no longer fires from
+        inside run() in practice (the catch stays, defensively, for any
+        future _setup()-internal config read).
         """
         ...
 

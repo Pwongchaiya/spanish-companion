@@ -14,10 +14,12 @@ import asyncio
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from pipecat.services.azure.tts import AzureTTSService
+from pipecat.services.google.llm import GoogleLLMService
+from pipecat.transports.local.audio import LocalAudioTransport
 
 from api.brokers.configuration import ConfigurationBroker
 from api.brokers.logging import LoggingBroker
-from api.brokers.prompt import PromptBroker
 from api.brokers.session_log import SessionLogBroker
 from api.brokers.stt import SttBroker
 from api.models.session_log.exceptions import SessionLogDependencyException
@@ -31,7 +33,9 @@ from api.services.orchestrations.voice_conversation import ConversationOrchestra
 def mocks():
     return {
         "stt_broker": Mock(spec=SttBroker),
-        "prompt_broker": Mock(spec=PromptBroker),
+        "transport": Mock(spec=LocalAudioTransport),
+        "tts": Mock(spec=AzureTTSService),
+        "llm": Mock(spec=GoogleLLMService),
         "session_log_service": Mock(spec=ISessionLogService),
         "live_transcript_service": Mock(spec=ILiveTranscriptService),
         "flag_service": Mock(spec=IFlagService),
