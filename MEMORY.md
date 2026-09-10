@@ -8,16 +8,18 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-09-09-2240.md
-Final `.claude-toolkit` audit: fixed a real data-loss bug (`--full` flush
-archived only `### In flight`, destroying 4 of 5 checkpoint sections on
-every `/session-end`), wired up 58 embedded self-checks that had never run
-under any suite invocation (24→106 tests), fixed `sync_commands.py`
-mirroring `__pycache__` bytecode into consumers, fixed `/project-init` still
-instructing the symlink setup that caused this repo's own OneDrive
-incident, and closed 5 README staleness items. Also built two generated
-Obsidian canvases (`build_canvases.py`) for the toolkit workflow and the
-session lifecycle, each validated against the toolkit tree it describes.
+Projects/spanish-companion/sessions/2026-09-10-0116.md
+Researched current (Sep 2026) agent-workflow practice via a 4-lane parallel
+fan-out (multi-agent orchestration, context engineering, loop engineering,
+practitioner field reports), each lane required to cite live URLs tagged
+[T1]/[T2] — synthesized to `decisions/agent-workflow-research-2026-09.md`.
+Adopted two candidates into `.claude-toolkit/`: a deterministic `verify_gate.py`
+Stop hook (blocks a "done" claim on failing tests) and `check_agent_models.py`
+(enforces CLAUDE.md's Opus/Sonnet/Haiku tiering — caught 4 of 11 agents with
+inverted tiers, all fixed). Also built `stall_ledger.py`: registers a
+background agent's intent before dispatch so an HTTP 429 kill — which allows
+no cleanup — still leaves a resumable record; sized directly against this
+session's own earlier rate-limit incident. Toolkit suite: 106→132 passing.
 No entities touched, no application code.
 ## Entity Manifest
 
