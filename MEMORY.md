@@ -8,14 +8,16 @@ Updated automatically by /session-end (Last Session).
 
 ## Last Session
 
-Projects/spanish-companion/sessions/2026-09-09-2032.md
-session-lifecycle work, no application code. Landed L2 (`/session-end` now
-carries a 7-turn batching table against a measured 20) and closed L6 in both
-halves: `state_md_guard.py` exits 2 on stderr so its warnings reach the model,
-and `/checkpoint` no longer writes `state.md` at all — `sync_state.py --full`
-is the only writer. 8 files, -128 net lines, all 12 toolkit self-checks pass.
-L1/L2 stay unverified until `lifecycle_cost.py` has post-fix runs; this
-session is n=4. See wiki/decisions/pending-work-single-writer.md.
+Projects/spanish-companion/sessions/2026-09-09-2154.md
+Audited `.claude-toolkit/.claude/commands/` (10 files, 1813 lines). 9/10 had
+no `description:` frontmatter and 7 wrapped their body in a stray
+```markdown fence, so the command listing rendered "```markdown" instead of
+a description. Fixed, plus 2 descriptions that broke plain-YAML parsing on
+an inline `: `, `{slug}`/`{project-name}` normalized to `{project}`, and two
+out-of-order steps renumbered. `sync_commands.py` now rejects a `--root`
+that isn't a `.claude` dir — root cause of 3 stray untracked copies
+(`commands/`, `agents/`, `skills/`) found and deleted. Guard tests 3→7,
+all pass. No entities touched, no application code.
 ## Entity Manifest
 
 | Feature | Path |
