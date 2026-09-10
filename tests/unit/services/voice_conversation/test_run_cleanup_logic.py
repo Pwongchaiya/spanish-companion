@@ -20,6 +20,7 @@ from api.brokers.logging import LoggingBroker
 from api.brokers.prompt import PromptBroker
 from api.brokers.session_log import SessionLogBroker
 from api.brokers.stt import SttBroker
+from api.models.session_log.exceptions import SessionLogDependencyException
 from api.services.foundations.flag import IFlagService
 from api.services.foundations.live_transcript import ILiveTranscriptService
 from api.services.foundations.session_log import ISessionLogService
@@ -78,3 +79,12 @@ class TestRunCleanup:
         asyncio.run(orchestrator.run())
 
         assert calls == ["save", "turn_state:idle"]
+
+    def test_saves_flags_and_turn_state_when_session_log_save_fails(self, orchestrator, mocks):
+        mocks["session_log_service"].save.side_effect = SessionLogDependencyException(OSError("disk full"))
+
+        asyncio.run(orchestrator.run())
+
+        assert mocks["flag_service"].save_flags.call_count == 1
+        assert mocks["session_log_broker"].write_turn_state.call_count == 1
+        assert mocks["logging_broker"].log_error.call_count == 1

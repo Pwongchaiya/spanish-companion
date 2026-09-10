@@ -19,5 +19,10 @@ class ISessionLogService(Protocol):
         a new timestamped log file. Returns None, writing nothing, if
         `turns` is empty -- a session with no turns has nothing worth a
         log file for manual review.
+
+        Raises SessionLogDependencyException (wrapping
+        SessionLogUnavailableError) if the underlying SessionLogBroker call
+        fails.
+        Raises SessionLogServiceException for any other unexpected failure.
         """
         ...

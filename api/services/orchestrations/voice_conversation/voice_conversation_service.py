@@ -26,7 +26,8 @@ api/brokers/stt/i_stt_broker.py). Zero behavior change from the Wave 8
 move itself: same echo suppression, same sample-rate handling, same flag
 parsing, same stop-signal polling — only the construction/persistence
 plumbing moved to Foundation-tier services matching every other feature's
-shape. New narrow ORC-001 waiver (6 dependencies) per CLAUDE.md's Phase 2
+shape. New narrow ORC-001 waiver (8 constructor dependencies after W3 --
+3 Foundation services, 5 brokers) per CLAUDE.md's Phase 2
 Layer-Agent Mapping.
 
 Lives under api/services/orchestrations/voice_conversation/, matching
@@ -101,6 +102,10 @@ from api.brokers.session_log import SessionLogBroker
 from api.brokers.stt import SttBroker
 from api.models.flag import Flag
 from api.models.flag.exceptions import FlagDependencyException, FlagServiceException
+from api.models.session_log.exceptions import (
+    SessionLogDependencyException,
+    SessionLogServiceException,
+)
 from api.models.live_transcript.exceptions import (
     LiveTranscriptDependencyException,
     LiveTranscriptServiceException,
@@ -230,9 +235,15 @@ class _ConversationOrchestratorBase:
             live_transcript_task.cancel()
             stop_watch_task.cancel()
             turns = self._extract_turns(context)
-            log_path = self._session_log_service.save(turns, session_flags)
-            if log_path:
-                self._logging_broker.log_info(f"Session log saved to {log_path}")
+            # Each of the three cleanup writes below is guarded separately:
+            # they are independent, and before W3 a failure in an earlier one
+            # aborted the whole block and lost the later ones' data.
+            try:
+                log_path = self._session_log_service.save(turns, session_flags)
+                if log_path:
+                    self._logging_broker.log_info(f"Session log saved to {log_path}")
+            except (SessionLogDependencyException, SessionLogServiceException) as e:
+                self._logging_broker.log_error(e)
             try:
                 self._flag_service.save_flags(session_flags)
             except (FlagDependencyException, FlagServiceException) as e:
@@ -348,7 +359,7 @@ class _ConversationOrchestratorBase:
         self._live_transcript_service.clear()
         self._session_log_broker.write_turn_state("listening")
 
-        # Voice Conversation's own stop-signal file is out of the 3-broker
+        # Voice Conversation's own stop-signal file is out of the file-broker
         # scope (Stt/SessionLog/Prompt) -- single-purpose, already simple,
         # not worth a 4th broker. Stashed on self (not a local) so
         # _watch_for_stop_signal, a separate method run as a background
