@@ -50,6 +50,19 @@ TOPICS: list[tuple[str, str]] = [
         "subjunctive-basics",
         "https://www.rae.es/gram%C3%A1tica-b%C3%A1sica/el-verbo/tiempos-verbales-del-modo-subjuntivo/caracter%C3%ADsticas-generales",  # noqa: E501
     ),
+    # Added 2026-09-10 per the RAG explanation quality gap diagnosis: the live
+    # flagging prompt (api/data/prompts/voice_conversation_system.txt) emits
+    # "gender agreement" as a category, but no corpus topic covered it before
+    # this -- CategoryBoostFilter's own docstring documented the gap
+    # ("correctly declines to boost 'gender agreement' ... which no corpus
+    # topic covers"). "vocabulary" (the prompt's other uncovered category)
+    # deliberately stays uncovered: it names wrong word choices, not a single
+    # grammar rule RAE publishes one page on, so MaxDistanceFilter correctly
+    # returning [] for it is the right outcome, not a gap to paper over.
+    (
+        "gender-agreement",
+        "https://www.rae.es/gram%C3%A1tica-b%C3%A1sica/el-g%C3%A9nero/g%C3%A9nero-concordancia-flexi%C3%B3n-y-sexo",  # noqa: E501
+    ),
 ]
 
 
