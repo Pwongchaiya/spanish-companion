@@ -18,7 +18,11 @@ from api.brokers.practice_log import PracticeAttempt
 from api.exposers.review import make_review_blueprint
 from api.models.flag import Flag
 from api.models.flag.exceptions import FlagValidationException, NotFoundFlagException
-from api.models.review.exceptions import ReviewOrchestrationValidationException
+from api.models.review.exceptions import (
+    ReviewOrchestrationDependencyException,
+    ReviewOrchestrationServiceException,
+    ReviewOrchestrationValidationException,
+)
 from api.services.orchestrations.review import ReviewOrchestrator
 from rag.models.generation import Explanation
 
@@ -80,6 +84,40 @@ class TestListFlags:
         # then
         assert response.status_code == 200
         assert response.get_json() == []
+
+    # H7: this route had no try/except at all, so a failure below reached
+    # Flask raw and answered with an unmapped 500 plus a traceback.
+    def test_should_return_500_when_orchestrator_raises_service_exception(
+        self, client, mock_orchestrator
+    ):
+        # given
+        leaf = OSError("disk read failed")
+        mock_orchestrator.list_flags.side_effect = ReviewOrchestrationServiceException(
+            inner_exception=leaf
+        )
+
+        # when
+        response = client.get("/review/flags")
+
+        # then
+        assert response.status_code == 500
+        assert response.get_json() == {"error": str(leaf)}
+
+    def test_should_return_500_when_orchestrator_raises_dependency_exception(
+        self, client, mock_orchestrator
+    ):
+        # given
+        leaf = OSError("disk read failed")
+        mock_orchestrator.list_flags.side_effect = ReviewOrchestrationDependencyException(
+            inner_exception=leaf
+        )
+
+        # when
+        response = client.get("/review/flags")
+
+        # then
+        assert response.status_code == 500
+        assert response.get_json() == {"error": str(leaf)}
 
 
 class TestExplainFlag:

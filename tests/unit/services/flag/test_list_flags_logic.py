@@ -1,9 +1,8 @@
-"""Unit tests for FlagService.list_flags() -- pass-through.
+"""Unit tests for FlagService.list_flags() -- the happy paths.
 
-No exceptions file: FlagBroker.load_flags() returns [] for a missing or
-corrupt file by contract, and "no flags yet" is a normal state, so
-list_flags() has no failure mode of its own to test. Deliberately NOT routed
-through _try_catch -- see flag_service.py's docstring on this method.
+FlagBroker.load_flags() returns [] for a missing or corrupt file by contract,
+so "no flags yet" comes back as [] rather than an exception. Every other
+broker failure is a real error -- see test_list_flags_exceptions.py.
 """
 
 

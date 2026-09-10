@@ -84,15 +84,17 @@ class _ReviewOrchestratorBase:
     def list_flags(self) -> List[Flag]:
         """The current flag list, for the UI's flagged-list -> selection step.
 
-        Pass-through, deliberately NOT routed through _try_catch:
-        FlagService.list_flags() is itself unwrapped for the same reason one
-        layer down -- FlagBroker.load_flags() already returns [] for a
-        missing or corrupt file, and "no flags yet" is a normal state, not an
-        error. Same treatment as ConversationSessionService.get_status(),
-        which is the one Session Lifecycle method left unwrapped for the same
-        reason.
+        Routed through _try_catch like every other method here. It used to be
+        a bare pass-through, on the argument that FlagBroker.load_flags()
+        already returns [] for a missing or corrupt file so "no flags yet" is
+        a normal state rather than an error. That argument covered the empty
+        case and nothing else: an unreadable flag file, a permission error, or
+        any other broker failure escaped this service unwrapped and reached
+        Flask raw, which is H7 of the architecture conformance audit. Empty is
+        still returned as [], not raised -- only genuine failures now leave as
+        wrappers.
         """
-        return self._flag_service.list_flags()
+        return self._try_catch(self._flag_service.list_flags)
 
     # ponytail: flags are immutable once created and the corpus is a static
     # seeded set, so a given flag_id's explanation never changes -- cache

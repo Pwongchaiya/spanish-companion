@@ -1,12 +1,11 @@
 """Foundation service for flagged-grammar-error persistence.
 
 Wraps FlagBroker (api/brokers/flag/) with the lookup logic Review currently
-does inline. list_flags() and _get_flag() move here VERBATIM from
-ReviewOrchestrator (api/services/review/review_service.py) -- same
-linear-scan approach, same reasoning for why list_flags() bypasses
-_try_catch. Wave 5 (dispatched separately) rewires ReviewOrchestrator to
-call this service instead of doing this itself; nothing calls this service
-yet.
+does inline. list_flags() and _get_flag() moved here from ReviewOrchestrator
+(api/services/orchestrations/review/review_service.py) -- same linear-scan
+approach. list_flags() came over as an unwrapped pass-through and stayed one
+until H7 of the architecture conformance audit; every public method here now
+routes through _try_catch.
 
 Single broker dependency -> Foundation layer, not Orchestration, per
 CLAUDE.md's Phase 2 Layer-Agent Mapping & Waivers.
@@ -52,14 +51,27 @@ class _FlagServiceBase:
     def list_flags(self) -> List[Flag]:
         """The current flag list, for the UI's flagged-list -> selection step.
 
-        Pass-through, deliberately NOT routed through _try_catch:
-        FlagBroker.load_flags() already returns [] for a missing or corrupt
-        file, and "no flags yet" is a normal state, not an error. Same
-        treatment as ConversationSessionService.get_status() and
-        ReviewOrchestrator.list_flags() (moved here verbatim), the same
-        reasoning both already established.
+        Routed through _try_catch. FlagBroker.load_flags() already returns []
+        for a missing or corrupt file, so "no flags yet" still comes back as
+        [] rather than an exception -- but that only ever covered the empty
+        case, and every other broker failure (unreadable file, permission
+        error) escaped raw. H7 of the architecture conformance audit found
+        that reaching Flask as an unmapped 500 through
+        ReviewOrchestrator.list_flags(); the guard lives here because
+        api/app.py's /api/events SSE stream calls this method directly too,
+        bypassing the orchestrator entirely.
         """
-        return self._flag_broker.load_flags()
+        return self._try_catch(self._list_flags)
+
+    def _list_flags(self) -> List[Flag]:
+        try:
+            return self._flag_broker.load_flags()
+        except Exception as e:
+            # Same wrapping as _get_flag/_save_flags below, for the same
+            # reason: without it a broker failure lands in _try_catch's
+            # generic Exception branch as FlagServiceException rather than
+            # the FlagDependencyException i_flag_service.py promises.
+            raise FlagUnavailableError(str(e)) from e
 
     def get_flag(self, flag_id: str) -> Flag:
         return self._try_catch(lambda: self._get_flag(flag_id))

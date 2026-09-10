@@ -1,8 +1,9 @@
-"""Unit tests for ReviewOrchestrator.list_flags() -- pass-through.
+"""Unit tests for ReviewOrchestrator.list_flags() -- the happy paths.
 
-No exceptions file: FlagService.list_flags() returns [] for a missing or
-corrupt file by contract, and "no flags yet" is a normal state, so
-list_flags() has no failure mode of its own to test.
+FlagService.list_flags() returns [] for a missing or corrupt file by
+contract, so "no flags yet" comes back as [] rather than an exception. Its
+other failure modes now arrive here wrapped -- see
+test_list_flags_exceptions.py.
 """
 
 

@@ -14,6 +14,12 @@ Origin/Referer CSRF-shaped checking is NOT implemented here -- it lives
 app-wide in api/app.py, applied uniformly across /start /stop /status and
 /review*.
 
+Every route is wrapped, matching UserProfilesController.cs:25-52. GET
+/review/flags carries two tiers rather than four: ReviewOrchestrator.list_flags()
+takes no input, so nothing validation-shaped can reach it, and it has no
+NotFoundFlagException case. It was unwrapped entirely until H7 of the
+architecture conformance audit.
+
 Exception mapping mirrors NL.Core.Entitlements.Api/Controllers/
 EntitlementCodesController.cs:30-52: the service now raises wrapper
 exceptions only (ReviewOrchestrationValidationException /
@@ -52,8 +58,13 @@ def make_review_blueprint(orchestrator: ReviewOrchestrator) -> Blueprint:
 
     @review_blueprint.route("/flags", methods=["GET"])
     def list_flags():
-        flags = orchestrator.list_flags()
-        return jsonify([{**asdict(f), "timestamp": f.timestamp.isoformat()} for f in flags]), 200
+        try:
+            flags = orchestrator.list_flags()
+            return jsonify([{**asdict(f), "timestamp": f.timestamp.isoformat()} for f in flags]), 200
+        except ReviewOrchestrationDependencyException as e:
+            return jsonify({"error": str(e.inner_exception)}), 500
+        except ReviewOrchestrationServiceException as e:
+            return jsonify({"error": str(e.inner_exception)}), 500
 
     @review_blueprint.route("/flags/<flag_id>/explain", methods=["GET"])
     def explain_flag(flag_id: str):
