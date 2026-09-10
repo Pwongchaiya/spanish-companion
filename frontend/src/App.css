@@ -8,230 +8,145 @@
 
 .tabs {
   display: flex;
-  align-items: baseline;
+  align-items: center;
+  justify-content: space-between;
   gap: 24px;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 12px;
+  padding: 20px 0;
 }
 
-.tabs h1 {
-  font-size: 24px;
+.tabs-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.brand-mark {
+  flex-shrink: 0;
+}
+
+.brand-name {
   margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--text);
 }
 
 .tabs nav {
   display: flex;
-  gap: 8px;
+  gap: 20px;
 }
 
 .tabs button {
-  border: 1px solid var(--border);
+  position: relative;
+  border: none;
   background: none;
   color: var(--text);
-  border-radius: 6px;
-  padding: 6px 14px;
+  border-radius: 0;
+  padding: 0 0 4px;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
   cursor: pointer;
+  box-shadow: 0 6px 0 -5px transparent;
+  transition: color 180ms ease, box-shadow 180ms ease;
+}
+
+.tabs button:hover {
+  color: var(--text-h);
 }
 
 .tabs button.active {
-  border-color: var(--accent-border);
-  background: var(--accent-bg);
   color: var(--text-h);
+  box-shadow: 0 6px 0 -5px var(--accent);
+}
+
+.tabs button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tabs button {
+    transition: none;
+  }
+}
+
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  transition: color 180ms ease, border-color 180ms ease;
+}
+
+.theme-toggle:hover {
+  color: var(--text-h);
+  border-color: var(--accent-border);
+}
+
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 main {
   flex: 1;
 }
 
+/* ~600px single column, per the Aliento mockups' .stage rule — each view
+   also centers its own column this way; this is the shared default. */
 .view {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  max-width: 640px;
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .empty {
   color: var(--text);
-  opacity: 0.7;
 }
 
 .conn-error {
-  color: #e5484d;
+  color: #b3441f;
 }
 
 button.primary {
-  border: 1px solid var(--accent-border);
-  background: var(--accent-bg);
-  color: var(--text-h);
-  border-radius: 6px;
-  padding: 8px 20px;
-  font-size: 16px;
-  cursor: pointer;
-}
-
-/* --- Conversation --- */
-
-.status-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.status-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--border);
-}
-
-.status-dot.warming {
-  background: #f5a623;
-}
-
-.status-dot.ready {
-  background: #2ecc71;
-}
-
-.status-dot.thinking {
-  background: #f5a623;
-}
-
-.status-dot.speaking {
-  background: #4a90d9;
-}
-
-.transcript {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.turn {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.turn .role {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  opacity: 0.6;
-}
-
-.turn.assistant p {
-  color: var(--text-h);
-}
-
-/* --- Review --- */
-
-.flag-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.flag-item {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 10px 14px;
-  background: none;
-  color: var(--text-h);
-  cursor: pointer;
-  text-align: left;
-}
-
-.flag-item .said {
-  text-decoration: line-through;
-  opacity: 0.7;
-}
-
-.flag-item .corrected {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+  border-radius: 4px;
+  padding: 10px 20px;
+  font-size: 14px;
   font-weight: 500;
-}
-
-.flag-item .category {
-  margin-left: auto;
-  font-size: 12px;
-  opacity: 0.6;
-}
-
-.explanation {
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.practice-form {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.practice-form input {
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 8px 12px;
-  font-size: 16px;
-  background: var(--bg);
-  color: var(--text-h);
-}
-
-.done {
-  color: #2ecc71;
-}
-
-/* --- Error boundary --- */
-
-.error-fallback {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  align-items: flex-start;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 16px;
-}
-
-/* --- Toasts --- */
-
-.toast-container {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  z-index: 100;
-}
-
-.toast {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 10px 14px;
-  background: var(--bg);
-  color: var(--text-h);
-  box-shadow: var(--shadow);
-}
-
-.toast-dismiss {
-  border: none;
-  background: none;
-  color: var(--text);
+  font-family: var(--sans);
   cursor: pointer;
-  font-size: 16px;
-  line-height: 1;
+  transition: opacity 180ms ease;
+}
+
+button.primary:hover {
+  opacity: 0.88;
+}
+
+button.primary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }

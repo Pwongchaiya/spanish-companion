@@ -1,0 +1,93 @@
+/* App-wide connection banner. Calm by default (moss breathing dot while
+   retrying); ember only appears once retries are exhausted -- a 2px left
+   hairline, never a fill, per the Aliento error-handling mockup. */
+
+.conn-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 12px 4px;
+  border-top: 1px solid var(--border);
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--text);
+}
+
+.conn-banner.down {
+  border-top: none;
+  border-left: 2px solid var(--ember);
+  padding-left: 14px;
+}
+
+.conn-banner__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+  animation: conn-breathe 1.6s ease-in-out infinite;
+}
+
+.conn-banner.down .conn-banner__dot {
+  background: var(--ember);
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .conn-banner__dot {
+    animation: none;
+  }
+}
+
+@keyframes conn-breathe {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.conn-banner__msg {
+  color: var(--text-h);
+}
+
+.conn-banner__att {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text);
+}
+
+.conn-banner__sub {
+  color: var(--text);
+}
+
+.conn-banner__retry {
+  margin-left: auto;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ember);
+  padding: 4px 0;
+  flex-shrink: 0;
+}
+
+.conn-banner__retry:hover,
+.conn-banner__retry:focus-visible {
+  text-decoration: underline;
+}
+
+.conn-banner__retry:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}

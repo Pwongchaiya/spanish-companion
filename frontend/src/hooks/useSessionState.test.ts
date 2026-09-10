@@ -32,6 +32,43 @@ vi.mock("../state/store", () => ({
   }),
 }));
 
+// useSessionState no longer runs its own backoff loop -- it delegates to
+// runWithBackoff. Mocking the whole module lets us test the wiring
+// (that getStatus gets handed to runWithBackoff with setStatus as the
+// success callback) without re-testing backoff timing, which has its own
+// suite at useBackoffRetry.test.ts.
+const runWithBackoffMock = vi.fn((fn: () => Promise<unknown>, onSuccess: (r: unknown) => void) => {
+  fn().then(onSuccess).catch(() => {});
+  return vi.fn();
+});
+vi.mock("./useBackoffRetry", () => ({
+  runWithBackoff: (...args: Parameters<typeof runWithBackoffMock>) => runWithBackoffMock(...args),
+}));
+
+const setDownMock = vi.fn();
+const setOkMock = vi.fn();
+const noteTransientIssueMock = vi.fn();
+vi.mock("../state/connectionStore", () => ({
+  useConnectionStore: {
+    getState: vi.fn(() => ({
+      phase: "ok",
+      maxAttempts: 0,
+      setDown: setDownMock,
+      setOk: setOkMock,
+      noteTransientIssue: noteTransientIssueMock,
+    })),
+  },
+}));
+
+const addToastMock = vi.fn();
+vi.mock("../state/toastStore", () => ({
+  useToastStore: {
+    getState: vi.fn(() => ({
+      addToast: addToastMock,
+    })),
+  },
+}));
+
 // Now we can import after mocks are in place
 import { apiClient } from "../api/client";
 import { useEventSource } from "./useEventSource";
@@ -66,15 +103,15 @@ describe("useSessionState", () => {
     (apiClient.stopSession as any).mockResolvedValue(INITIAL_STATUS);
   });
 
-  it("should initialize with status from store and no error", () => {
+  it("should initialize with status from store", () => {
     const { result } = renderHook(() => useSessionState());
 
     expect(result.current.status).toEqual(INITIAL_STATUS);
-    expect(result.current.error).toBe(null);
     expect(result.current.connectionStatus).toBe("open");
+    expect((result.current as any).error).toBeUndefined();
   });
 
-  it("getStatus should call apiClient and set status on success", async () => {
+  it("getStatus should run through runWithBackoff and set status on success", async () => {
     const newStatus: SessionStatus = { running: true, ready: true, graceful: null };
     const setStatusMock = vi.fn();
 
@@ -92,22 +129,12 @@ describe("useSessionState", () => {
 
     renderHook(() => useSessionState());
 
-    // Wait for effect to settle
     await vi.waitFor(() => {
-      expect(apiClient.getStatus).toHaveBeenCalled();
+      expect(runWithBackoffMock).toHaveBeenCalledWith(expect.any(Function), setStatusMock);
     });
 
-    expect(setStatusMock).toHaveBeenCalledWith(newStatus);
-  });
-
-  it("getStatus should set error string on failure", async () => {
-    const errorMessage = "Network error";
-    (apiClient.getStatus as any).mockRejectedValueOnce(new Error(errorMessage));
-
-    const { result } = renderHook(() => useSessionState());
-
     await vi.waitFor(() => {
-      expect(result.current.error).toBe(errorMessage);
+      expect(setStatusMock).toHaveBeenCalledWith(newStatus);
     });
   });
 
@@ -134,8 +161,7 @@ describe("useSessionState", () => {
     expect(setStatusMock).toHaveBeenCalledWith({ running: true, ready: false, graceful: null });
   });
 
-  it("start should rollback state on failure", async () => {
-    const errorMessage = "Start failed";
+  it("start should rollback state and call setDown on a banner-classified failure (500)", async () => {
     const previousStatus: SessionStatus = { running: false, ready: false, graceful: null };
     const setStatusMock = vi.fn();
 
@@ -149,7 +175,8 @@ describe("useSessionState", () => {
       return selector(store);
     });
 
-    (apiClient.startSession as any).mockRejectedValueOnce(new Error(errorMessage));
+    const error = Object.assign(new Error("Request failed: 500"), { status: 500 });
+    (apiClient.startSession as any).mockRejectedValueOnce(error);
 
     const { result } = renderHook(() => useSessionState());
 
@@ -159,41 +186,16 @@ describe("useSessionState", () => {
 
     // Should first set optimistic state
     expect(setStatusMock).toHaveBeenCalledWith({ running: true, ready: false, graceful: null });
-
     // Should then rollback to previous state
     expect(setStatusMock).toHaveBeenCalledWith(previousStatus);
-
-    // Should set error message
-    expect(result.current.error).toBe(errorMessage);
+    // Banner-classified error escalates to the connection store, not a toast
+    expect(setDownMock).toHaveBeenCalledWith(expect.any(String), undefined, expect.any(Function));
+    expect(addToastMock).not.toHaveBeenCalled();
   });
 
-  it("stop should call apiClient and surface errors", async () => {
-    const errorMessage = "Stop failed";
-    (apiClient.stopSession as any).mockRejectedValueOnce(new Error(errorMessage));
-
-    const { result } = renderHook(() => useSessionState());
-
-    await act(async () => {
-      await result.current.stop();
-    });
-
-    expect(result.current.error).toBe(errorMessage);
-  });
-
-  it("stop should clear error on success", async () => {
-    (apiClient.stopSession as any).mockResolvedValueOnce({});
-
-    const { result } = renderHook(() => useSessionState());
-
-    await act(async () => {
-      await result.current.stop();
-    });
-
-    expect(result.current.error).toBe(null);
-  });
-
-  it("start should clear error before attempting", async () => {
-    (apiClient.startSession as any).mockResolvedValueOnce({});
+  it("start should toast on a 4xx failure with no server body (fallback message)", async () => {
+    const error = Object.assign(new Error("Request failed: 404"), { status: 404 });
+    (apiClient.startSession as any).mockRejectedValueOnce(error);
 
     const { result } = renderHook(() => useSessionState());
 
@@ -201,6 +203,33 @@ describe("useSessionState", () => {
       await result.current.start();
     });
 
-    expect(result.current.error).toBe(null);
+    expect(addToastMock).toHaveBeenCalledWith("Request failed: 404");
+    expect(setDownMock).not.toHaveBeenCalled();
+  });
+
+  it("stop should call setDown on a banner-classified failure", async () => {
+    const error = Object.assign(new Error("Request failed: 503"), { status: 503 });
+    (apiClient.stopSession as any).mockRejectedValueOnce(error);
+
+    const { result } = renderHook(() => useSessionState());
+
+    await act(async () => {
+      await result.current.stop();
+    });
+
+    expect(setDownMock).toHaveBeenCalledWith(expect.any(String), undefined, expect.any(Function));
+  });
+
+  it("stop should toast on a 4xx failure with a real server message", async () => {
+    const error = Object.assign(new Error("Session not found"), { status: 404 });
+    (apiClient.stopSession as any).mockRejectedValueOnce(error);
+
+    const { result } = renderHook(() => useSessionState());
+
+    await act(async () => {
+      await result.current.stop();
+    });
+
+    expect(addToastMock).toHaveBeenCalledWith("Session not found");
   });
 });

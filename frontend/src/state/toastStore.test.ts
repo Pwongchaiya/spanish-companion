@@ -32,4 +32,24 @@ describe("toastStore", () => {
     expect(toasts).toHaveLength(1);
     expect(toasts[0].message).toBe("keep me");
   });
+
+  it("addToast dedupes an identical message into one toast with a bumped count", () => {
+    useToastStore.getState().addToast("Couldn't load flagged errors: Request failed: 502");
+    useToastStore.getState().addToast("Couldn't load flagged errors: Request failed: 502");
+    useToastStore.getState().addToast("Couldn't load flagged errors: Request failed: 502");
+
+    const { toasts } = useToastStore.getState();
+    expect(toasts).toHaveLength(1);
+    expect(toasts[0].count).toBe(3);
+  });
+
+  it("addToast starts a fresh toast at count 1 for a different message", () => {
+    useToastStore.getState().addToast("first");
+    useToastStore.getState().addToast("second");
+
+    const { toasts } = useToastStore.getState();
+    expect(toasts).toHaveLength(2);
+    expect(toasts[0].count).toBe(1);
+    expect(toasts[1].count).toBe(1);
+  });
 });

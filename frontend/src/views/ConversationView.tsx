@@ -1,4 +1,6 @@
+import "./ConversationView.css";
 import { useSessionState } from "../hooks/useSessionState";
+import { useConnectionStore } from "../state/connectionStore";
 import type { TurnState } from "../api/types";
 
 const TURN_STATE_LABELS: Record<Exclude<TurnState, null>, string> = {
@@ -15,10 +17,11 @@ function stateLabel(running: boolean, ready: boolean, turnState: TurnState): str
 }
 
 export function ConversationView() {
-  const { status, transcript, turnState, connectionStatus, error, start, stop } = useSessionState();
-  // listening/idle share the "ready" (green) dot -- only thinking/speaking
-  // get their own color, per App.css.
-  const dotClass = !status.running
+  const { status, transcript, turnState, start, stop } = useSessionState();
+  const connectionOk = useConnectionStore((s) => s.phase === "ok");
+  // listening/idle share the "ready" ring state -- only thinking/speaking
+  // get their own state, per ring CSS below.
+  const ringState = !status.running
     ? "stopped"
     : !status.ready
       ? "warming"
@@ -28,12 +31,14 @@ export function ConversationView() {
 
   return (
     <div className="view">
-      {error && <p className="conn-error">{error}</p>}
-      <div className="status-row">
-        <span className={`status-dot ${dotClass}`} />
-        <span>{stateLabel(status.running, status.ready, turnState)}</span>
-        {connectionStatus === "error" && <span className="conn-error">connection lost</span>}
-        <button className="primary" onClick={status.running ? stop : start}>
+      <div className="breath">
+        <div className={`ring ${ringState}`} aria-hidden="true" />
+        <p className="status-label">{stateLabel(status.running, status.ready, turnState)}</p>
+        <button
+          className="primary conversation-toggle"
+          disabled={!connectionOk}
+          onClick={status.running ? stop : start}
+        >
           {status.running ? "Stop" : "Start"}
         </button>
       </div>

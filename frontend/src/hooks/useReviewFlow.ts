@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { apiClient } from "../api/client";
+import type { ApiClientError } from "../api/client";
 import type { Explanation, Flag, PracticeAttempt } from "../api/types";
 import { useToastStore } from "../state/toastStore";
+import { useConnectionStore } from "../state/connectionStore";
+import { classifyError } from "../api/errorClassification";
+import { runWithBackoff } from "./useBackoffRetry";
 
 export function useReviewFlow() {
   const [flags, setFlags] = useState<Flag[]>([]);
@@ -12,14 +16,23 @@ export function useReviewFlow() {
   const addToast = useToastStore((s) => s.addToast);
 
   useEffect(() => {
-    apiClient
-      .listFlags()
-      .then(setFlags)
-      .catch((e) => {
-        setError(e.message);
-        addToast(`Couldn't load flagged errors: ${e.message}`);
-      });
-  }, [addToast]);
+    return runWithBackoff(() => apiClient.listFlags(), setFlags);
+  }, []);
+
+  function handleCaughtError(e: unknown, retry: () => void) {
+    const treatment = classifyError(e as ApiClientError);
+    if (treatment.kind === "field") {
+      setError(treatment.message);
+    } else if (treatment.kind === "toast") {
+      addToast(treatment.message);
+    } else {
+      useConnectionStore.getState().setDown(
+        "Having trouble reaching the server.",
+        undefined,
+        retry,
+      );
+    }
+  }
 
   async function selectFlag(flagId: string) {
     setSelectedFlagId(flagId);
@@ -29,7 +42,7 @@ export function useReviewFlow() {
     try {
       setExplanation(await apiClient.explainFlag(flagId));
     } catch (e) {
-      setError((e as Error).message);
+      handleCaughtError(e, () => selectFlag(flagId));
     }
   }
 
@@ -38,11 +51,18 @@ export function useReviewFlow() {
     try {
       setAttempt(await apiClient.submitPractice(selectedFlagId, attemptText));
     } catch (e) {
-      setError((e as Error).message);
+      handleCaughtError(e, () => submitPractice(attemptText));
     }
+  }
+
+  function backToList() {
+    setSelectedFlagId(null);
+    setExplanation(null);
+    setAttempt(null);
+    setError(null);
   }
 
   const selectedFlag = flags.find((f) => f.id === selectedFlagId) ?? null;
 
-  return { flags, selectedFlag, explanation, attempt, error, selectFlag, submitPractice };
+  return { flags, selectedFlag, explanation, attempt, error, selectFlag, submitPractice, backToList };
 }

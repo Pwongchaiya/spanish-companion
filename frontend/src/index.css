@@ -1,18 +1,24 @@
-:root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Spectral:ital,wght@0,300;0,400;1,300&display=swap');
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
+:root {
+  /* Aliento palette — moss-biased grey, near-black ink, hairlines not cards */
+  --text: #8C948D;
+  --text-h: #15191A;
+  --bg: #F3F4F1;
+  --border: #DFE2DC;
+  --code-bg: #E9EBE6;
+  --accent: #4C6B55;
+  --accent-bg: rgba(76, 107, 85, 0.1);
+  --accent-border: rgba(76, 107, 85, 0.5);
+  --social-bg: rgba(223, 226, 220, 0.4);
+  --shadow: none;
+
+  /* Escalated connection-trouble accent only — never a fill, never body text. */
+  --ember: #8A4B34;
+
+  --sans: 'Instrument Sans', 'Helvetica Neue', system-ui, sans-serif;
+  --heading: var(--sans);
+  --serif: 'Spectral', Georgia, serif;
   --mono: ui-monospace, Consolas, monospace;
 
   font: 18px/145% var(--sans);
@@ -31,18 +37,19 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+  :root:not([data-theme="light"]) {
+    /* desaturated moss surface, not a straight palette inversion */
+    --text: #8A9089;
+    --text-h: #E9ECE6;
+    --bg: #141615;
+    --border: #2A2E2A;
+    --code-bg: #1D201D;
+    --accent: #7FA98C;
+    --accent-bg: rgba(127, 169, 140, 0.14);
+    --accent-border: rgba(127, 169, 140, 0.45);
+    --social-bg: rgba(42, 46, 42, 0.5);
+    --shadow: none;
+    --ember: #B56B4D;
   }
 
   #social .button-icon {
@@ -50,12 +57,42 @@
   }
 }
 
+/* Explicit user choice (data-theme, set by the header toggle) overrides
+   the OS preference in either direction. */
+:root[data-theme="dark"] {
+  --text: #8A9089;
+  --text-h: #E9ECE6;
+  --bg: #141615;
+  --border: #2A2E2A;
+  --code-bg: #1D201D;
+  --accent: #7FA98C;
+  --accent-bg: rgba(127, 169, 140, 0.14);
+  --accent-border: rgba(127, 169, 140, 0.45);
+  --social-bg: rgba(42, 46, 42, 0.5);
+  --shadow: none;
+  --ember: #B56B4D;
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --text: #8C948D;
+  --text-h: #15191A;
+  --bg: #F3F4F1;
+  --border: #DFE2DC;
+  --code-bg: #E9EBE6;
+  --accent: #4C6B55;
+  --accent-bg: rgba(76, 107, 85, 0.1);
+  --accent-border: rgba(76, 107, 85, 0.5);
+  --social-bg: rgba(223, 226, 220, 0.4);
+  --shadow: none;
+  --ember: #8A4B34;
+  color-scheme: light;
+}
+
+/* View-level concern: each view centers its own ~600px column inside this
+   full-width shell (see Aliento mockups' .stage { max-width: 600px } ). */
 #root {
-  width: 1126px;
   max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
   min-height: 100svh;
   display: flex;
   flex-direction: column;
@@ -74,21 +111,20 @@ h2 {
 }
 
 h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
+  font-size: 32px;
+  letter-spacing: -0.5px;
+  margin: 0;
   @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
+    font-size: 24px;
   }
 }
 h2 {
-  font-size: 24px;
+  font-size: 20px;
   line-height: 118%;
   letter-spacing: -0.24px;
   margin: 0 0 8px;
   @media (max-width: 1024px) {
-    font-size: 20px;
+    font-size: 18px;
   }
 }
 p {

@@ -1,0 +1,289 @@
+/* Aliento — hairline rows, no cards. Ring sits still here (no live status
+   to breathe with) then closes around a check once an attempt is logged. */
+
+.live {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+
+.ring {
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  display: grid;
+  place-items: center;
+  position: relative;
+  color: var(--accent);
+}
+
+.ring::before {
+  content: "";
+  position: absolute;
+  inset: 9px;
+  border-radius: 50%;
+  border: 1px solid var(--accent);
+  opacity: 0.34;
+}
+
+.ring i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: block;
+}
+
+.ring.closed::before {
+  opacity: 0.62;
+}
+
+.live .st {
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+/* --- flag list: hairline-divided rows, not cards --- */
+.flags {
+  display: flex;
+  flex-direction: column;
+}
+
+.flag {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+  border: none;
+  border-top: 1px solid var(--border);
+  padding: 17px 2px 16px;
+}
+
+.flag:last-child {
+  border-bottom: 1px solid var(--border);
+}
+
+.flag .pair {
+  font-family: var(--serif);
+  font-size: 19px;
+  font-weight: 300;
+  line-height: 1.4;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.flag .was {
+  color: var(--text);
+  box-shadow: inset 0 -1px 0 var(--accent-border);
+}
+
+.flag .to {
+  color: var(--text);
+  font-size: 14px;
+  font-family: var(--sans);
+}
+
+.flag .now {
+  color: var(--text-h);
+}
+
+.flag .cat {
+  display: block;
+  margin-top: 7px;
+  font-size: 10.5px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.flag:hover .now {
+  box-shadow: inset 0 -1px 0 var(--accent);
+}
+
+.flag:hover .cat {
+  color: var(--text-h);
+}
+
+.flag:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* --- detail: kicker + pair heading, explanation, citation, practice --- */
+.kicker {
+  font-size: 10.5px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text);
+  margin: 0 0 9px;
+}
+
+.pair-hd {
+  font-family: var(--serif);
+  font-weight: 300;
+  font-size: 26px;
+  line-height: 1.32;
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 11px;
+  flex-wrap: wrap;
+}
+
+.pair-hd .was {
+  color: var(--text);
+  box-shadow: inset 0 -1px 0 var(--accent-border);
+}
+
+.pair-hd .to {
+  font-size: 15px;
+  color: var(--text);
+  font-family: var(--sans);
+}
+
+.pair-hd .now {
+  color: var(--text-h);
+}
+
+.looking {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 18px;
+  color: var(--text);
+}
+
+.explain p {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 18px;
+  font-weight: 300;
+  line-height: 1.68;
+  max-width: 46ch;
+  color: var(--text-h);
+}
+
+.source {
+  margin-top: 22px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.source .lbl {
+  font-size: 10.5px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.source a {
+  font-size: 13.5px;
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+  word-break: break-word;
+  align-self: flex-start;
+}
+
+.source a:hover,
+.source a:focus-visible {
+  color: var(--text-h);
+  text-decoration-color: var(--accent);
+}
+
+.practice {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.practice label {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 16px;
+  color: var(--text);
+}
+
+.practice input {
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: 300;
+  color: var(--text-h);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--accent);
+  padding: 0 0 8px;
+  width: 100%;
+}
+
+.practice input::placeholder {
+  color: var(--text);
+  font-style: italic;
+}
+
+.practice input:focus-visible {
+  outline: none;
+  border-bottom-width: 2px;
+  box-shadow: 0 1px 0 0 var(--accent);
+}
+
+.practice button.primary {
+  align-self: flex-start;
+}
+
+.practice button.primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* --- logged: quoted attempt, no score --- */
+.logged {
+  font-family: var(--serif);
+  font-size: 19px;
+  font-weight: 300;
+  line-height: 1.55;
+  color: var(--text-h);
+  margin: 0;
+  max-width: 44ch;
+}
+
+.logged q {
+  color: var(--text);
+  font-style: italic;
+}
+
+.back-link {
+  align-self: flex-start;
+  margin-top: 4px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text);
+  padding: 4px 0;
+}
+
+.back-link:hover,
+.back-link:focus-visible {
+  color: var(--text-h);
+}
+
+.back-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
