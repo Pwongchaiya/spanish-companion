@@ -11,12 +11,14 @@ mechanism was confirmed broken via isolated repro, 2026-08-29 (see
 api/brokers/bot_process/bot_process_broker.py's module docstring).
 
 Wave 8 six-layer migration (hand-written, no agent, per CLAUDE.md): this
-Orchestration service now coordinates 6 Foundation dependencies —
-SttService, PromptService, SessionLogService, LiveTranscriptService,
-FlagService, and TurnStateService (added post-Wave-8, see
-decisions/tri-nature-gate-design.md's follow-up 2) — replacing what used
-to be inline pipecat/Azure construction and free-function file I/O
-directly in this class. LLM and TTS remain bare pipecat service objects,
+Orchestration service coordinates PromptService, SessionLogService,
+LiveTranscriptService, FlagService, and TurnStateService (added
+post-Wave-8, see decisions/tri-nature-gate-design.md's follow-up 2) —
+replacing what used to be inline pipecat/Azure construction and
+free-function file I/O directly in this class. STT is taken as a bare
+SttBroker: W3 of the architecture conformance audit (M5) deleted the
+pure-pass-through SttService that used to front it. LLM and TTS remain
+bare pipecat service objects,
 unwrapped, per the architecture decision record (only STT's fragile
 private-API override warranted its own broker — see
 api/brokers/stt/i_stt_broker.py). Zero behavior change from the Wave 8
@@ -93,6 +95,7 @@ from pipecat.workers.runner import WorkerRunner
 
 from api.brokers.configuration import ConfigurationBroker, EnvConfigurationBroker
 from api.brokers.logging import LoggingBroker, StdlibLoggingBroker
+from api.brokers.stt import SttBroker
 from api.models.flag import Flag
 from api.models.flag.exceptions import FlagDependencyException, FlagServiceException
 from api.models.voice_conversation.exceptions import VoiceConversationPipelineError
@@ -100,7 +103,6 @@ from api.services.foundations.flag import IFlagService
 from api.services.foundations.live_transcript import ILiveTranscriptService
 from api.services.foundations.prompt import IPromptService
 from api.services.foundations.session_log import ISessionLogService
-from api.services.foundations.stt import ISttService
 from api.services.foundations.turn_state import ITurnStateService
 from api.services.orchestrations.voice_conversation._mic_gate import _MicGate
 from api.services.orchestrations.voice_conversation._turn_state_observer import _TurnStateObserver
@@ -162,9 +164,13 @@ class _ConversationOrchestratorBase:
 
     Pipecat's own LLM/TTS service objects are this feature's Broker layer
     (per the architecture decision record — not re-wrapped); STT is wrapped
-    (SttService) because of its fragile private-API override. FlagService,
-    PromptService, SessionLogService, and LiveTranscriptService are the
-    other four Foundation-tier dependencies.
+    (SttBroker) because of its fragile private-API override, and injected
+    here directly -- W3 of the architecture conformance audit deleted the
+    pass-through SttService that used to sit in front of it, and this
+    Orchestration service already takes LoggingBroker/ConfigurationBroker
+    directly, so a direct broker dependency is the established shape.
+    FlagService, PromptService, SessionLogService, and LiveTranscriptService
+    are the Foundation-tier dependencies.
 
     run() delegates its setup phase to a private _setup() method through
     _try_catch (defined in the Exceptions mixin), mirroring Session
@@ -174,7 +180,7 @@ class _ConversationOrchestratorBase:
 
     def __init__(
         self,
-        stt_service: ISttService,
+        stt_broker: SttBroker,
         prompt_service: IPromptService,
         session_log_service: ISessionLogService,
         live_transcript_service: ILiveTranscriptService,
@@ -183,7 +189,7 @@ class _ConversationOrchestratorBase:
         logging_broker: LoggingBroker = StdlibLoggingBroker(),
         configuration_broker: ConfigurationBroker = EnvConfigurationBroker(),
     ) -> None:
-        self._stt_service = stt_service
+        self._stt_broker = stt_broker
         self._prompt_service = prompt_service
         self._session_log_service = session_log_service
         self._live_transcript_service = live_transcript_service
@@ -262,7 +268,7 @@ class _ConversationOrchestratorBase:
             LocalAudioTransportParams(audio_in_enabled=True, audio_out_enabled=True)
         )
 
-        stt = self._stt_service.create()
+        stt = self._stt_broker.create()
 
         tts = AzureTTSService(
             api_key=self._configuration_broker.require("AZURE_SPEECH_KEY"),
