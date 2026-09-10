@@ -101,6 +101,10 @@ from api.brokers.session_log import SessionLogBroker
 from api.brokers.stt import SttBroker
 from api.models.flag import Flag
 from api.models.flag.exceptions import FlagDependencyException, FlagServiceException
+from api.models.live_transcript.exceptions import (
+    LiveTranscriptDependencyException,
+    LiveTranscriptServiceException,
+)
 from api.models.voice_conversation.exceptions import VoiceConversationPipelineError
 from api.services.foundations.flag import IFlagService
 from api.services.foundations.live_transcript import ILiveTranscriptService
@@ -453,7 +457,16 @@ class _ConversationOrchestratorBase:
             ]
 
             for turn in current_turns[written_turn_count:]:
-                self._live_transcript_service.append(turn["role"], _message_text(turn["content"]))
+                try:
+                    self._live_transcript_service.append(turn["role"], _message_text(turn["content"]))
+                except (LiveTranscriptDependencyException, LiveTranscriptServiceException) as e:
+                    # Same treatment as the flag save below: this background
+                    # task must keep polling. Before W3 the broker's OSError
+                    # escaped raw and killed the task silently, taking the
+                    # periodic flag re-save with it -- the exact data loss the
+                    # docstring below says this task exists to prevent.
+                    self._logging_broker.log_error(e)
+                    break
                 written_turn_count += 1
 
             try:

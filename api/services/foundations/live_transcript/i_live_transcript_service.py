@@ -13,9 +13,21 @@ class ILiveTranscriptService(Protocol):
 
     def clear(self) -> None:
         """Truncate the live transcript file at the start of a new
-        session -- a prior run's transcript must not bleed into this one."""
+        session -- a prior run's transcript must not bleed into this one.
+
+        Raises LiveTranscriptDependencyException (wrapping
+        LiveTranscriptUnavailableError) if the underlying SessionLogBroker
+        call fails.
+        Raises LiveTranscriptServiceException for any other unexpected failure.
+        """
         ...
 
     def append(self, role: str, text: str) -> None:
-        """Append one conversation turn to the live transcript file."""
+        """Append one conversation turn to the live transcript file.
+
+        Raises LiveTranscriptDependencyException (wrapping
+        LiveTranscriptUnavailableError) if the underlying SessionLogBroker
+        call fails.
+        Raises LiveTranscriptServiceException for any other unexpected failure.
+        """
         ...
