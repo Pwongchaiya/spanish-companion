@@ -7,25 +7,27 @@ Anything else falls through the final `except Exception` safety net
 (Exeptions.cs:77-85), matching the reference project's "nothing escapes
 this service unwrapped" guarantee.
 
-Two wrapper tiers, one fewer than Review's three, because Retrieval has no
-validation-shaped failure to carry:
+Three wrapper tiers, matching Review's:
 
-1. No Validation tier (Exeptions.cs:25-28 / CreateAndLogValidationException,
-   Exeptions.cs:88-98). retrieve()'s only input checks -- blank query and
-   top_k < 1 -- raise a bare ValueError from *outside* _try_catch, so they
-   propagate completely raw. Review only ever passes a validated
-   flag.corrected and the module-level RETRIEVAL_TOP_K, so a ValueError from
-   there is a programming error, not an expected condition. This is the same
-   call that api/services/review/review_service_exceptions.py already made
-   about this exact ValueError; the rebuild preserves it verbatim rather
-   than inventing a Validation tier for it.
+1. Validation (Exeptions.cs:25-28 / CreateAndLogValidationException,
+   Exeptions.cs:88-98). retrieve()'s two input checks -- blank query and
+   top_k < 1 -- raise RetrievalValidationError from
+   retrieval_service_validations.py, now called from *inside* _try_catch.
+   Until H5 of the architecture conformance audit they raised a bare
+   ValueError from outside it, on the argument that Review only ever passes
+   a validated flag.corrected and the module-level RETRIEVAL_TOP_K so a bad
+   input was a programming error. The untyped exception still had to land
+   somewhere, and it landed in Review's catch-all and then an unmapped HTTP
+   500 -- a 400 dressed as a server fault. Both this file and
+   api/services/orchestrations/review/review_service_exceptions.py made that
+   call; both were corrected together.
 2. No DependencyValidation tier (Exeptions.cs:29-52 /
    CreateAndLogDependencyValidationException, Exeptions.cs:100-110). The
    Foundation-tier dependency exceptions caught below are infrastructure
    outages, not rejected inputs, so nothing validation-shaped would ever
    reach that tier. The Foundation services' *Validation* exceptions are
    deliberately NOT caught by name either: this service only ever passes a
-   non-blank query (guarded above _try_catch) and a top_k >= 1 down, so a
+   non-blank query and a top_k >= 1 down (guarded by tier 1 above), so a
    validation exception from beneath is a programming error and falls to
    the Service-tier safety net.
 
@@ -41,6 +43,8 @@ from rag.models.embedding_model.exceptions import EmbeddingModelDependencyExcept
 from rag.models.retrieval.exceptions import (
     RetrievalOrchestrationDependencyException,
     RetrievalOrchestrationServiceException,
+    RetrievalOrchestrationValidationException,
+    RetrievalValidationError,
 )
 
 T = TypeVar("T")
@@ -55,10 +59,26 @@ class HybridRetrievalServiceExceptions:
         # (Exeptions.cs:17-19).
         try:
             return fn()
+        except RetrievalValidationError as e:
+            raise self._create_and_log_validation_exception(e) from e
         except (EmbeddingModelDependencyException, ChunkRepositoryDependencyException) as e:
             raise self._create_and_log_dependency_exception(e) from e
         except Exception as e:
             raise self._create_and_log_service_exception(e) from e
+
+    def _create_and_log_validation_exception(
+        self, exception: Exception
+    ) -> RetrievalOrchestrationValidationException:
+        """Mirrors CreateAndLogValidationException, Exeptions.cs:88-98.
+
+        What arrives here is the RetrievalValidationError leaf itself, not a
+        wrapper from a service beneath -- these checks are this service's own
+        input validation. The leaf therefore sits one level in, at
+        `.inner_exception`, where the dependency tier's sits two.
+        """
+        validation_exception = RetrievalOrchestrationValidationException(inner_exception=exception)
+        self._logging_broker.log_error(validation_exception)
+        return validation_exception
 
     def _create_and_log_dependency_exception(
         self, exception: Exception

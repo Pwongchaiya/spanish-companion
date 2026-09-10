@@ -28,8 +28,11 @@ class ReviewService(Protocol):
     def list_flags(self) -> List[Flag]:
         """The current flag list, for the flagged-list -> selection step.
 
-        Raises nothing: FlagService.list_flags() returns [] for a missing or
-        corrupt file, and "no flags yet" is a normal state.
+        Returns [] for a missing or corrupt flag file -- "no flags yet" is a
+        normal state, not an error. Raises ReviewOrchestrationServiceException
+        for any genuine broker failure behind it (an unreadable file, a
+        permission error); it does not raise a validation exception, having no
+        input to validate.
         """
         ...
 
@@ -42,6 +45,10 @@ class ReviewService(Protocol):
         RetrievalOrchestrationDependencyException, which itself holds
         RetrievalUnavailableError) if retrieval is unreachable, or
         ReviewOrchestrationServiceException for anything else.
+
+        Also raises ReviewOrchestrationValidationException wrapping
+        RetrievalOrchestrationValidationException if the flag's corrected text
+        is unusable as a retrieval query.
         """
         ...
 

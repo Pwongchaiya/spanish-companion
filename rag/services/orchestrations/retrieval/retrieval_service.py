@@ -22,11 +22,12 @@ EntitlementCodesOrchestrationService.Exeptions.cs into one class, the same
 multi-inheritance-merge already used for Session Lifecycle and Review in
 this codebase.
 
-There is deliberately NO retrieval_service_validations.py sibling to the
-reference's EntitlementCodesOrchestrationService.Validations.cs. Retrieval's
-only input checks raise a bare ValueError and are intentionally left
-unwrapped and inline (see _validate-free guards in retrieve() below), so
-there is no named validation method for such a file to hold.
+Input checks live in retrieval_service_validations.py, mirroring the
+reference's EntitlementCodesOrchestrationService.Validations.cs. They used to
+be inline in retrieve() and raise a bare ValueError from outside _try_catch;
+H5 of the architecture conformance audit replaced that with the typed
+RetrievalValidationError leaf, wrapped like every other failure this service
+can produce.
 """
 
 from typing import List, Optional, Sequence
@@ -97,26 +98,23 @@ class _HybridRetrievalServiceBase:
             calling Generation.
 
         Raises:
-            ValueError: blank query, or top_k < 1. Raised *before* _try_catch
-                is entered, so it propagates completely raw — see
-                retrieval_service_exceptions.py's module docstring.
+            RetrievalOrchestrationValidationException: wrapping
+                RetrievalValidationError — blank query, or top_k < 1.
             RetrievalOrchestrationDependencyException: wrapping
                 EmbeddingModelDependencyException or
                 ChunkRepositoryDependencyException — the Foundation service
                 beneath reported its broker unreachable.
             RetrievalOrchestrationServiceException: anything else.
         """
-        # Deliberately outside _try_catch: these two are programming errors at
-        # the call site, not conditions a caller handles. Kept inline rather
-        # than extracted into a named validation method, which is why there is
-        # no retrieval_service_validations.py mirroring
-        # EntitlementCodesOrchestrationService.Validations.cs.
-        if not query or not query.strip():
-            raise ValueError("query is required")
-        if top_k < 1:
-            raise ValueError(f"top_k must be at least 1, got {top_k}")
+        # Inside _try_catch, mirroring EntitlementCodesOrchestrationService.cs:36-65
+        # where ValidateEntitlementCodeInputOnRedeem is the first statement of
+        # the TryCatch delegate — so the leaf is wrapped and logged on its way
+        # out like every other failure here.
+        def _validated_retrieve() -> List[ScoredChunk]:
+            self._validate_retrieve_input(query, top_k)
+            return self._retrieve(query, top_k, category)
 
-        return self._try_catch(lambda: self._retrieve(query, top_k, category))
+        return self._try_catch(_validated_retrieve)
 
     def _retrieve(self, query: str, top_k: int, category: Optional[str]) -> List[ScoredChunk]:
         # Query text at DEBUG only (user speech); ids and counts at INFO.

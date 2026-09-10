@@ -19,6 +19,7 @@ from unittest.mock import Mock
 
 import pytest
 
+from rag.brokers.logging import LoggingBroker
 from rag.models.retrieval import ScoredChunk
 from rag.services.foundations.chunk_repository import IChunkRepositoryService
 from rag.services.foundations.embedding_model import IEmbeddingModelService
@@ -74,7 +75,12 @@ def mock_strategy():
 
 
 @pytest.fixture
-def service_factory(mock_embedding_model, mock_chunk_repository, mock_strategy):
+def mock_logging_broker():
+    return Mock(spec=LoggingBroker)
+
+
+@pytest.fixture
+def service_factory(mock_embedding_model, mock_chunk_repository, mock_strategy, mock_logging_broker):
     """Builds the service under test, defaulting every injectable stage.
 
     Fusion defaults to the real PassThroughRankFusion: it is a pure,
@@ -89,6 +95,7 @@ def service_factory(mock_embedding_model, mock_chunk_repository, mock_strategy):
             strategies=[mock_strategy] if strategies is None else strategies,
             fusion=PassThroughRankFusion() if fusion is None else fusion,
             filters=filters,
+            logging_broker=mock_logging_broker,
         )
 
     return build

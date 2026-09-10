@@ -19,6 +19,7 @@ from unittest.mock import Mock
 
 import pytest
 
+from api.brokers.logging import LoggingBroker
 from api.models.flag import Flag
 from api.services.foundations.flag import IFlagService
 from api.services.foundations.practice_log import IPracticeLogService
@@ -78,6 +79,11 @@ def mock_generation_service():
 
 
 @pytest.fixture
+def mock_logging_broker():
+    return Mock(spec=LoggingBroker)
+
+
+@pytest.fixture
 def clock():
     return FakeClock()
 
@@ -95,6 +101,7 @@ def service(
     mock_generation_service,
     clock,
     configuration_broker,
+    mock_logging_broker,
 ):
     return ReviewOrchestrator(
         flag_service=mock_flag_service,
@@ -103,6 +110,7 @@ def service(
         generation_service=mock_generation_service,
         clock=clock,
         configuration_broker=configuration_broker,
+        logging_broker=mock_logging_broker,
     )
 
 

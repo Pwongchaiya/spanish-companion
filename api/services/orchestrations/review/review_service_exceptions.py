@@ -12,10 +12,11 @@ Review has a genuine dependency-failure category that Session Lifecycle
 lacks: RetrievalOrchestrationDependencyException from
 HybridRetrievalService.retrieve().
 
-The validation tier catches the *wrappers* the Foundation services beneath
-raise -- FlagValidationException (holding NotFoundFlagException) and
-PracticeLogValidationException (holding InvalidPracticeAttemptException) --
-never their raw leaves, the same shape already used here for
+The validation tier catches the *wrappers* the services beneath raise --
+FlagValidationException (holding NotFoundFlagException),
+PracticeLogValidationException (holding InvalidPracticeAttemptException),
+and RetrievalOrchestrationValidationException (holding
+RetrievalValidationError) -- never their raw leaves, the same shape already used here for
 RetrievalOrchestrationDependencyException and one tier down in
 IngestionServiceExceptions. Consequence: those leaves now sit at
 `.inner_exception.inner_exception` on the ReviewOrchestrationValidationException,
@@ -34,11 +35,13 @@ Two cited omissions from the reference's tier set:
    GenerationService.explain() and replaced with a fallback string; it never
    propagates here.
 
-`retrieve()`'s other documented raise, a bare ValueError for blank query or
-top_k < 1, is deliberately left to the final `except Exception` catch-all
-rather than given its own tier: Review only ever passes it a validated
-flag.corrected and the module-level RETRIEVAL_TOP_K, so a ValueError from
-there is a programming error, not an expected condition.
+`retrieve()`'s blank-query / top_k < 1 rejection used to be a bare
+ValueError, deliberately left to the final `except Exception` catch-all on
+the argument that Review only ever passes a validated flag.corrected and the
+module-level RETRIEVAL_TOP_K. H5 of the architecture conformance audit
+overturned that: the catch-all made the route answer 500 for what is a 400.
+Retrieval now raises RetrievalOrchestrationValidationException and it is
+caught by name in the validation tier above.
 """
 
 from typing import Callable, TypeVar
@@ -51,7 +54,10 @@ from api.models.review.exceptions import (
     ReviewOrchestrationServiceException,
     ReviewOrchestrationValidationException,
 )
-from rag.models.retrieval.exceptions import RetrievalOrchestrationDependencyException
+from rag.models.retrieval.exceptions import (
+    RetrievalOrchestrationDependencyException,
+    RetrievalOrchestrationValidationException,
+)
 
 T = TypeVar("T")
 
@@ -69,6 +75,8 @@ class ReviewOrchestratorExceptions:
             raise self._create_and_log_validation_exception(e) from e
         except PracticeLogValidationException as e:
             raise self._create_and_log_validation_exception(e) from e
+        except RetrievalOrchestrationValidationException as e:
+            raise self._create_and_log_validation_exception(e) from e
         except RetrievalOrchestrationDependencyException as e:
             raise self._create_and_log_dependency_exception(e) from e
         except Exception as e:
@@ -80,9 +88,10 @@ class ReviewOrchestratorExceptions:
     ) -> ReviewOrchestrationValidationException:
         """Mirrors CreateAndLogValidationException, Exeptions.cs:88-98.
 
-        What arrives here is FlagValidationException or
-        PracticeLogValidationException -- the Foundation tier's own wrapper,
-        carried through whole rather than unwrapped (Exeptions.cs:117's
+        What arrives here is FlagValidationException,
+        PracticeLogValidationException, or
+        RetrievalOrchestrationValidationException -- the wrapper raised by
+        the service beneath, carried through whole rather than unwrapped (Exeptions.cs:117's
         divergence, the same call made below for the dependency tier). The
         leaf stays reachable as `.inner_exception.inner_exception`.
         """
