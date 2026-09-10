@@ -29,7 +29,6 @@ unwrapped and inline (see _validate-free guards in retrieve() below), so
 there is no named validation method for such a file to hold.
 """
 
-import logging
 from typing import List, Optional, Sequence
 
 from rag.brokers.logging import LoggingBroker, StdlibLoggingBroker
@@ -39,8 +38,6 @@ from rag.services.foundations.embedding_model import IEmbeddingModelService
 from rag.services.orchestrations.retrieval.strategies.dense import DenseVectorStrategy, RetrievalStrategy
 from rag.services.orchestrations.retrieval.strategies.filters import CategoryBoostFilter, ResultFilter
 from rag.services.orchestrations.retrieval.strategies.fusion import PassThroughRankFusion, RankFusionStrategy
-
-logger = logging.getLogger(__name__)
 
 
 class _HybridRetrievalServiceBase:
@@ -68,17 +65,21 @@ class _HybridRetrievalServiceBase:
         logging_broker: LoggingBroker = StdlibLoggingBroker(),
     ) -> None:
         self._embedding_model_service = embedding_model_service
+        # Mirrors the `ILoggingBroker loggingBroker` constructor parameter on
+        # EntitlementCodesOrchestrationService.cs:22-33.
+        self._logging_broker = logging_broker
         # Defaults are the whole MVP pipeline, so app.py wires two Foundation
         # services and is done — no caller has to assemble stages by hand to
         # get the behaviour everything currently expects.
         self._strategies: Sequence[RetrievalStrategy] = (
-            strategies if strategies is not None else [DenseVectorStrategy(chunk_repository_service)]
+            strategies
+            if strategies is not None
+            else [DenseVectorStrategy(chunk_repository_service, logging_broker=self._logging_broker)]
         )
-        self._fusion: RankFusionStrategy = fusion if fusion is not None else PassThroughRankFusion()
+        self._fusion: RankFusionStrategy = (
+            fusion if fusion is not None else PassThroughRankFusion(logging_broker=self._logging_broker)
+        )
         self._filters: Sequence[ResultFilter] = filters if filters is not None else []
-        # Mirrors the `ILoggingBroker loggingBroker` constructor parameter on
-        # EntitlementCodesOrchestrationService.cs:22-33.
-        self._logging_broker = logging_broker
 
     def retrieve(self, query: str, top_k: int, category: Optional[str] = None) -> List[ScoredChunk]:
         """Return up to top_k chunks grounding `query`, best-first.
@@ -119,7 +120,7 @@ class _HybridRetrievalServiceBase:
 
     def _retrieve(self, query: str, top_k: int, category: Optional[str]) -> List[ScoredChunk]:
         # Query text at DEBUG only (user speech); ids and counts at INFO.
-        logger.debug("retrieve query=%r top_k=%d category=%r", query, top_k, category)
+        self._logging_broker.log_debug("retrieve query=%r top_k=%d category=%r", query, top_k, category)
 
         # No try/except: EmbeddingModelService.embed() already raises its own
         # wrapped EmbeddingModelDependencyException, which _try_catch catches.
@@ -146,7 +147,7 @@ class _HybridRetrievalServiceBase:
         configured_model = self._embedding_model_service.model_name
         mismatched = [c for c in fused if c.embedding_model_version and c.embedding_model_version != configured_model]
         if mismatched:
-            logger.warning(
+            self._logging_broker.log_warning(
                 "embedding_model mismatch: configured=%r found_in_corpus=%s",
                 configured_model,
                 set(c.embedding_model_version for c in mismatched),
@@ -158,13 +159,13 @@ class _HybridRetrievalServiceBase:
         # stage carries request state between calls.
         pipeline: List[ResultFilter] = list(self._filters)
         if category is not None:
-            pipeline.append(CategoryBoostFilter(category))
+            pipeline.append(CategoryBoostFilter(category, logging_broker=self._logging_broker))
 
         for result_filter in pipeline:
             fused = result_filter.apply(fused)
 
         results = fused[:top_k]
-        logger.info(
+        self._logging_broker.log_info(
             "retrieve top_k=%d category=%r returned=%d ids=%s",
             top_k,
             category,

@@ -29,3 +29,15 @@ class LoggingBroker(Protocol):
     def log_error(self, exception: Exception) -> None:
         """Log `exception` at ERROR level with its traceback."""
         ...
+
+    def log_warning(self, message: str, *args: object) -> None:
+        """Log `message` at WARNING level, %-style lazy args."""
+        ...
+
+    def log_info(self, message: str, *args: object) -> None:
+        """Log `message` at INFO level, %-style lazy args."""
+        ...
+
+    def log_debug(self, message: str, *args: object) -> None:
+        """Log `message` at DEBUG level, %-style lazy args."""
+        ...

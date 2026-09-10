@@ -7,6 +7,11 @@ real collaborators, which would drag in Postgres, an embedding model and
 Gemini). datetime.now() is never read live: the clock is injected as a fake,
 test-controlled callable, same pattern as
 tests/unit/services/session_lifecycle/conftest.py.
+
+ConfigurationBroker is likewise faked (FakeConfigurationBroker) rather than
+reading real env vars -- the H1 audit finding removed RETRIEVAL_TOP_K as a
+module-level, import-time env read; tests get the same fixed, known value
+from this fake instead.
 """
 
 from datetime import datetime, timedelta
@@ -23,6 +28,20 @@ from rag.services.foundations.generation import GenerationService
 from rag.services.orchestrations.retrieval import HybridRetrievalService
 
 FIXED_NOW = datetime(2026, 1, 2, 3, 4, 5)
+RETRIEVAL_TOP_K = 3
+
+
+class FakeConfigurationBroker:
+    """Dict-backed ConfigurationBroker stub -- fixed, known config values."""
+
+    def __init__(self, values: dict) -> None:
+        self._values = values
+
+    def get(self, key: str, default: str | None = None) -> str | None:
+        return self._values.get(key, default)
+
+    def require(self, key: str) -> str:
+        return self._values[key]
 
 
 class FakeClock:
@@ -64,12 +83,18 @@ def clock():
 
 
 @pytest.fixture
+def configuration_broker():
+    return FakeConfigurationBroker({"RETRIEVAL_TOP_K": str(RETRIEVAL_TOP_K)})
+
+
+@pytest.fixture
 def service(
     mock_flag_service,
     mock_practice_log_service,
     mock_retrieval_service,
     mock_generation_service,
     clock,
+    configuration_broker,
 ):
     return ReviewOrchestrator(
         flag_service=mock_flag_service,
@@ -77,6 +102,7 @@ def service(
         retrieval_service=mock_retrieval_service,
         generation_service=mock_generation_service,
         clock=clock,
+        configuration_broker=configuration_broker,
     )
 
 

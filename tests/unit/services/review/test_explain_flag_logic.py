@@ -3,14 +3,14 @@ no-corpus-match fallback.
 
 See test_explain_flag_exceptions.py for the unknown-flag_id refusal.
 
-RETRIEVAL_TOP_K is asserted by reference to the module constant, never as a
-literal 3 -- it is read from env at import time, and hardcoding the default
-would make these tests silently disagree with the service.
+RETRIEVAL_TOP_K is asserted by reference to conftest's constant, never as a
+bare literal 3 -- it is the same value the `configuration_broker` fixture
+feeds the service, so tests and service can't silently drift apart.
 """
 
 from rag.models.generation import Explanation
 
-from api.services.orchestrations.review import RETRIEVAL_TOP_K
+from tests.unit.services.review.conftest import RETRIEVAL_TOP_K
 
 
 class TestReviewOrchestratorExplainFlag:

@@ -1,10 +1,5 @@
 from api.services.foundations.session_lifecycle.i_session_lifecycle_service import SessionLifecycleService
-from api.services.foundations.session_lifecycle.session_lifecycle_service import (
-    _ConversationSessionServiceBase,
-    GRACEFUL_TIMEOUT_SECONDS,
-    TERMINATE_TIMEOUT_SECONDS,
-    READY_WARMUP_SECONDS,
-)
+from api.services.foundations.session_lifecycle.session_lifecycle_service import _ConversationSessionServiceBase
 from api.services.foundations.session_lifecycle.session_lifecycle_service_validations import (
     ConversationSessionServiceValidations,
 )
@@ -27,7 +22,4 @@ class ConversationSessionService(
 __all__ = [
     "SessionLifecycleService",
     "ConversationSessionService",
-    "GRACEFUL_TIMEOUT_SECONDS",
-    "TERMINATE_TIMEOUT_SECONDS",
-    "READY_WARMUP_SECONDS",
 ]

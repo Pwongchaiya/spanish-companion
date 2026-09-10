@@ -17,3 +17,12 @@ class StdlibLoggingBroker:
 
     def log_error(self, exception: Exception) -> None:
         self._logger.error(str(exception), exc_info=exception)
+
+    def log_warning(self, message: str, *args: object) -> None:
+        self._logger.warning(message, *args)
+
+    def log_info(self, message: str, *args: object) -> None:
+        self._logger.info(message, *args)
+
+    def log_debug(self, message: str, *args: object) -> None:
+        self._logger.debug(message, *args)

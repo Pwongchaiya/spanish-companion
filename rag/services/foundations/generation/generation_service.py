@@ -34,7 +34,6 @@ and inventing one now would be new business logic, not a citation-driven
 restructuring.
 """
 
-import logging
 from pathlib import Path
 
 import rag
@@ -43,8 +42,6 @@ from rag.brokers.logging import LoggingBroker, StdlibLoggingBroker
 from rag.models.generation import Explanation
 from rag.models.retrieval import ScoredChunk
 from rag.services.foundations.generation.i_generation_service import FlagLike
-
-logger = logging.getLogger(__name__)
 
 # ponytail: plain read_text() at import time, no templating framework --
 # see GAP 2 above.
@@ -83,7 +80,7 @@ class _GenerationServiceBase:
             # failed" from Review's own "no corpus match" fallback (same string,
             # api/services/review.py) — without it the two failure modes are
             # indistinguishable from logs alone.
-            logger.info("generation failed, using fallback: %s", e)
+            self._logging_broker.log_info("generation failed, using fallback: %s", e)
             # Phase 1's exact fallback string, review/review.py:107 — preserve verbatim
             text = "I'm not certain on that one."
         return Explanation(explanation=text, source_url=chunk.source_url)

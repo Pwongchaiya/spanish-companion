@@ -1,5 +1,5 @@
 from api.services.orchestrations.review.i_review_service import ReviewService
-from api.services.orchestrations.review.review_service import _ReviewOrchestratorBase, RETRIEVAL_TOP_K
+from api.services.orchestrations.review.review_service import _ReviewOrchestratorBase
 from api.services.orchestrations.review.review_service_exceptions import ReviewOrchestratorExceptions
 
 
@@ -19,5 +19,4 @@ class ReviewOrchestrator(
 __all__ = [
     "ReviewService",
     "ReviewOrchestrator",
-    "RETRIEVAL_TOP_K",
 ]

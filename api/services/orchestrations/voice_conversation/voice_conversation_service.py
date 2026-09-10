@@ -67,14 +67,10 @@ module-level flag-parsing functions it directly uses.
 
 import asyncio
 import json
-import os
 import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Tuple
-
-from dotenv import load_dotenv
-from loguru import logger
 
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.audio.vad.vad_analyzer import VADParams
@@ -95,6 +91,7 @@ from pipecat.transports.local.audio import LocalAudioTransport, LocalAudioTransp
 from pipecat.turns.user_mute import AlwaysUserMuteStrategy
 from pipecat.workers.runner import WorkerRunner
 
+from api.brokers.configuration import ConfigurationBroker, EnvConfigurationBroker
 from api.brokers.logging import LoggingBroker, StdlibLoggingBroker
 from api.models.flag import Flag
 from api.models.flag.exceptions import FlagDependencyException, FlagServiceException
@@ -108,20 +105,12 @@ from api.services.foundations.turn_state import ITurnStateService
 from api.services.orchestrations.voice_conversation._mic_gate import _MicGate
 from api.services.orchestrations.voice_conversation._turn_state_observer import _TurnStateObserver
 
-load_dotenv()
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 FLAG_START = "<flag>"
 FLAG_END = "</flag>"
 FLAG_TYPE = "error_flag"
 FLAG_KEYS = ("said", "corrected", "category")
-
-# ponytail: same os.getenv-at-import-time pattern as every other Phase 2
-# module. Voice Conversation's own stop-signal file is out of this wave's
-# 3-broker scope (Stt/SessionLog/Prompt) -- single-purpose, already simple,
-# not worth a 4th broker.
-STOP_SIGNAL_FILE_PATH = Path(os.getenv("STOP_SIGNAL_FILE_PATH", str(REPO_ROOT / "data" / "stop_signal")))
 
 
 # ponytail: flag emission is prompt-compliance-only, no API-level guarantee.
@@ -148,17 +137,21 @@ def _message_text(content) -> str:
     return str(content)
 
 
-def parse_flag(content: str) -> Optional[dict]:
-    """Parse one <flag> block's JSON payload. Returns None (and warns) if the
-    model emitted something unparseable — a dropped flag is fine, a crashed
-    voice loop is not."""
+def parse_flag(content: str, logging_broker: LoggingBroker) -> Optional[dict]:
+    """Parse one <flag> block's JSON payload. Returns None (and warns via
+    `logging_broker`) if the model emitted something unparseable — a dropped
+    flag is fine, a crashed voice loop is not.
+
+    `logging_broker` is a plain parameter (not `self._logging_broker`) --
+    this is a free function, not a method; its one caller (on_error_flag,
+    nested inside _setup()) passes the instance's injected broker through."""
     try:
         flag = json.loads(content)
     except json.JSONDecodeError:
-        logger.warning(f"Dropped unparseable error flag: {content!r}")
+        logging_broker.log_warning("Dropped unparseable error flag: %r", content)
         return None
     if not isinstance(flag, dict) or not all(isinstance(flag.get(key), str) for key in FLAG_KEYS):
-        logger.warning(f"Dropped malformed error flag: {content!r}")
+        logging_broker.log_warning("Dropped malformed error flag: %r", content)
         return None
     return {key: flag[key] for key in FLAG_KEYS}
 
@@ -188,6 +181,7 @@ class _ConversationOrchestratorBase:
         flag_service: IFlagService,
         turn_state_service: ITurnStateService,
         logging_broker: LoggingBroker = StdlibLoggingBroker(),
+        configuration_broker: ConfigurationBroker = EnvConfigurationBroker(),
     ) -> None:
         self._stt_service = stt_service
         self._prompt_service = prompt_service
@@ -199,6 +193,7 @@ class _ConversationOrchestratorBase:
         # ConversationSessionService/_ReviewOrchestratorBase -- _create_and_log_*
         # methods (Exceptions mixin) log through it before raising.
         self._logging_broker = logging_broker
+        self._configuration_broker = configuration_broker
         self._setup_timed_out = False
 
     async def run(self) -> None:
@@ -216,7 +211,7 @@ class _ConversationOrchestratorBase:
         # usage (start, talk, then stop) — accepted rather than wrapping all of
         # run()'s setup in try/finally too, which risks touching already-verified
         # code for a startup race a real user is unlikely to hit.
-        logger.info("Voice loop starting — talk into your mic. Ctrl+C to stop.")
+        self._logging_broker.log_info("Voice loop starting — talk into your mic. Ctrl+C to stop.")
         try:
             await runner.run()
         finally:
@@ -226,11 +221,11 @@ class _ConversationOrchestratorBase:
             turns = self._extract_turns(context)
             log_path = self._session_log_service.save(turns, session_flags)
             if log_path:
-                logger.info(f"Session log saved to {log_path}")
+                self._logging_broker.log_info(f"Session log saved to {log_path}")
             try:
                 self._flag_service.save_flags(session_flags)
             except (FlagDependencyException, FlagServiceException) as e:
-                logger.error(f"Failed to persist flags at session end: {e}")
+                self._logging_broker.log_error(e)
 
         if self._setup_timed_out:
             raise VoiceConversationPipelineError(
@@ -246,11 +241,11 @@ class _ConversationOrchestratorBase:
         and its cleanup. Routed through _try_catch (Exceptions mixin) --
         the only phase this feature wraps, same scope the old inline
         try/except covered before this move."""
-        gemini_model = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
+        gemini_model = self._configuration_broker.get("GEMINI_MODEL", "gemini-flash-lite-latest")
         # Multilingual voice — speaks both the Spanish phrases and the English
         # explanations naturally, instead of an English accent on a Spanish-only voice.
-        azure_voice = os.getenv("AZURE_TTS_VOICE", "es-ES-XimenaMultilingualNeural")
-        audio_out_sample_rate = int(os.getenv("AUDIO_OUT_SAMPLE_RATE", "24000"))
+        azure_voice = self._configuration_broker.get("AZURE_TTS_VOICE", "es-ES-XimenaMultilingualNeural")
+        audio_out_sample_rate = int(self._configuration_broker.get("AUDIO_OUT_SAMPLE_RATE", "24000"))
         # ponytail: hardware calibration knob, not a code fix. Silero VAD's
         # stock default (0.2s) doesn't survive background noise -- brief
         # noise spikes above the confidence threshold keep resetting the
@@ -261,7 +256,7 @@ class _ConversationOrchestratorBase:
         # value -- retune against your own mic/room via VAD_STOP_SECS if
         # turns still hang, or if legitimate mid-sentence pauses start
         # getting cut off.
-        vad_stop_secs = float(os.getenv("VAD_STOP_SECS", "0.5"))
+        vad_stop_secs = float(self._configuration_broker.get("VAD_STOP_SECS", "0.5"))
 
         transport = LocalAudioTransport(
             LocalAudioTransportParams(audio_in_enabled=True, audio_out_enabled=True)
@@ -270,13 +265,13 @@ class _ConversationOrchestratorBase:
         stt = self._stt_service.create()
 
         tts = AzureTTSService(
-            api_key=os.environ["AZURE_SPEECH_KEY"],
-            region=os.environ["AZURE_SPEECH_REGION"],
+            api_key=self._configuration_broker.require("AZURE_SPEECH_KEY"),
+            region=self._configuration_broker.require("AZURE_SPEECH_REGION"),
             settings=AzureTTSService.Settings(voice=azure_voice, language=Language.ES_ES),
         )
 
         llm = GoogleLLMService(
-            api_key=os.environ["GEMINI_API_KEY"],
+            api_key=self._configuration_broker.require("GEMINI_API_KEY"),
             settings=GoogleLLMService.Settings(
                 model=gemini_model,
                 system_instruction=self._prompt_service.get_system_prompt(),
@@ -314,7 +309,7 @@ class _ConversationOrchestratorBase:
         )
 
         async def on_error_flag(match: PatternMatch) -> None:
-            parsed = parse_flag(match.text)
+            parsed = parse_flag(match.text, self._logging_broker)
             if parsed is None:
                 return
             flag = Flag(
@@ -325,7 +320,7 @@ class _ConversationOrchestratorBase:
                 timestamp=datetime.now(),
             )
             session_flags.append(flag)
-            logger.info(f"FLAG {flag.category}: {flag.said!r} -> {flag.corrected!r}")
+            self._logging_broker.log_info(f"FLAG {flag.category}: {flag.said!r} -> {flag.corrected!r}")
 
         flag_aggregator.on_pattern_match(FLAG_TYPE, on_error_flag)
 
@@ -333,9 +328,18 @@ class _ConversationOrchestratorBase:
         self._live_transcript_service.clear()
         self._turn_state_service.set("listening")
 
+        # Voice Conversation's own stop-signal file is out of the 3-broker
+        # scope (Stt/SessionLog/Prompt) -- single-purpose, already simple,
+        # not worth a 4th broker. Stashed on self (not a local) so
+        # _watch_for_stop_signal, a separate method run as a background
+        # task, reads the same path _setup() resolved.
+        self._stop_signal_file_path = Path(
+            self._configuration_broker.get("STOP_SIGNAL_FILE_PATH", str(REPO_ROOT / "data" / "stop_signal"))
+        )
+
         # Clear any stale stop-flag file left by a prior hard-killed run —
         # otherwise this run would see it and end immediately.
-        STOP_SIGNAL_FILE_PATH.unlink(missing_ok=True)
+        self._stop_signal_file_path.unlink(missing_ok=True)
 
         pipeline = Pipeline(
             [
@@ -408,8 +412,8 @@ class _ConversationOrchestratorBase:
         module docstring. A polled file has no such platform dependency."""
         while True:
             await asyncio.sleep(1.0)
-            if STOP_SIGNAL_FILE_PATH.exists():
-                STOP_SIGNAL_FILE_PATH.unlink(missing_ok=True)
+            if self._stop_signal_file_path.exists():
+                self._stop_signal_file_path.unlink(missing_ok=True)
                 runner.end("stop requested")
                 return
 
@@ -439,4 +443,4 @@ class _ConversationOrchestratorBase:
             try:
                 self._flag_service.save_flags(flags)
             except (FlagDependencyException, FlagServiceException) as e:
-                logger.error(f"Failed to persist flags to disk: {e}")
+                self._logging_broker.log_error(e)

@@ -22,20 +22,10 @@ multi-inheritance-merge already used for Session Lifecycle and Review in this
 codebase.
 """
 
-import os
-
-from dotenv import load_dotenv
-
+from rag.brokers.configuration import ConfigurationBroker, EnvConfigurationBroker
 from rag.brokers.logging import LoggingBroker, StdlibLoggingBroker
 from rag.services.foundations.chunk_repository import IChunkRepositoryService
 from rag.services.foundations.embedding_model import IEmbeddingModelService
-
-load_dotenv()
-
-# ponytail: one knob -> plain os.getenv at import time, same pattern as
-# rag/ingest.py and api/services/session_lifecycle/. Same env var and same
-# default as Phase 1's chunker, so re-ingesting produces identical chunks.
-CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "800"))
 
 # Version tags stamped on every row this service writes. Bump CHUNKING_STRATEGY_VERSION
 # whenever chunk_text's algorithm changes (size, overlap, splitting rule) and
@@ -50,15 +40,15 @@ CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "800"))
 CHUNKING_STRATEGY_VERSION = "v1"
 
 
-def chunk_text(text: str) -> list[str]:
+def chunk_text(text: str, chunk_size: int) -> list[str]:
     """Split text into fixed-size character chunks, no overlap.
 
     Phase 1's algorithm (rag/ingest.py chunk_text) unchanged: slice every
-    CHUNK_SIZE characters, strip, drop anything that strips to empty.
+    chunk_size characters, strip, drop anything that strips to empty.
     """
     chunks: list[str] = []
-    for start in range(0, len(text), CHUNK_SIZE):
-        chunk = text[start : start + CHUNK_SIZE].strip()
+    for start in range(0, len(text), chunk_size):
+        chunk = text[start : start + chunk_size].strip()
         if chunk:
             chunks.append(chunk)
     return chunks
@@ -80,6 +70,7 @@ class _IngestionServiceBase:
         chunk_repository_service: IChunkRepositoryService,
         embedding_model_service: IEmbeddingModelService,
         logging_broker: LoggingBroker = StdlibLoggingBroker(),
+        configuration_broker: ConfigurationBroker = EnvConfigurationBroker(),
     ) -> None:
         self._chunk_repository_service = chunk_repository_service
         self._embedding_model_service = embedding_model_service
@@ -90,6 +81,10 @@ class _IngestionServiceBase:
         # CLI at rag/controllers/ingestion.py:82 keeps working unchanged;
         # CLAUDE.md's waiver table forbids reshaping that file.
         self._logging_broker = logging_broker
+        # Read inside __init__, not at import time (H1) -- same env var and
+        # same default as Phase 1's chunker, so re-ingesting produces
+        # identical chunks.
+        self._chunk_size = int(configuration_broker.get("CHUNK_SIZE", "800"))
 
     def ingest_topic(self, topic: str, source_url: str, text: str) -> int:
         return self._try_catch(lambda: self._ingest_topic(topic, source_url, text))
@@ -108,7 +103,7 @@ class _IngestionServiceBase:
         # run: ChunkRepositoryService exposes only insert_chunk and
         # search_by_vector, no read/exists path. True idempotent re-ingestion
         # needs a read method that does not exist yet — see notes.
-        chunks = list(dict.fromkeys(chunk_text(text)))
+        chunks = list(dict.fromkeys(chunk_text(text, self._chunk_size)))
         if not chunks:
             return 0
 

@@ -6,12 +6,10 @@ adding LexicalStrategy later changes only this stage's internals — never its
 interface, and never the service that calls it.
 """
 
-import logging
 from typing import List, Protocol
 
+from rag.brokers.logging import LoggingBroker, StdlibLoggingBroker
 from rag.models.retrieval import ScoredChunk
-
-logger = logging.getLogger(__name__)
 
 
 class RankFusionStrategy(Protocol):
@@ -49,9 +47,12 @@ class PassThroughRankFusion:
     # survives that flip unchanged).
     """
 
+    def __init__(self, logging_broker: LoggingBroker = StdlibLoggingBroker()) -> None:
+        self._logging_broker = logging_broker
+
     def fuse(self, candidate_lists: List[List[ScoredChunk]]) -> List[ScoredChunk]:
         if not candidate_lists:
-            logger.debug("PassThroughRankFusion: no candidate lists, nothing to fuse")
+            self._logging_broker.log_debug("PassThroughRankFusion: no candidate lists, nothing to fuse")
             return []
 
         if len(candidate_lists) > 1:
@@ -62,7 +63,7 @@ class PassThroughRankFusion:
             )
 
         fused = candidate_lists[0]
-        logger.debug(
+        self._logging_broker.log_debug(
             "PassThroughRankFusion: 1 list, %d candidates passed through unchanged (ids=%s)",
             len(fused),
             [chunk.chunk_id for chunk in fused],

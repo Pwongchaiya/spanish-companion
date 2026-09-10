@@ -19,10 +19,9 @@ via Python's default SIGINT -> KeyboardInterrupt handling.
 
 import asyncio
 
-from dotenv import load_dotenv
-from loguru import logger
-
+from api.brokers.configuration import EnvConfigurationBroker
 from api.brokers.flag import JsonFileFlagBroker
+from api.brokers.logging import StdlibLoggingBroker
 from api.brokers.prompt import FilePromptBroker
 from api.brokers.session_log import FileSessionLogBroker
 from api.brokers.stt import AzureSttBroker
@@ -36,7 +35,12 @@ from api.services.orchestrations.voice_conversation import ConversationOrchestra
 
 
 def main() -> None:
-    load_dotenv()
+    # This CLI entrypoint is its own composition root: one LoggingBroker and
+    # one ConfigurationBroker built here and threaded down, the same shape
+    # api/app.py uses. EnvConfigurationBroker calls load_dotenv() itself, so
+    # there is no separate load_dotenv() here any more.
+    logging_broker = StdlibLoggingBroker()
+    configuration_broker = EnvConfigurationBroker()
 
     # One SessionLogBroker instance shared by every Foundation service that
     # fronts it (SessionLogService, LiveTranscriptService, TurnStateService)
@@ -50,8 +54,9 @@ def main() -> None:
         live_transcript_service=LiveTranscriptService(session_log_broker),
         flag_service=FlagService(JsonFileFlagBroker()),
         turn_state_service=TurnStateService(session_log_broker),
+        logging_broker=logging_broker,
+        configuration_broker=configuration_broker,
     )
-    logger.info("Voice loop starting — talk into your mic. Ctrl+C to stop.")
     asyncio.run(orchestrator.run())
 
 

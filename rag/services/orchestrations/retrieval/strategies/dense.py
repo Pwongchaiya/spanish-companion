@@ -8,13 +8,11 @@ HybridRetrievalService's `strategies` list — no change to the service, the
 fusion stage's interface, or the filters.
 """
 
-import logging
 from typing import List, Protocol
 
+from rag.brokers.logging import LoggingBroker, StdlibLoggingBroker
 from rag.models.retrieval import ScoredChunk
 from rag.services.foundations.chunk_repository import IChunkRepositoryService
-
-logger = logging.getLogger(__name__)
 
 
 class RetrievalStrategy(Protocol):
@@ -50,8 +48,13 @@ class DenseVectorStrategy:
     HybridRetrievalServiceExceptions._try_catch.
     """
 
-    def __init__(self, chunk_repository_service: IChunkRepositoryService) -> None:
+    def __init__(
+        self,
+        chunk_repository_service: IChunkRepositoryService,
+        logging_broker: LoggingBroker = StdlibLoggingBroker(),
+    ) -> None:
         self._chunk_repository_service = chunk_repository_service
+        self._logging_broker = logging_broker
 
     def search(self, query_embedding: List[float], top_k: int) -> List[ScoredChunk]:
         candidates = self._chunk_repository_service.search_by_vector(query_embedding, top_k)
@@ -60,7 +63,7 @@ class DenseVectorStrategy:
         # before fusion — when a Review Mode explanation cites the wrong RAE
         # page, this line is where debugging starts. Chunk ids + scores only;
         # the query text itself is logged by the service at DEBUG.
-        logger.debug(
+        self._logging_broker.log_debug(
             "DenseVectorStrategy top_k=%d candidates=%s",
             top_k,
             [(chunk.chunk_id, chunk.topic, round(chunk.score, 4)) for chunk in candidates],

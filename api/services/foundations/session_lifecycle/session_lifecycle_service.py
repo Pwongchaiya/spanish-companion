@@ -19,25 +19,14 @@ multi-inheritance-merge idea already used for broker packages in this
 codebase.
 """
 
-import os
 import subprocess
 import time
 from typing import Callable, Optional
 
-from dotenv import load_dotenv
-
 from api.brokers.bot_process import BotProcessBroker
+from api.brokers.configuration import ConfigurationBroker, EnvConfigurationBroker
 from api.brokers.logging import LoggingBroker, StdlibLoggingBroker
 from api.models.session_lifecycle.session_status import SessionStatus
-
-load_dotenv()
-
-# ponytail: two knobs -> plain os.getenv at import time, no settings object.
-# Matches rag/db.py's / rag/retrieve.py's existing pattern (load_dotenv()
-# then os.getenv with a string default, cast at the read site). Add a real
-# config module when a third knob shows up.
-GRACEFUL_TIMEOUT_SECONDS = float(os.getenv("SESSION_GRACEFUL_TIMEOUT_SECONDS", "5"))
-TERMINATE_TIMEOUT_SECONDS = float(os.getenv("SESSION_TERMINATE_TIMEOUT_SECONDS", "2"))
 
 # ponytail: no IPC channel from the subprocess back to this service yet --
 # that lands when Voice Conversation's subprocess side is manually ported.
@@ -47,7 +36,6 @@ TERMINATE_TIMEOUT_SECONDS = float(os.getenv("SESSION_TERMINATE_TIMEOUT_SECONDS",
 # (process started != pipeline warm) this ready/running split exists to fix,
 # per the Phase 2 architecture decision record. Replace with real
 # subprocess-reported readiness once that IPC exists.
-READY_WARMUP_SECONDS = float(os.getenv("SESSION_READY_WARMUP_SECONDS", "16"))
 
 
 class _ConversationSessionServiceBase:
@@ -65,10 +53,12 @@ class _ConversationSessionServiceBase:
         broker: BotProcessBroker,
         time_source: Callable[[], float] = time.monotonic,
         logging_broker: LoggingBroker = StdlibLoggingBroker(),
+        configuration_broker: ConfigurationBroker = EnvConfigurationBroker(),
     ) -> None:
         self._broker = broker
         self._time_source = time_source
         self._logging_broker = logging_broker
+        self._configuration_broker = configuration_broker
         self._started_at: Optional[float] = None
         self._last_stop_graceful: Optional[bool] = None
 
@@ -86,13 +76,16 @@ class _ConversationSessionServiceBase:
     def _stop(self) -> None:
         self._validate_currently_running()
 
+        graceful_timeout_seconds = float(self._configuration_broker.get("SESSION_GRACEFUL_TIMEOUT_SECONDS", "5"))
+        terminate_timeout_seconds = float(self._configuration_broker.get("SESSION_TERMINATE_TIMEOUT_SECONDS", "2"))
+
         self._broker.send_graceful_signal()
-        if self._wait_quietly(GRACEFUL_TIMEOUT_SECONDS):
+        if self._wait_quietly(graceful_timeout_seconds):
             self._last_stop_graceful = True
             return
 
         self._broker.terminate()
-        if self._wait_quietly(TERMINATE_TIMEOUT_SECONDS):
+        if self._wait_quietly(terminate_timeout_seconds):
             self._last_stop_graceful = False
             return
 
@@ -104,15 +97,16 @@ class _ConversationSessionServiceBase:
         # `except subprocess.TimeoutExpired: raise` clause carves this out
         # from the generic wrap-and-log path and lets it propagate raw,
         # rather than inventing a third leaf exception to wrap it.
-        self._broker.wait(TERMINATE_TIMEOUT_SECONDS)
+        self._broker.wait(terminate_timeout_seconds)
         self._last_stop_graceful = False
 
     def get_status(self) -> SessionStatus:
+        ready_warmup_seconds = float(self._configuration_broker.get("SESSION_READY_WARMUP_SECONDS", "16"))
         running = self._broker.is_running()
         ready = bool(
             running
             and self._started_at is not None
-            and self._time_source() - self._started_at >= READY_WARMUP_SECONDS
+            and self._time_source() - self._started_at >= ready_warmup_seconds
         )
         # If process was started but is no longer running and stop() wasn't called,
         # it crashed unexpectedly. If never started, graceful remains None.

@@ -2,7 +2,6 @@ from rag.services.orchestrations.ingestion.i_ingestion_service import IIngestion
 from rag.services.orchestrations.ingestion.ingestion_service import (
     _IngestionServiceBase,
     chunk_text,
-    CHUNK_SIZE,
     CHUNKING_STRATEGY_VERSION,
     LoggingBroker,
 )
@@ -27,6 +26,5 @@ __all__ = [
     "IngestionService",
     "LoggingBroker",
     "chunk_text",
-    "CHUNK_SIZE",
     "CHUNKING_STRATEGY_VERSION",
 ]

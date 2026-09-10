@@ -10,13 +10,11 @@ gets the same way CategoryBoostFilter gets its category: constructed per
 call with it. The Protocol below does not change.
 """
 
-import logging
 import re
 from typing import List, Optional, Protocol
 
+from rag.brokers.logging import LoggingBroker, StdlibLoggingBroker
 from rag.models.retrieval import ScoredChunk
-
-logger = logging.getLogger(__name__)
 
 
 def _normalize(text: str) -> str:
@@ -106,14 +104,19 @@ class CategoryBoostFilter:
     # which kills the vocabulary gap at the source rather than here.
     """
 
-    def __init__(self, category: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        category: Optional[str] = None,
+        logging_broker: LoggingBroker = StdlibLoggingBroker(),
+    ) -> None:
         # None means "no category known for this call" — pass-through, so the
         # caller never needs a conditional around this filter.
         self._category = _normalize(category) if category else None
+        self._logging_broker = logging_broker
 
     def apply(self, chunks: List[ScoredChunk]) -> List[ScoredChunk]:
         if not self._category:
-            logger.debug("CategoryBoostFilter: no category, ranking unchanged")
+            self._logging_broker.log_debug("CategoryBoostFilter: no category, ranking unchanged")
             return chunks
 
         # Stable sort, False (match) before True (no match) — matching chunks
@@ -121,7 +124,7 @@ class CategoryBoostFilter:
         boosted = sorted(chunks, key=lambda chunk: not _matches(_normalize(chunk.topic), self._category))
 
         matched = [chunk.chunk_id for chunk in boosted if _matches(_normalize(chunk.topic), self._category)]
-        logger.debug(
+        self._logging_broker.log_debug(
             "CategoryBoostFilter category=%r boosted=%s (of %d, none dropped) order %s -> %s",
             self._category,
             matched,

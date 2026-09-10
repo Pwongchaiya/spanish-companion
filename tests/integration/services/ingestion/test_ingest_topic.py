@@ -21,12 +21,18 @@ from unittest.mock import Mock
 import pytest
 
 from rag.brokers.chunk_repository import EMBEDDING_DIM
+from rag.brokers.configuration import ConfigurationBroker
 from rag.brokers.embedding_model import EmbeddingModelBroker
 from rag.services.foundations.chunk_repository import ChunkRepositoryService
 from rag.services.foundations.embedding_model import EmbeddingModelService
-from rag.services.orchestrations.ingestion import CHUNK_SIZE, IngestionService
+from rag.services.orchestrations.ingestion import IngestionService
 
 TOPIC = "preterite-vs-imperfect"
+
+# Fixed chunk size handed to the service through a stubbed ConfigurationBroker
+# (H1's testability seam) instead of a real env read -- deterministic no
+# matter what the CHUNK_SIZE env knob is set to locally.
+CHUNK_SIZE = 800
 SOURCE_URL = "https://www.rae.es/gram/preterito"
 
 # Two orthogonal unit vectors, so cosine distance orders the rows unambiguously.
@@ -47,10 +53,18 @@ def mock_embedding_model():
 
 
 @pytest.fixture
-def service(chunk_repository, mock_embedding_model):
+def mock_configuration_broker():
+    broker = Mock(spec=ConfigurationBroker)
+    broker.get.return_value = str(CHUNK_SIZE)
+    return broker
+
+
+@pytest.fixture
+def service(chunk_repository, mock_embedding_model, mock_configuration_broker):
     return IngestionService(
         chunk_repository_service=ChunkRepositoryService(chunk_repository),
         embedding_model_service=EmbeddingModelService(mock_embedding_model),
+        configuration_broker=mock_configuration_broker,
     )
 
 

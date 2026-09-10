@@ -16,21 +16,15 @@ At MVP scale (3-5 topics), the fix is re-running the Alembic migration
 (drops and recreates the table) before re-ingesting, not a code change.
 """
 
-import os
-
 import requests
 from bs4 import BeautifulSoup
-from dotenv import load_dotenv
 
 from rag.brokers.chunk_repository import SqlAlchemyChunkRepositoryBroker
+from rag.brokers.configuration import EnvConfigurationBroker
 from rag.brokers.embedding_model import SentenceTransformerEmbeddingModelBroker
 from rag.services.foundations.chunk_repository import ChunkRepositoryService
 from rag.services.foundations.embedding_model import EmbeddingModelService
 from rag.services.orchestrations.ingestion import IngestionService
-
-load_dotenv()
-
-REQUEST_TIMEOUT_SECONDS = int(os.getenv("REQUEST_TIMEOUT_SECONDS", "15"))
 
 # RAE grammar topics and their corresponding URLs — same corpus as Phase 1
 # (rag/ingest.py's TOPICS), carried forward unchanged.
@@ -58,13 +52,16 @@ TOPICS: list[tuple[str, str]] = [
 ]
 
 
-def fetch_page_text(url: str) -> str:
+def fetch_page_text(url: str, timeout_seconds: int) -> str:
     """Fetch a RAE page and extract its visible main-content text.
 
-    Unchanged from Phase 1's rag/ingest.py:fetch_page_text — working
-    extraction logic, no reason to change it in a clean rewrite.
+    Extraction logic unchanged from Phase 1's rag/ingest.py:fetch_page_text —
+    working, no reason to change it in a clean rewrite. `timeout_seconds` is
+    now passed in rather than read from a module-level constant (H1: this
+    exposer is its own composition root, so it constructs the
+    ConfigurationBroker itself, inside main(), not at import time).
     """
-    response = requests.get(url, timeout=REQUEST_TIMEOUT_SECONDS)
+    response = requests.get(url, timeout=timeout_seconds)
     response.raise_for_status()
 
     soup = BeautifulSoup(response.text, "html.parser")
@@ -79,7 +76,9 @@ def fetch_page_text(url: str) -> str:
 
 
 def main() -> None:
-    database_url = os.environ["DATABASE_URL"]
+    configuration_broker = EnvConfigurationBroker()
+    request_timeout_seconds = int(configuration_broker.get("REQUEST_TIMEOUT_SECONDS", "15"))
+    database_url = configuration_broker.require("DATABASE_URL")
     chunk_repository_service = ChunkRepositoryService(
         SqlAlchemyChunkRepositoryBroker(connection_string=database_url)
     )
@@ -88,7 +87,7 @@ def main() -> None:
 
     for topic, url in TOPICS:
         try:
-            text = fetch_page_text(url)
+            text = fetch_page_text(url, request_timeout_seconds)
         except requests.RequestException as e:
             print(f"SKIP {topic} ({url}): fetch failed — {e}")
             continue

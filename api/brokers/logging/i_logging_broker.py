@@ -1,14 +1,13 @@
-"""Broker for exception logging.
+"""Broker for logging.
 
-Wraps stdlib `logging` so Foundation services can log an exception without
-importing `logging` directly themselves — the same seam
+Wraps stdlib `logging` so Foundation/Orchestration services can log without
+importing `logging` (or loguru) directly themselves — the same seam
 `NL.Core.Entitlements.Api/Brokers/Loggings/ILoggingBroker.cs` /
-`LoggingBroker.cs` plays in the reference project, where every Foundation
-service logs a wrapped exception via `ILoggingBroker.LogError(exception)`
-before re-raising it. Only `log_error` is defined: nothing in this codebase
-calls `LogInformation`/`LogWarning`/`LogCritical` yet, and this project's
-convention (see `bot_process.py`'s docstring) is to pin brokers to what's
-actually used, not the full source-of-truth menu.
+`LoggingBroker.cs` plays in the reference project. Extended (H2 audit
+finding) from error-only to the four levels actually called across `api/`
+once the parallel stdlib-`logging`/loguru call sites were collapsed onto
+this one broker — still pinned to what's used, not the full source-of-truth
+menu (no `log_critical`, nothing calls it).
 
 No flow control, no exception handling, no business logic — this broker
 only wraps the stdlib logger call.
@@ -18,8 +17,20 @@ from typing import Protocol
 
 
 class LoggingBroker(Protocol):
-    """External-resource boundary for exception logging."""
+    """External-resource boundary for logging."""
 
     def log_error(self, exception: Exception) -> None:
         """Log `exception` at ERROR level with its traceback."""
+        ...
+
+    def log_warning(self, message: str, *args: object) -> None:
+        """Log `message` at WARNING level, with %-style lazy `args`."""
+        ...
+
+    def log_info(self, message: str, *args: object) -> None:
+        """Log `message` at INFO level, with %-style lazy `args`."""
+        ...
+
+    def log_debug(self, message: str, *args: object) -> None:
+        """Log `message` at DEBUG level, with %-style lazy `args`."""
         ...

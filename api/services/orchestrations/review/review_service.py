@@ -34,14 +34,11 @@ codebase. No Validations mixin: the one check that lived here
 validated at this tier.
 """
 
-import logging
-import os
 from datetime import datetime
 from functools import lru_cache
 from typing import Callable, List
 
-from dotenv import load_dotenv
-
+from api.brokers.configuration import ConfigurationBroker, EnvConfigurationBroker
 from api.brokers.logging import LoggingBroker, StdlibLoggingBroker
 from api.brokers.practice_log import PracticeAttempt
 from api.models.flag import Flag
@@ -50,15 +47,6 @@ from api.services.foundations.practice_log import IPracticeLogService
 from rag.models.generation import Explanation
 from rag.services.foundations.generation import GenerationService
 from rag.services.orchestrations.retrieval import HybridRetrievalService
-
-load_dotenv()
-
-logger = logging.getLogger(__name__)
-
-# ponytail: one knob -> plain os.getenv at import time, same pattern as
-# api/services/session_lifecycle/ and rag/db.py (load_dotenv() then
-# os.getenv with a string default, cast at the read site).
-RETRIEVAL_TOP_K = int(os.getenv("RETRIEVAL_TOP_K", "3"))
 
 
 class _ReviewOrchestratorBase:
@@ -78,6 +66,7 @@ class _ReviewOrchestratorBase:
         generation_service: GenerationService,
         clock: Callable[[], datetime] = datetime.now,
         logging_broker: LoggingBroker = StdlibLoggingBroker(),
+        configuration_broker: ConfigurationBroker = EnvConfigurationBroker(),
     ) -> None:
         self._flag_service = flag_service
         self._practice_log_service = practice_log_service
@@ -90,6 +79,7 @@ class _ReviewOrchestratorBase:
         # EntitlementCodesOrchestrationService.cs:22-33 -- every
         # _create_and_log_* method logs through it before raising.
         self._logging_broker = logging_broker
+        self._configuration_broker = configuration_broker
 
     def list_flags(self) -> List[Flag]:
         """The current flag list, for the UI's flagged-list -> selection step.
@@ -117,9 +107,10 @@ class _ReviewOrchestratorBase:
     def _explain_flag(self, flag_id: str) -> Explanation:
         flag = self._flag_service.get_flag(flag_id)
 
+        retrieval_top_k = int(self._configuration_broker.get("RETRIEVAL_TOP_K", "3"))
         chunks = self._retrieval_service.retrieve(
             query=flag.corrected,
-            top_k=RETRIEVAL_TOP_K,
+            top_k=retrieval_top_k,
             category=flag.category,
         )
         if not chunks:
@@ -132,7 +123,7 @@ class _ReviewOrchestratorBase:
             # Generation's LLM failure (rag/services/generation.py:37-46 ->
             # retry), because both deliberately return the same user-facing
             # string.
-            logger.info("no corpus match for flag_id=%s category=%r", flag_id, flag.category)
+            self._logging_broker.log_info("no corpus match for flag_id=%s category=%r", flag_id, flag.category)
             # Phase 1's exact fallback string, review/review.py:107 — preserve
             # verbatim, same as GenerationService's. One user-facing "couldn't
             # help with this" string across the system; debugging splits them in
@@ -160,5 +151,5 @@ class _ReviewOrchestratorBase:
 
         attempt = PracticeAttempt(flag_id=flag.id, attempt_text=attempt_text, timestamp=self._clock())
         self._practice_log_service.record_attempt(attempt)
-        logger.info("recorded practice attempt for flag_id=%s", flag.id)
+        self._logging_broker.log_info("recorded practice attempt for flag_id=%s", flag.id)
         return attempt

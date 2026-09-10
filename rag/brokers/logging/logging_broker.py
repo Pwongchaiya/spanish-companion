@@ -17,3 +17,23 @@ class StdlibLoggingBroker:
 
     def log_error(self, exception: Exception) -> None:
         self._logger.error(str(exception), exc_info=exception)
+
+    def log_warning(self, message: str, *args: object) -> None:
+        self._logger.warning(message, *args)
+
+    def log_info(self, message: str, *args: object) -> None:
+        self._logger.info(message, *args)
+
+    def log_debug(self, message: str, *args: object) -> None:
+        self._logger.debug(message, *args)
+
+
+if __name__ == "__main__":
+    # ponytail: smallest possible check — %-style args must not raise, and
+    # each level must forward to the right stdlib method.
+    broker = StdlibLoggingBroker("selftest")
+    broker.log_error(ValueError("boom"))
+    broker.log_warning("warn %s", "x")
+    broker.log_info("info %s", "x")
+    broker.log_debug("debug %s", "x")
+    print("ok")

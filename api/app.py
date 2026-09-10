@@ -30,6 +30,7 @@ from dotenv import load_dotenv
 from flask import Flask, Response, jsonify, request, send_from_directory
 
 from api.brokers.bot_process import SubprocessBotProcessBroker
+from api.brokers.configuration import EnvConfigurationBroker
 from api.brokers.flag import JsonFileFlagBroker
 from api.brokers.logging import StdlibLoggingBroker
 from api.brokers.practice_log import JsonLinesPracticeLogBroker
@@ -128,10 +129,17 @@ def create_app() -> Flask:
     # at the composition root instead of implicit in each default arg.
     logging_broker = StdlibLoggingBroker()
 
+    # One ConfigurationBroker likewise, for the same reason: services read
+    # their knobs through this seam now instead of calling os.getenv at
+    # import time, which is what made config impossible to vary per test
+    # (audit finding H1).
+    configuration_broker = EnvConfigurationBroker()
+
     # --- Session Lifecycle ---
     session_service = ConversationSessionService(
         SubprocessBotProcessBroker(),
         logging_broker=logging_broker,
+        configuration_broker=configuration_broker,
     )
     app.register_blueprint(make_session_lifecycle_blueprint(session_service))
 
@@ -158,6 +166,7 @@ def create_app() -> Flask:
         retrieval_service=retrieval_service,
         generation_service=generation_service,
         logging_broker=logging_broker,
+        configuration_broker=configuration_broker,
     )
     app.register_blueprint(make_review_blueprint(review_orchestrator))
 

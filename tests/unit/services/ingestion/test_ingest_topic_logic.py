@@ -6,7 +6,11 @@ or source_url, and the strict-zip length mismatch).
 
 from unittest.mock import call
 
-from rag.services.orchestrations.ingestion import CHUNKING_STRATEGY_VERSION, CHUNK_SIZE
+from rag.services.orchestrations.ingestion import CHUNKING_STRATEGY_VERSION
+
+# Must match conftest.py's mock_configuration_broker fixture -- the fixed
+# chunk size that fixture hands the service in place of a real env read.
+from tests.unit.services.ingestion.conftest import CHUNK_SIZE
 
 TOPIC = "preterite-vs-imperfect"
 SOURCE_URL = "https://www.rae.es/gram/preterito"
