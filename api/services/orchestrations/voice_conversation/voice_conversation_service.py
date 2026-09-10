@@ -11,13 +11,14 @@ mechanism was confirmed broken via isolated repro, 2026-08-29 (see
 api/brokers/bot_process/bot_process_broker.py's module docstring).
 
 Wave 8 six-layer migration (hand-written, no agent, per CLAUDE.md): this
-Orchestration service coordinates PromptService, SessionLogService,
+Orchestration service coordinates SessionLogService,
 LiveTranscriptService, FlagService, and TurnStateService (added
 post-Wave-8, see decisions/tri-nature-gate-design.md's follow-up 2) —
 replacing what used to be inline pipecat/Azure construction and
-free-function file I/O directly in this class. STT is taken as a bare
-SttBroker: W3 of the architecture conformance audit (M5) deleted the
-pure-pass-through SttService that used to front it. LLM and TTS remain
+free-function file I/O directly in this class. STT and the system prompt
+are taken as bare SttBroker/PromptBroker: W3 of the architecture
+conformance audit (M5) deleted the pure-pass-through SttService and
+PromptService that used to front them. LLM and TTS remain
 bare pipecat service objects,
 unwrapped, per the architecture decision record (only STT's fragile
 private-API override warranted its own broker — see
@@ -95,13 +96,13 @@ from pipecat.workers.runner import WorkerRunner
 
 from api.brokers.configuration import ConfigurationBroker, EnvConfigurationBroker
 from api.brokers.logging import LoggingBroker, StdlibLoggingBroker
+from api.brokers.prompt import PromptBroker
 from api.brokers.stt import SttBroker
 from api.models.flag import Flag
 from api.models.flag.exceptions import FlagDependencyException, FlagServiceException
 from api.models.voice_conversation.exceptions import VoiceConversationPipelineError
 from api.services.foundations.flag import IFlagService
 from api.services.foundations.live_transcript import ILiveTranscriptService
-from api.services.foundations.prompt import IPromptService
 from api.services.foundations.session_log import ISessionLogService
 from api.services.foundations.turn_state import ITurnStateService
 from api.services.orchestrations.voice_conversation._mic_gate import _MicGate
@@ -169,8 +170,9 @@ class _ConversationOrchestratorBase:
     pass-through SttService that used to sit in front of it, and this
     Orchestration service already takes LoggingBroker/ConfigurationBroker
     directly, so a direct broker dependency is the established shape.
-    FlagService, PromptService, SessionLogService, and LiveTranscriptService
-    are the Foundation-tier dependencies.
+    PromptBroker is injected directly for the same reason. FlagService,
+    SessionLogService, and LiveTranscriptService are the Foundation-tier
+    dependencies.
 
     run() delegates its setup phase to a private _setup() method through
     _try_catch (defined in the Exceptions mixin), mirroring Session
@@ -181,7 +183,7 @@ class _ConversationOrchestratorBase:
     def __init__(
         self,
         stt_broker: SttBroker,
-        prompt_service: IPromptService,
+        prompt_broker: PromptBroker,
         session_log_service: ISessionLogService,
         live_transcript_service: ILiveTranscriptService,
         flag_service: IFlagService,
@@ -190,7 +192,7 @@ class _ConversationOrchestratorBase:
         configuration_broker: ConfigurationBroker = EnvConfigurationBroker(),
     ) -> None:
         self._stt_broker = stt_broker
-        self._prompt_service = prompt_service
+        self._prompt_broker = prompt_broker
         self._session_log_service = session_log_service
         self._live_transcript_service = live_transcript_service
         self._flag_service = flag_service
@@ -280,7 +282,7 @@ class _ConversationOrchestratorBase:
             api_key=self._configuration_broker.require("GEMINI_API_KEY"),
             settings=GoogleLLMService.Settings(
                 model=gemini_model,
-                system_instruction=self._prompt_service.get_system_prompt(),
+                system_instruction=self._prompt_broker.get_system_prompt(),
             ),
             # A slow first chunk (network blip, API-side latency) otherwise drops
             # the turn silently with no assistant reply ever recorded — the user

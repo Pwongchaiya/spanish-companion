@@ -27,7 +27,6 @@ from api.brokers.session_log import FileSessionLogBroker
 from api.brokers.stt import AzureSttBroker
 from api.services.foundations.flag import FlagService
 from api.services.foundations.live_transcript import LiveTranscriptService
-from api.services.foundations.prompt import PromptService
 from api.services.foundations.session_log import SessionLogService
 from api.services.foundations.turn_state import TurnStateService
 from api.services.orchestrations.voice_conversation import ConversationOrchestrator
@@ -48,7 +47,7 @@ def main() -> None:
 
     orchestrator = ConversationOrchestrator(
         stt_broker=AzureSttBroker(),
-        prompt_service=PromptService(FilePromptBroker()),
+        prompt_broker=FilePromptBroker(),
         session_log_service=SessionLogService(session_log_broker),
         live_transcript_service=LiveTranscriptService(session_log_broker),
         flag_service=FlagService(JsonFileFlagBroker()),
