@@ -7,7 +7,7 @@ Updated automatically by /session-end (Last Session).
 ---
 
 ## Last Session
-Projects/spanish-companion/sessions/2026-09-10-1948.md
+Projects/spanish-companion/sessions/2026-09-10-2354.md
 ## Entity Manifest
 
 | Feature | Path |
@@ -19,6 +19,8 @@ Projects/spanish-companion/sessions/2026-09-10-1948.md
 | Generation | Projects/spanish-companion/entities/generation.md |
 | Review | Projects/spanish-companion/entities/review.md |
 | LearnerProfile | Projects/spanish-companion/entities/learner-profile.md |
+| MistakePattern | Projects/spanish-companion/entities/mistake-pattern.md |
+| TopicCovered | Projects/spanish-companion/entities/topic-covered.md |
 
 ---
 
