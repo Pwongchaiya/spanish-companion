@@ -5,7 +5,8 @@ from api.errors import ApiError
 
 class TopicCoveredServiceException(ApiError):
     """Wraps any exception not covered by the validation/dependency leaves
-    -- TopicCoveredService's safety net, mirroring LearnerProfileServiceException.
+    — TopicCoveredService's safety net, mirroring
+    MistakePatternServiceException.
     """
 
     def __init__(self, inner_exception: Exception) -> None:

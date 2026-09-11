@@ -4,8 +4,8 @@ from api.errors import ApiError
 
 
 class TopicCoveredDependencyException(ApiError):
-    """Wraps TopicCoveredUnavailableError for consumers, without leaking
-    internals. Mirrors LearnerProfileDependencyException's shape.
+    """Wraps FailedTopicCoveredStorageException for consumers, without
+    leaking internals. Mirrors MistakePatternDependencyException's shape.
     """
 
     def __init__(self, inner_exception: Exception) -> None:

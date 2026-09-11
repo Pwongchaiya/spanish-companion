@@ -4,8 +4,9 @@ from api.errors import ApiError
 
 
 class TopicCoveredValidationException(ApiError):
-    """Wraps InvalidTopicCoveredInputError for consumers, without leaking
-    internals. Mirrors LearnerProfileValidationException's shape.
+    """Wraps InvalidTopicCoveredException / NotFoundTopicCoveredException
+    for consumers, without leaking internals. Mirrors
+    MistakePatternValidationException's shape.
     """
 
     def __init__(self, inner_exception: Exception) -> None:

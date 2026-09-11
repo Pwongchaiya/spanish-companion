@@ -1,20 +1,24 @@
-"""Leaf not-found exception for a topic_covered row.
+"""Leaf validation exception raised when a topic_covered row doesn't exist.
 
-Not raised anywhere in TopicCoveredService today -- this Foundation service
-is pure CRUD over ITopicCoveredBroker's actual surface
-(select_by_profile/insert/touch), which has no find-by-topic lookup to come
-back empty. Defined here, in the shared model exceptions module, because
-Processing's future find-by-topic step (part of `record_topic()`'s
-upsert -- see Projects/spanish-companion/entities/topic-covered.md) will
-raise it once built. Pinned now so the exception hierarchy name is fixed
-before Processing needs it.
+Raised by TopicCoveredService.touch_topic_covered() when the broker returns
+None for a missing topic_id (broker's None-on-missing-id convention, same
+as select_topic_covered_by_profile() returning an empty list for no rows —
+Foundation checks for None and raises this directly, mirroring
+MistakePatternService.update_mistake_pattern()'s
+NotFoundMistakePatternException path). list_topic_covered_by_profile()
+itself still returns an empty list rather than raising — "no rows for this
+profile" isn't a not-found condition.
 """
 
 from api.errors import ApiError
 
 
 class NotFoundTopicCoveredException(ApiError):
-    """Raised when a topic_covered row expected to exist can't be found."""
+    """Raised when a lookup by id finds no matching topic_covered row.
+
+    Leaf exception — always caught and wrapped into
+    TopicCoveredValidationException before leaving TopicCoveredService.
+    """
 
     def __init__(self) -> None:
         super().__init__("No topic_covered row exists for that lookup")
