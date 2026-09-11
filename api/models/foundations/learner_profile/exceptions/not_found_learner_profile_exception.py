@@ -4,8 +4,11 @@ from api.errors import ApiError
 
 
 class NotFoundLearnerProfileException(ApiError):
-    """Raised by get_profile() when LearnerProfileBroker.select_profile()
-    returns None.
+    """Raised by two independent callers: get_learner_profile() when
+    ILearnerProfileBroker.select_learner_profile() returns None, and
+    update_learner_profile() when update_learner_profile() on the broker
+    returns None (profile_id doesn't exist) -- same convention as
+    NotFoundMistakePatternException's update() path.
 
     Foundation is pure CRUD -- it does not create the row on a missing
     read (that's Processing's ensure_profile() get-or-create). Named

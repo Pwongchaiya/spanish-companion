@@ -17,8 +17,9 @@ class ILearnerProfileProcessingService(Protocol):
     def ensure_profile(self, default_level: str) -> LearnerProfile:
         """Get the singleton profile row, creating it if it doesn't exist yet.
 
-        Calls Foundation's get_profile(); on LearnerProfileValidationException
-        (Foundation's not-found signal), calls create_profile(default_level)
-        instead. Any other exception from Foundation propagates unchanged.
+        Calls Foundation's get_learner_profile(); on
+        LearnerProfileValidationException (Foundation's not-found signal),
+        calls create_learner_profile(default_level) instead. Any other
+        exception from Foundation propagates unchanged.
         """
         ...

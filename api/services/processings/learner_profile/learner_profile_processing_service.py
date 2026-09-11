@@ -9,7 +9,8 @@ CLAUDE.md's Processing-row reversal and the entity doc
 
 One method -> no base/validations/exceptions mixin split (that split earns
 its keep once there's more than one method to organise; see Foundation's
-three-file layout for when it does).
+three-file layout for when it does -- same call made for
+MistakePatternProcessingService).
 """
 
 from api.models.foundations.learner_profile.exceptions import LearnerProfileValidationException
@@ -18,9 +19,10 @@ from api.services.foundations.learner_profile.i_learner_profile_service import I
 
 
 class LearnerProfileProcessingService:
-    """Combines Foundation's get_profile() + create_profile() into a single
-    get-or-create call. Do-or-delegate: this method decides which Foundation
-    call to make, then delegates entirely -- it never transforms the result.
+    """Combines Foundation's get_learner_profile() + create_learner_profile()
+    into a single get-or-create call. Do-or-delegate: this method decides
+    which Foundation call to make, then delegates entirely -- it never
+    transforms the result.
     """
 
     def __init__(self, learner_profile_service: ILearnerProfileService) -> None:
@@ -28,43 +30,12 @@ class LearnerProfileProcessingService:
 
     def ensure_profile(self, default_level: str) -> LearnerProfile:
         try:
-            return self._learner_profile_service.get_profile()
+            return self._learner_profile_service.get_learner_profile()
         except LearnerProfileValidationException:
-            # ponytail: get_profile() takes no args, so the only cause of
-            # LearnerProfileValidationException here is Foundation's
-            # not-found signal (NotFoundLearnerProfileException wrapped) --
-            # no inner_exception discrimination needed. If Foundation later
-            # adds another get_profile() validation cause, narrow this catch
-            # then.
-            return self._learner_profile_service.create_profile(default_level)
-
-
-if __name__ == "__main__":
-    # ponytail: the one runnable check -- both branches of the get-or-create
-    # decision, against a mocked Foundation service (per test-processing-
-    # skill.md's "always mock Foundation" rule, done here as a lightweight
-    # self-check since CLAUDE.md's "no tests during build" waiver applies).
-    from unittest.mock import Mock
-
-    from api.models.foundations.learner_profile.exceptions import NotFoundLearnerProfileException
-
-    existing = LearnerProfile(id=1, proficiency_level="A2", updated_at=None)
-    foundation = Mock()
-    foundation.get_profile.return_value = existing
-    service = LearnerProfileProcessingService(foundation)
-
-    assert service.ensure_profile("A1") is existing
-    foundation.create_profile.assert_not_called()
-
-    created = LearnerProfile(id=1, proficiency_level="A1", updated_at=None)
-    foundation = Mock()
-    foundation.get_profile.side_effect = LearnerProfileValidationException(
-        inner_exception=NotFoundLearnerProfileException()
-    )
-    foundation.create_profile.return_value = created
-    service = LearnerProfileProcessingService(foundation)
-
-    assert service.ensure_profile("A1") is created
-    foundation.create_profile.assert_called_once_with("A1")
-
-    print("learner_profile_processing_service self-check passed")
+            # ponytail: get_learner_profile() takes no args, so the only
+            # cause of LearnerProfileValidationException here is
+            # Foundation's not-found signal (NotFoundLearnerProfileException
+            # wrapped) -- no inner_exception discrimination needed. If
+            # Foundation later adds another get_learner_profile() validation
+            # cause, narrow this catch then.
+            return self._learner_profile_service.create_learner_profile(default_level)

@@ -10,100 +10,102 @@ Single broker dependency -> Foundation layer, not Orchestration, per
 CLAUDE.md's Phase 2 Layer-Agent Mapping & Waivers.
 
 Split into a base logic file plus Validations/Exceptions mixins (this file,
-learner_profile_service_validations.py, learner_profile_service_exceptions.py),
-combined into the concrete LearnerProfileService in __init__.py -- mirrors
-C#'s `partial class` merging multiple files into one class
-(python-adaptations-skill.md's Architecture Patterns table), the same
-pattern used for Session Lifecycle and Flag in this codebase.
+learner_profile_service_validations.py, learner_profile_service_exceptions.py)
+-- mirrors C#'s `partial class` merging UserProfileService.cs /
+.Validations.cs / .Exceptions.cs into one class. Unlike C# (which reuses the
+same class name across every partial file), Python has no `partial`, so the
+concrete class is declared directly in THIS file, inheriting the other two
+mixins by name -- no separate "_Base" intermediate class, no composition
+step in __init__.py. Matches MistakePatternService's rebuilt shape exactly:
+one class, declared once, `class X(XExceptions, XValidations, IX):`,
+constructor and public methods on it directly. (The previous
+`_LearnerProfileServiceBase` + __init__.py composition step was the
+invented-`_ServiceBase` pattern CLAUDE.md explicitly disallows -- removed.)
+
+Public methods are the ONLY thing that wraps with `_try_catch` (defined in
+the Exceptions mixin) -- mirrors UserProfileService.cs's actual shape
+(NL.Core.Users, Services/Foundations/UserProfiles/UserProfileService.cs:
+31-66): each public method's entire body -- validate, then call the broker
+-- is an inline nested closure passed straight to `_try_catch`, not a
+separate `_do_thing` private method (the previous per-method
+`_create_profile`/`_get_profile`/inline try/except indirection is removed).
+No local try/except inside the closures: every exception -- domain leaf, raw
+SQLAlchemy, or otherwise -- propagates untouched to `_try_catch`, the single
+dispatch point that classifies and wraps. update_learner_profile's
+None-check is not exception handling: it's a business check on a normal
+return value, the same shape as `UserProfileService.cs:42-53`'s
+`ValidateUserProfileExists` check on `SelectUserProfileByIdAsync`'s result,
+and the fix for this entity's previous bug (the broker crashed with an
+AttributeError on a missing profile_id instead of returning None cleanly --
+see learner_profile_broker.py).
+
+Method names embed the entity name (create_learner_profile,
+get_learner_profile, update_learner_profile), matching NL.Core.Users'
+Service interface methods (AddUserProfileAsync, RetrieveUserProfileByIdAsync,
+ModifyUserProfileAsync -- IUserProfileService.cs) the same way already
+applied to MistakePatternService -- the previous create_profile/get_profile/
+update_proficiency_level names dropped "learner" from the entity name.
+
+No AlreadyExists/DependencyValidation exception tier, unlike
+MistakePatternService -- see learner_profile_service_exceptions.py's
+docstring for why.
 """
 
-from api.brokers.learner_profile import ILearnerProfileBroker
+from api.brokers.learner_profile.i_learner_profile_broker import ILearnerProfileBroker
 from api.brokers.logging import LoggingBroker
-from api.models.foundations.learner_profile.exceptions import (
-    LearnerProfileUnavailableError,
-    NotFoundLearnerProfileException,
-)
+from api.models.foundations.learner_profile.exceptions import NotFoundLearnerProfileException
 from api.models.foundations.learner_profile.learner_profile import LearnerProfile
+from api.services.foundations.learner_profile.i_learner_profile_service import ILearnerProfileService
+from api.services.foundations.learner_profile.learner_profile_service_exceptions import (
+    LearnerProfileServiceExceptions,
+)
+from api.services.foundations.learner_profile.learner_profile_service_validations import (
+    LearnerProfileServiceValidations,
+)
 
 
-class _LearnerProfileServiceBase:
-    """Owns LearnerProfile CRUD.
-
-    Public methods delegate to a private `_do_thing` method through
-    `_try_catch` (defined in the Exceptions mixin), per python-adaptations-
-    skill.md's TryCatch translation. Validation checks are named methods
+class LearnerProfileService(
+    LearnerProfileServiceExceptions,
+    LearnerProfileServiceValidations,
+    ILearnerProfileService,
+):
+    """Owns LearnerProfile CRUD. Validation checks are named methods
     (defined in the Validations mixin) rather than inlined.
     """
 
     def __init__(
         self,
-        broker: ILearnerProfileBroker,
+        learner_profile_broker: ILearnerProfileBroker,
         *,
         logging_broker: LoggingBroker,
     ) -> None:
-        self._broker = broker
+        self._learner_profile_broker = learner_profile_broker
         self._logging_broker = logging_broker
 
-    def create_profile(self, proficiency_level: str) -> LearnerProfile:
-        return self._try_catch(lambda: self._create_profile(proficiency_level))
+    def create_learner_profile(self, proficiency_level: str) -> LearnerProfile:
+        def action() -> LearnerProfile:
+            self._validate_learner_profile_on_create(proficiency_level)
+            return self._learner_profile_broker.insert_learner_profile(proficiency_level)
 
-    def _create_profile(self, proficiency_level: str) -> LearnerProfile:
-        self._validate_proficiency_level(proficiency_level)
-        try:
-            return self._broker.insert_profile(proficiency_level)
-        except Exception as e:
-            raise LearnerProfileUnavailableError(str(e)) from e
+        return self._try_catch(action)
 
-    def get_profile(self) -> LearnerProfile:
-        return self._try_catch(self._get_profile)
+    def get_learner_profile(self) -> LearnerProfile:
+        def action() -> LearnerProfile:
+            maybe_learner_profile = self._learner_profile_broker.select_learner_profile()
+            if maybe_learner_profile is None:
+                raise NotFoundLearnerProfileException()
+            return maybe_learner_profile
 
-    def _get_profile(self) -> LearnerProfile:
-        try:
-            profile = self._broker.select_profile()
-        except Exception as e:
-            raise LearnerProfileUnavailableError(str(e)) from e
-        if profile is None:
-            raise NotFoundLearnerProfileException()
-        return profile
+        return self._try_catch(action)
 
-    def update_proficiency_level(self, profile_id: int, proficiency_level: str) -> LearnerProfile:
-        return self._try_catch(lambda: self._update_proficiency_level(profile_id, proficiency_level))
+    def update_learner_profile(self, profile_id: int, proficiency_level: str) -> LearnerProfile:
+        def action() -> LearnerProfile:
+            self._validate_learner_profile_on_update(profile_id, proficiency_level)
+            maybe_learner_profile = self._learner_profile_broker.update_learner_profile(
+                profile_id, proficiency_level
+            )
+            if maybe_learner_profile is None:
+                raise NotFoundLearnerProfileException()
+            return maybe_learner_profile
 
-    def _update_proficiency_level(self, profile_id: int, proficiency_level: str) -> LearnerProfile:
-        self._validate_proficiency_level(proficiency_level)
-        try:
-            return self._broker.update_profile(profile_id, proficiency_level)
-        except Exception as e:
-            raise LearnerProfileUnavailableError(str(e)) from e
-
-
-if __name__ == "__main__":
-    # ponytail: self-check for the one branch worth testing without a live
-    # broker/DB -- validation rejects blank/None input before ever reaching
-    # the broker. Full behaviour (broker success/failure paths) is covered
-    # by the Test Writer Agent's suite; this project's Phase 2 test strategy
-    # has no separate assert-based check requirement once those exist, but
-    # they don't exist yet at build time (CLAUDE.md's "no tests during
-    # build" waiver), so this is the one runnable check for now.
-    from unittest.mock import Mock
-
-    from api.services.foundations.learner_profile import LearnerProfileService
-    from api.models.foundations.learner_profile.exceptions import LearnerProfileValidationException
-
-    broker = Mock()
-    service = LearnerProfileService(broker, logging_broker=Mock())
-
-    for bad_value in (None, "", "   "):
-        try:
-            service.create_profile(bad_value)
-            raise AssertionError(f"expected rejection for {bad_value!r}")
-        except LearnerProfileValidationException:
-            pass
-    assert broker.insert_profile.call_count == 0, "broker must not be called on invalid input"
-
-    broker.insert_profile.return_value = LearnerProfile(id=1, proficiency_level="A2", updated_at=None)
-    created = service.create_profile("A2")
-    assert created.proficiency_level == "A2"
-    broker.insert_profile.assert_called_once_with("A2")
-
-    print("learner_profile_service self-check passed")
+        return self._try_catch(action)

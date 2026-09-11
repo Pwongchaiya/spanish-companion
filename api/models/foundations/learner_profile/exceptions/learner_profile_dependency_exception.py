@@ -4,7 +4,7 @@ from api.errors import ApiError
 
 
 class LearnerProfileDependencyException(ApiError):
-    """Wraps LearnerProfileUnavailableError for consumers, without leaking
+    """Wraps FailedLearnerProfileStorageException for consumers, without leaking
     internals. Mirrors FlagDependencyException's shape.
     """
 

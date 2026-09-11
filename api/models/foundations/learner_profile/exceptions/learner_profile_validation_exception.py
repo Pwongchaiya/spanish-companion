@@ -4,7 +4,7 @@ from api.errors import ApiError
 
 
 class LearnerProfileValidationException(ApiError):
-    """Wraps InvalidLearnerProfileInputError / NotFoundLearnerProfileException
+    """Wraps InvalidLearnerProfileException / NotFoundLearnerProfileException
     for consumers, without leaking internals. Mirrors FlagValidationException's
     shape -- both leaves land here, so no consumer-side discrimination beyond
     the message is required.
