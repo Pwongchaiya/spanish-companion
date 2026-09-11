@@ -43,6 +43,24 @@ describe("toastStore", () => {
     expect(toasts[0].count).toBe(3);
   });
 
+  it("addToast refreshes subMessage/retry on a dedupe to the latest call's values", () => {
+    const firstRetry = () => {};
+    const secondRetry = () => {};
+    useToastStore.getState().addToast("Couldn't save that practice attempt.", {
+      subMessage: "Your answer is still in the box.",
+      retry: firstRetry,
+    });
+    useToastStore.getState().addToast("Couldn't save that practice attempt.", {
+      subMessage: "Your answer is still in the box.",
+      retry: secondRetry,
+    });
+
+    const { toasts } = useToastStore.getState();
+    expect(toasts).toHaveLength(1);
+    expect(toasts[0].count).toBe(2);
+    expect(toasts[0].retry).toBe(secondRetry);
+  });
+
   it("addToast starts a fresh toast at count 1 for a different message", () => {
     useToastStore.getState().addToast("first");
     useToastStore.getState().addToast("second");

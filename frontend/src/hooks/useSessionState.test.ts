@@ -203,7 +203,10 @@ describe("useSessionState", () => {
       await result.current.start();
     });
 
-    expect(addToastMock).toHaveBeenCalledWith("Request failed: 404");
+    expect(addToastMock).toHaveBeenCalledWith(
+      "Couldn't start the conversation.",
+      expect.objectContaining({ retry: expect.any(Function) }),
+    );
     expect(setDownMock).not.toHaveBeenCalled();
   });
 
@@ -230,6 +233,9 @@ describe("useSessionState", () => {
       await result.current.stop();
     });
 
-    expect(addToastMock).toHaveBeenCalledWith("Session not found");
+    expect(addToastMock).toHaveBeenCalledWith(
+      "Couldn't stop the conversation.",
+      expect.objectContaining({ retry: expect.any(Function) }),
+    );
   });
 });

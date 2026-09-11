@@ -9,6 +9,11 @@ import { runWithBackoff } from "./useBackoffRetry";
 
 export function useReviewFlow() {
   const [flags, setFlags] = useState<Flag[]>([]);
+  // Distinguishes "the server said there's nothing flagged" from "we don't
+  // know yet, because listFlags has never actually succeeded" -- flags.length
+  // === 0 is true for both, and conflating them showed "Nothing was flagged
+  // last time" for an outage that never loaded anything.
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [selectedFlagId, setSelectedFlagId] = useState<string | null>(null);
   const [explanation, setExplanation] = useState<Explanation | null>(null);
   const [attempt, setAttempt] = useState<PracticeAttempt | null>(null);
@@ -16,15 +21,23 @@ export function useReviewFlow() {
   const addToast = useToastStore((s) => s.addToast);
 
   useEffect(() => {
-    return runWithBackoff(() => apiClient.listFlags(), setFlags);
+    return runWithBackoff(
+      () => apiClient.listFlags(),
+      (result) => {
+        setFlags(result);
+        setHasLoaded(true);
+      },
+      "Having trouble reaching the server.",
+      "These are the flags from last time, held locally.",
+    );
   }, []);
 
-  function handleCaughtError(e: unknown, retry: () => void) {
+  function handleCaughtError(e: unknown, retry: () => void, friendlyMessage: string, friendlySubMessage: string) {
     const treatment = classifyError(e as ApiClientError);
     if (treatment.kind === "field") {
       setError(treatment.message);
     } else if (treatment.kind === "toast") {
-      addToast(treatment.message);
+      addToast(friendlyMessage, { subMessage: friendlySubMessage, retry });
     } else {
       useConnectionStore.getState().setDown(
         "Having trouble reaching the server.",
@@ -42,7 +55,12 @@ export function useReviewFlow() {
     try {
       setExplanation(await apiClient.explainFlag(flagId));
     } catch (e) {
-      handleCaughtError(e, () => selectFlag(flagId));
+      handleCaughtError(
+        e,
+        () => selectFlag(flagId),
+        "Couldn't load that explanation.",
+        "Try selecting the flag again.",
+      );
     }
   }
 
@@ -51,7 +69,12 @@ export function useReviewFlow() {
     try {
       setAttempt(await apiClient.submitPractice(selectedFlagId, attemptText));
     } catch (e) {
-      handleCaughtError(e, () => submitPractice(attemptText));
+      handleCaughtError(
+        e,
+        () => submitPractice(attemptText),
+        "Couldn't save that practice attempt.",
+        "Your answer is still in the box.",
+      );
     }
   }
 
@@ -64,5 +87,5 @@ export function useReviewFlow() {
 
   const selectedFlag = flags.find((f) => f.id === selectedFlagId) ?? null;
 
-  return { flags, selectedFlag, explanation, attempt, error, selectFlag, submitPractice, backToList };
+  return { flags, hasLoaded, selectedFlag, explanation, attempt, error, selectFlag, submitPractice, backToList };
 }

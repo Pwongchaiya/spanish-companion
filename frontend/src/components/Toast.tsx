@@ -11,8 +11,28 @@ export function ToastContainer() {
     <div className="toast-container">
       {toasts.map((toast) => (
         <div key={toast.id} className="toast" role="alert">
-          <span>{toast.message}</span>
+          <span className="toast-text">
+            <b>{toast.message}</b>
+            {toast.subMessage && (
+              <>
+                <br />
+                {toast.subMessage}
+              </>
+            )}
+          </span>
           {toast.count > 1 && <span className="toast-count">{toast.count}×</span>}
+          {toast.retry && (
+            <button
+              className="toast-retry"
+              type="button"
+              onClick={() => {
+                toast.retry?.();
+                dismissToast(toast.id);
+              }}
+            >
+              Try again
+            </button>
+          )}
           <button className="toast-dismiss" onClick={() => dismissToast(toast.id)} aria-label="Dismiss">
             ×
           </button>

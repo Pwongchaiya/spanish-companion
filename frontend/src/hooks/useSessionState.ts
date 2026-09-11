@@ -36,13 +36,13 @@ export function useSessionState() {
     }
   }, [connectionStatus]);
 
-  function handleActionError(e: unknown, retryAction: () => void) {
+  function handleActionError(e: unknown, retryAction: () => void, friendlyMessage: string, friendlySubMessage: string) {
     const error = e as ApiClientError;
     const treatment = classifyError(error);
     if (treatment.kind === "banner") {
       useConnectionStore.getState().setDown("Having trouble reaching the server.", undefined, retryAction);
     } else {
-      useToastStore.getState().addToast(error.message);
+      useToastStore.getState().addToast(friendlyMessage, { subMessage: friendlySubMessage, retry: retryAction });
     }
   }
 
@@ -53,7 +53,7 @@ export function useSessionState() {
       await apiClient.startSession();
     } catch (e) {
       setStatus(previousStatus);
-      handleActionError(e, start);
+      handleActionError(e, start, "Couldn't start the conversation.", "Try again when you're ready.");
     }
   }
 
@@ -61,7 +61,7 @@ export function useSessionState() {
     try {
       await apiClient.stopSession();
     } catch (e) {
-      handleActionError(e, stop);
+      handleActionError(e, stop, "Couldn't stop the conversation.", "You can try again, or just close the tab.");
     }
   }
 

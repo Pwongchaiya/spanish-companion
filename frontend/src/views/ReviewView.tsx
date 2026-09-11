@@ -1,11 +1,21 @@
 import { useState } from "react";
 import { useReviewFlow } from "../hooks/useReviewFlow";
+import { useConnectionStore } from "../state/connectionStore";
 import "./ReviewView.css";
 
 export function ReviewView() {
-  const { flags, selectedFlag, explanation, attempt, error, selectFlag, submitPractice, backToList } =
+  const { flags, hasLoaded, selectedFlag, explanation, attempt, error, selectFlag, submitPractice, backToList } =
     useReviewFlow();
   const [attemptText, setAttemptText] = useState("");
+  // Explaining a flag needs retrieval, and retrieval needs the server -- so
+  // the list stays visible but non-interactive during an outage rather than
+  // failing silently per-click (Aliento error-handling mockup, "Review gets
+  // the identical band").
+  const connectionOk = useConnectionStore((s) => s.phase === "ok");
+  // "Nothing was flagged" and "you can read the list" both claim a real,
+  // previously-loaded list -- neither is true if listFlags has never
+  // actually succeeded (e.g. the backend was already down on first visit).
+  const hasCachedList = hasLoaded && flags.length > 0;
 
   return (
     <div className="view">
@@ -16,14 +26,25 @@ export function ReviewView() {
               <i />
             </div>
             <div className="st">Flagged</div>
+            {!connectionOk && hasCachedList && (
+              <p className="hint">You can read the list. Explanations come from the server, so those wait.</p>
+            )}
           </div>
 
-          {flags.length === 0 ? (
+          {!hasLoaded && !connectionOk && <p className="empty">Can&rsquo;t check for flags right now.</p>}
+          {hasLoaded && flags.length === 0 && (
             <p className="empty">Nothing was flagged last time. That happens.</p>
-          ) : (
+          )}
+          {flags.length > 0 && (
             <div className="flags">
               {flags.map((flag) => (
-                <button key={flag.id} className="flag" type="button" onClick={() => selectFlag(flag.id)}>
+                <button
+                  key={flag.id}
+                  className="flag"
+                  type="button"
+                  disabled={!connectionOk}
+                  onClick={() => selectFlag(flag.id)}
+                >
                   <span className="pair">
                     <span className="was">{flag.said}</span>
                     <span className="to">becomes</span>

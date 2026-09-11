@@ -10,15 +10,34 @@ const TURN_STATE_LABELS: Record<Exclude<TurnState, null>, string> = {
   idle: "Listening",
 };
 
-function stateLabel(running: boolean, ready: boolean, turnState: TurnState): string {
+function stateLabel(
+  running: boolean,
+  ready: boolean,
+  turnState: TurnState,
+): string {
   if (!running) return "Stopped";
   if (!ready) return "Warming up…";
   return turnState ? TURN_STATE_LABELS[turnState] : "Listening";
 }
 
+// Connection-phase copy for the idle/live panel, per the "When Aliento
+// Can't Reach the Server" mockup: quiet backoff gets a held ring and no
+// button at all (nothing to press while a retry is already in flight);
+// a give-up gets a named state, an explanation, and a disabled button
+// rather than a hidden one, so the person can see why it can't be pressed.
+const CONNECTION_LABEL: Record<"retrying" | "down", string> = {
+  retrying: "Holding",
+  down: "Offline",
+};
+const CONNECTION_HINT: Record<"retrying" | "down", string> = {
+  retrying: "Give it a second. Your last conversation is still here.",
+  down: "Starting a conversation needs the server. Reading this one doesn't.",
+};
+
 export function ConversationView() {
   const { status, transcript, turnState, start, stop } = useSessionState();
-  const connectionOk = useConnectionStore((s) => s.phase === "ok");
+  const phase = useConnectionStore((s) => s.phase);
+  const connectionOk = phase === "ok";
   // listening/idle share the "ready" ring state -- only thinking/speaking
   // get their own state, per ring CSS below.
   const ringState = !status.running
@@ -29,25 +48,40 @@ export function ConversationView() {
         ? turnState
         : "ready";
 
+  const label = !connectionOk
+    ? CONNECTION_LABEL[phase]
+    : status.running
+      ? stateLabel(status.running, status.ready, turnState)
+      : null;
+  const hint = !connectionOk
+    ? CONNECTION_HINT[phase]
+    : transcript.length === 0
+      ? "press Start and talk"
+      : null;
+
   return (
-    <div className="view">
+    <div className="view conversation-view">
       <div className="breath">
         <div className={`ring ${ringState}`} aria-hidden="true" />
-        <p className="status-label">{stateLabel(status.running, status.ready, turnState)}</p>
-        <button
-          className="primary conversation-toggle"
-          disabled={!connectionOk}
-          onClick={status.running ? stop : start}
-        >
-          {status.running ? "Stop" : "Start"}
-        </button>
+        {label && <p className="status-label">{label}</p>}
+        {hint && <p className="hint">{hint}</p>}
+        {phase !== "retrying" && (
+          <button
+            className="conversation-toggle"
+            disabled={!connectionOk}
+            onClick={status.running ? stop : start}
+          >
+            {status.running ? "Stop" : "Start"}
+          </button>
+        )}
       </div>
 
       <div className="transcript">
-        {transcript.length === 0 && <p className="empty">No conversation yet — press Start and talk.</p>}
         {transcript.map((turn, i) => (
           <div key={i} className={`turn ${turn.role}`}>
-            <span className="role">{turn.role === "user" ? "You" : "Companion"}</span>
+            <span className="role">
+              {turn.role === "user" ? "You" : "Companion"}
+            </span>
             <p>{turn.text}</p>
           </div>
         ))}

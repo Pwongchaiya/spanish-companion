@@ -16,6 +16,14 @@
   /* Escalated connection-trouble accent only — never a fill, never body text. */
   --ember: #8A4B34;
 
+  /* Ring state hues (Kiln) — the only place the ring's five states get
+     colour; glow is derived per state with color-mix() in ConversationView.css. */
+  --ring-stopped: #6F7A74;
+  --ring-warming: #B08033;
+  --ring-listening: #3F8A5E;
+  --ring-thinking: #4A6E96;
+  --ring-speaking: #B0573F;
+
   --sans: 'Instrument Sans', 'Helvetica Neue', system-ui, sans-serif;
   --heading: var(--sans);
   --serif: 'Spectral', Georgia, serif;
@@ -50,6 +58,11 @@
     --social-bg: rgba(42, 46, 42, 0.5);
     --shadow: none;
     --ember: #B56B4D;
+    --ring-stopped: #7E8A83;
+    --ring-warming: #D9A84E;
+    --ring-listening: #5FC08A;
+    --ring-thinking: #7BA3D1;
+    --ring-speaking: #E08163;
   }
 
   #social .button-icon {
@@ -71,6 +84,11 @@
   --social-bg: rgba(42, 46, 42, 0.5);
   --shadow: none;
   --ember: #B56B4D;
+  --ring-stopped: #7E8A83;
+  --ring-warming: #D9A84E;
+  --ring-listening: #5FC08A;
+  --ring-thinking: #7BA3D1;
+  --ring-speaking: #E08163;
   color-scheme: dark;
 }
 
@@ -86,6 +104,11 @@
   --social-bg: rgba(223, 226, 220, 0.4);
   --shadow: none;
   --ember: #8A4B34;
+  --ring-stopped: #6F7A74;
+  --ring-warming: #B08033;
+  --ring-listening: #3F8A5E;
+  --ring-thinking: #4A6E96;
+  --ring-speaking: #B0573F;
   color-scheme: light;
 }
 
@@ -93,7 +116,7 @@
    full-width shell (see Aliento mockups' .stage { max-width: 600px } ). */
 #root {
   max-width: 100%;
-  min-height: 100svh;
+  height: 100svh;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;

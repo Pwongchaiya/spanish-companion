@@ -41,8 +41,10 @@ describe("useReviewFlow", () => {
     renderHook(() => useReviewFlow());
 
     expect(runWithBackoff).toHaveBeenCalledTimes(1);
-    const [fn] = (runWithBackoff as any).mock.calls[0];
+    const [fn, , message, subMessage] = (runWithBackoff as any).mock.calls[0];
     expect(fn).toBeInstanceOf(Function);
+    expect(message).toBe("Having trouble reaching the server.");
+    expect(subMessage).toBe("These are the flags from last time, held locally.");
     expect(addToastMock).not.toHaveBeenCalled();
   });
 
@@ -76,7 +78,10 @@ describe("useReviewFlow", () => {
       await result.current.submitPractice("hola");
     });
 
-    expect(addToastMock).toHaveBeenCalledWith("Request failed: 400");
+    expect(addToastMock).toHaveBeenCalledWith(
+      "Couldn't save that practice attempt.",
+      expect.objectContaining({ subMessage: "Your answer is still in the box.", retry: expect.any(Function) }),
+    );
     expect(result.current.error).toBeNull();
     expect(setDownMock).not.toHaveBeenCalled();
   });
