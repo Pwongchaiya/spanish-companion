@@ -445,25 +445,31 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
         written_turn_count = 0
         while True:
             await asyncio.sleep(1.0)
-            current_turns = [
-                msg for msg in context.messages
-                if isinstance(msg, dict) and msg["role"] in ("user", "assistant")
-            ]
-
-            for turn in current_turns[written_turn_count:]:
-                try:
-                    self._live_transcript_service.append(turn["role"], _message_text(turn["content"]))
-                except (LiveTranscriptDependencyException, LiveTranscriptServiceException) as e:
-                    # Same treatment as the flag save below: this background
-                    # task must keep polling. Before W3 the broker's OSError
-                    # escaped raw and killed the task silently, taking the
-                    # periodic flag re-save with it -- the exact data loss the
-                    # docstring below says this task exists to prevent.
-                    self._logging_broker.log_error(e)
-                    break
-                written_turn_count += 1
-
+            written_turn_count = self._flush_new_turns(context, written_turn_count)
             try:
                 self._flag_service.save_flags(flags)
             except (FlagDependencyException, FlagServiceException) as e:
                 self._logging_broker.log_error(e)
+
+    def _flush_new_turns(self, context: LLMContext, written_turn_count: int) -> int:
+        """Append turns past `written_turn_count` to the live transcript.
+        Returns the updated count. Split out of _write_live_transcript so a
+        broker failure mid-flush (break below) doesn't also nest inside the
+        polling loop's own try/except for the flag re-save."""
+        current_turns = [
+            msg for msg in context.messages
+            if isinstance(msg, dict) and msg["role"] in ("user", "assistant")
+        ]
+        for turn in current_turns[written_turn_count:]:
+            try:
+                self._live_transcript_service.append(turn["role"], _message_text(turn["content"]))
+            except (LiveTranscriptDependencyException, LiveTranscriptServiceException) as e:
+                # Same treatment as the flag save below: this background
+                # task must keep polling. Before W3 the broker's OSError
+                # escaped raw and killed the task silently, taking the
+                # periodic flag re-save with it -- the exact data loss the
+                # docstring below says this task exists to prevent.
+                self._logging_broker.log_error(e)
+                break
+            written_turn_count += 1
+        return written_turn_count
