@@ -2,6 +2,7 @@
 
 import json
 import os
+import time
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
@@ -36,7 +37,18 @@ class JsonFileFlagBroker:
         # rewrites this file every ~1s while Review could, in principle, read it.
         tmp_path = self._path.with_suffix(".tmp")
         tmp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-        os.replace(tmp_path, self._path)
+        # ponytail: OneDrive syncs this repo and transiently locks files it's
+        # actively uploading, raising WinError 5 on os.replace. This file is
+        # rewritten every ~1s during a session, so it collides with OneDrive
+        # often enough to matter. Retry a few times before giving up.
+        for attempt in range(5):
+            try:
+                os.replace(tmp_path, self._path)
+                return
+            except PermissionError:
+                if attempt == 4:
+                    raise
+                time.sleep(0.05 * (attempt + 1))
 
     def load_flags(self) -> list[Flag]:
         # ponytail: tolerant parsing is the spec, not error-hiding — mirrors
@@ -65,3 +77,40 @@ class JsonFileFlagBroker:
             except (KeyError, TypeError, ValueError):
                 continue
         return flags
+
+
+if __name__ == "__main__":
+    # ponytail: self-check for the retry loop, not a broker-tier pytest suite
+    # (this project's test strategy deliberately has none, see
+    # decisions/companion-architecture-broker-service-controller.md).
+    import tempfile
+    from unittest.mock import patch
+
+    from api.models.foundations.flag import Flag
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        broker = JsonFileFlagBroker(path=Path(tmp_dir) / "flags.json")
+        flags = [Flag(id="1", said="hablo", corrected="hablé", category="tense", timestamp=datetime.now())]
+
+        calls = {"n": 0}
+        real_replace = os.replace
+
+        def flaky_replace(src, dst):
+            calls["n"] += 1
+            if calls["n"] < 3:
+                raise PermissionError("simulated OneDrive lock")
+            return real_replace(src, dst)
+
+        with patch("os.replace", side_effect=flaky_replace):
+            broker.save_flags(flags)
+        assert calls["n"] == 3, f"expected 2 failures then a success, got {calls['n']} calls"
+        assert [f.id for f in broker.load_flags()] == ["1"]
+
+        with patch("os.replace", side_effect=PermissionError("still locked")):
+            try:
+                broker.save_flags(flags)
+                raise AssertionError("expected PermissionError to propagate after exhausting retries")
+            except PermissionError:
+                pass
+
+    print("flag_broker self-check passed")
