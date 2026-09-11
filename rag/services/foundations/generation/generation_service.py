@@ -22,16 +22,26 @@ Prompt templates (Tri-Nature gap analysis GAP 2 -- "Skills live in code, not
 Data") live as plain text files under rag/data/prompts/, loaded once at
 import time and filled in with str.format().
 
-Split into this base logic file plus an Exceptions mixin
-(generation_service_exceptions.py), combined into the concrete
-GenerationService in __init__.py -- mirrors C#'s `partial class` merging
-EntitlementService.cs / .Exeptions.cs into one class
-(python-adaptations-skill.md's Architecture Patterns table), the same
-multi-inheritance-merge pattern api/services/session_lifecycle/ already
-uses. No Validations mixin here (unlike Session Lifecycle) -- there is no
-existing business rule requiring blank flag/chunk fields to be rejected,
-and inventing one now would be new business logic, not a citation-driven
-restructuring.
+Split into this file plus an Exceptions mixin (generation_service_exceptions.py)
+-- mirrors C#'s `partial class` merging EntitlementService.cs /
+.Exeptions.cs into one class (python-adaptations-skill.md's Architecture
+Patterns table). The concrete class is declared directly in THIS file,
+inheriting the Exceptions mixin by name -- no separate "_Base" intermediate
+class, no composition step in __init__.py (matches LearnerProfileService's
+rebuilt shape; the previous `_GenerationServiceBase` + __init__.py
+composition step was the invented-`_ServiceBase` pattern CLAUDE.md
+explicitly disallows -- removed). No Validations mixin here (unlike Session
+Lifecycle) -- there is no existing business rule requiring blank
+flag/chunk fields to be rejected, and inventing one now would be new
+business logic, not a citation-driven restructuring.
+
+explain() wraps its entire body -- prompt build, broker call, grounding
+check, fallback -- in a single inline nested closure passed straight to
+`_try_catch`, matching LearnerProfileService's shape. No local try/except
+inside the closure: the except-GenerationError-fallback and the grounding
+check are unchanged business logic, not exception handling that competes
+with `_try_catch` -- both stay exactly where they were, just no longer
+behind a separate `_do_thing` indirection layer.
 """
 
 from pathlib import Path
@@ -41,7 +51,10 @@ from rag.brokers.generation import GenerationBroker, GenerationError
 from rag.brokers.logging import LoggingBroker
 from rag.models.foundations.generation import Explanation
 from rag.models.orchestrations.retrieval import ScoredChunk
-from rag.services.foundations.generation.i_generation_service import FlagLike
+from rag.services.foundations.generation.generation_service_exceptions import (
+    GenerationServiceExceptions,
+)
+from rag.services.foundations.generation.i_generation_service import FlagLike, IGenerationService
 
 # ponytail: plain read_text() at import time, no templating framework --
 # see GAP 2 above.
@@ -50,12 +63,13 @@ _EXPLANATION_PROMPT = (_PROMPTS_DIR / "explanation.txt").read_text(encoding="utf
 _GROUNDING_JUDGE_PROMPT = (_PROMPTS_DIR / "grounding_judge.txt").read_text(encoding="utf-8")
 
 
-class _GenerationServiceBase:
+class GenerationService(GenerationServiceExceptions, IGenerationService):
     """Owns explain()'s prompt-building + broker call + fallback logic.
 
-    The public method delegates through `_try_catch` (defined in the
-    Exceptions mixin) per python-adaptations-skill.md's TryCatch
-    translation -- mirrors EntitlementService.cs:31-41.
+    The public method delegates its entire body through `_try_catch`
+    (defined in the Exceptions mixin) per python-adaptations-skill.md's
+    TryCatch translation -- mirrors EntitlementService.cs:31-41 and
+    LearnerProfileService's rebuilt shape.
     """
 
     def __init__(
@@ -68,23 +82,23 @@ class _GenerationServiceBase:
         self._logging_broker = logging_broker
 
     def explain(self, flag: FlagLike, chunk: ScoredChunk) -> Explanation:
-        return self._try_catch(lambda: self._explain(flag, chunk))
+        def action() -> Explanation:
+            prompt = self._build_prompt(flag, chunk)
+            try:
+                text = self._broker.generate(prompt)
+                if not self._is_grounded(text, chunk):
+                    raise GenerationError("draft explanation failed the grounding check")
+            except GenerationError as e:
+                # Load-bearing log: this is the only signal distinguishing "Gemini
+                # failed" from Review's own "no corpus match" fallback (same string,
+                # api/services/review.py) — without it the two failure modes are
+                # indistinguishable from logs alone.
+                self._logging_broker.log_info("generation failed, using fallback: %s", e)
+                # Phase 1's exact fallback string, review/review.py:107 — preserve verbatim
+                text = "I'm not certain on that one."
+            return Explanation(explanation=text, source_url=chunk.source_url)
 
-    def _explain(self, flag: FlagLike, chunk: ScoredChunk) -> Explanation:
-        prompt = self._build_prompt(flag, chunk)
-        try:
-            text = self._broker.generate(prompt)
-            if not self._is_grounded(text, chunk):
-                raise GenerationError("draft explanation failed the grounding check")
-        except GenerationError as e:
-            # Load-bearing log: this is the only signal distinguishing "Gemini
-            # failed" from Review's own "no corpus match" fallback (same string,
-            # api/services/review.py) — without it the two failure modes are
-            # indistinguishable from logs alone.
-            self._logging_broker.log_info("generation failed, using fallback: %s", e)
-            # Phase 1's exact fallback string, review/review.py:107 — preserve verbatim
-            text = "I'm not certain on that one."
-        return Explanation(explanation=text, source_url=chunk.source_url)
+        return self._try_catch(action)
 
     def _is_grounded(self, explanation: str, chunk: ScoredChunk) -> bool:
         """Reflective judge (Ch.8): a second call to the same LLM reconsiders

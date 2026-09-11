@@ -1,16 +1,10 @@
+"""Re-exports the concrete SessionLogService class, declared directly in
+session_log_service.py -- no composition step here, matching
+LearnerProfileService's rebuilt one-class-declared-once shape.
+"""
+
 from api.services.foundations.session_log.i_session_log_service import ISessionLogService
-from api.services.foundations.session_log.session_log_service import _SessionLogServiceBase
-from api.services.foundations.session_log.session_log_service_exceptions import (
-    SessionLogServiceExceptions,
-)
-
-
-class SessionLogService(_SessionLogServiceBase, SessionLogServiceExceptions):
-    """Combines the base logic and exceptions mixins into the concrete
-    Foundation service -- mirrors FlagService's multi-inheritance merge,
-    which stands in for C#'s `partial class`.
-    """
-
+from api.services.foundations.session_log.session_log_service import SessionLogService
 
 __all__ = [
     "ISessionLogService",

@@ -10,12 +10,20 @@ routes through _try_catch.
 Single broker dependency -> Foundation layer, not Orchestration, per
 CLAUDE.md's Phase 2 Layer-Agent Mapping & Waivers.
 
-Split into a base logic file plus an Exceptions mixin (this file,
-flag_service_exceptions.py), combined into the concrete FlagService in
-__init__.py -- mirrors C#'s `partial class` merging multiple files into one
-class (python-adaptations-skill.md's Architecture Patterns table), the same
-multi-inheritance-merge already used for Session Lifecycle and Review in
-this codebase.
+One class, declared once here, `class FlagService(FlagServiceExceptions,
+IFlagService):` -- constructor and public methods directly on it. No
+separate `_FlagServiceBase` + __init__.py composition step (that was the
+invented-`_ServiceBase` pattern CLAUDE.md explicitly disallows -- removed,
+matches LearnerProfileService/MistakePatternService's rebuilt shape).
+
+Public methods are the ONLY thing that wraps with `_try_catch` (defined in
+the Exceptions mixin): each public method's entire body is an inline nested
+closure passed straight to `_try_catch`, not a separate `_do_thing` private
+method with its own try/except. No local try/except inside the closures --
+every exception (domain leaf, raw exception, or otherwise) propagates
+untouched to `_try_catch`, the single dispatch point that classifies and
+wraps. The previous per-method wrapping of broker failures into
+FlagUnavailableError is preserved, just moved into the closure itself.
 
 No Validations mixin/file: get_flag()'s only failure mode is not-found,
 which is validation-shaped via NotFoundFlagException itself -- there is no
@@ -30,15 +38,12 @@ from api.brokers.flag import FlagBroker
 from api.brokers.logging import LoggingBroker
 from api.models.foundations.flag import Flag
 from api.models.foundations.flag.exceptions import FlagUnavailableError, NotFoundFlagException
+from api.services.foundations.flag.flag_service_exceptions import FlagServiceExceptions
+from api.services.foundations.flag.i_flag_service import IFlagService
 
 
-class _FlagServiceBase:
-    """Owns Flag persistence + lookup.
-
-    Public methods delegate to a private `_do_thing` method through
-    `_try_catch` (defined in the Exceptions mixin), per python-adaptations-
-    skill.md's TryCatch translation.
-    """
+class FlagService(FlagServiceExceptions, IFlagService):
+    """Owns Flag persistence + lookup."""
 
     def __init__(
         self,
@@ -62,47 +67,38 @@ class _FlagServiceBase:
         api/app.py's /api/events SSE stream calls this method directly too,
         bypassing the orchestrator entirely.
         """
-        return self._try_catch(self._list_flags)
 
-    def _list_flags(self) -> List[Flag]:
-        try:
-            return self._flag_broker.load_flags()
-        except Exception as e:
-            # Same wrapping as _get_flag/_save_flags below, for the same
-            # reason: without it a broker failure lands in _try_catch's
-            # generic Exception branch as FlagServiceException rather than
-            # the FlagDependencyException i_flag_service.py promises.
-            raise FlagUnavailableError(str(e)) from e
+        def action() -> List[Flag]:
+            try:
+                return self._flag_broker.load_flags()
+            except Exception as e:
+                raise FlagUnavailableError(str(e)) from e
+
+        return self._try_catch(action)
 
     def get_flag(self, flag_id: str) -> Flag:
-        return self._try_catch(lambda: self._get_flag(flag_id))
-
-    def _get_flag(self, flag_id: str) -> Flag:
         # ponytail: linear scan of a freshly loaded list on every call. MVP
         # scale is one conversation's flags (tens), and reloading each time is
         # the point -- Voice Conversation rewrites the file mid-session, so a
         # cached dict would go stale. Build an id->Flag index only if a single
         # request ever needs more than one lookup.
-        try:
-            flags = self._flag_broker.load_flags()
-        except Exception as e:
-            # Mirrors _save_flags's wrapping below -- without this, a broker
-            # failure here would fall through _try_catch's generic Exception
-            # branch as FlagServiceException, contradicting this class's own
-            # get_flag() docstring (and i_flag_service.py's), which promises
-            # FlagDependencyException for "the underlying FlagBroker call
-            # fails".
-            raise FlagUnavailableError(str(e)) from e
-        for flag in flags:
-            if flag.id == flag_id:
-                return flag
-        raise NotFoundFlagException(flag_id)
+        def action() -> Flag:
+            try:
+                flags = self._flag_broker.load_flags()
+            except Exception as e:
+                raise FlagUnavailableError(str(e)) from e
+            for flag in flags:
+                if flag.id == flag_id:
+                    return flag
+            raise NotFoundFlagException(flag_id)
+
+        return self._try_catch(action)
 
     def save_flags(self, flags: List[Flag]) -> None:
-        self._try_catch(lambda: self._save_flags(flags))
+        def action() -> None:
+            try:
+                self._flag_broker.save_flags(flags)
+            except Exception as e:
+                raise FlagUnavailableError(str(e)) from e
 
-    def _save_flags(self, flags: List[Flag]) -> None:
-        try:
-            self._flag_broker.save_flags(flags)
-        except Exception as e:
-            raise FlagUnavailableError(str(e)) from e
+        self._try_catch(action)

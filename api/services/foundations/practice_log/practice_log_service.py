@@ -10,12 +10,18 @@ ReviewOrchestratorValidations._validate_practice_input
 review_service.py are untouched by this wave -- Wave 5 rewires
 ReviewOrchestrationService to call this service instead.
 
-Split into a base logic file plus Validations/Exceptions mixins (this file,
-practice_log_service_validations.py, practice_log_service_exceptions.py),
-combined into the concrete PracticeLogService in __init__.py -- mirrors
-C#'s `partial class` merging multiple files into one class
-(python-adaptations-skill.md's Architecture Patterns table), same pattern
-as ConversationSessionService.
+No `_PracticeLogServiceBase` / composition step -- matches
+LearnerProfileService's rebuilt shape: one class, declared once,
+`class X(XExceptions, XValidations, IX):`, constructor and public methods
+on it directly (the previous `_PracticeLogServiceBase` + __init__.py
+composition step was the invented-`_ServiceBase` pattern CLAUDE.md
+explicitly disallows -- removed).
+
+Public methods are the ONLY thing that wraps with `_try_catch` (defined in
+the Exceptions mixin): each public method's entire body -- validate, then
+call the broker -- is an inline nested closure passed straight to
+`_try_catch`, not a separate `_do_thing` private method with its own local
+try/except.
 """
 
 from typing import List, Optional
@@ -23,13 +29,22 @@ from typing import List, Optional
 from api.brokers.logging import LoggingBroker
 from api.brokers.practice_log import PracticeAttempt, PracticeLogBroker
 from api.models.foundations.practice_log.exceptions import PracticeLogUnavailableError
+from api.services.foundations.practice_log.i_practice_log_service import IPracticeLogService
+from api.services.foundations.practice_log.practice_log_service_exceptions import (
+    PracticeLogServiceExceptions,
+)
+from api.services.foundations.practice_log.practice_log_service_validations import (
+    PracticeLogServiceValidations,
+)
 
 
-class _PracticeLogServiceBase:
-    """Public methods delegate to a private `_do_thing` method through
-    `_try_catch` (defined in the Exceptions mixin), per python-adaptations-
-    skill.md's TryCatch translation. Validation checks are named methods
-    (defined in the Validations mixin) rather than inlined.
+class PracticeLogService(
+    PracticeLogServiceExceptions,
+    PracticeLogServiceValidations,
+    IPracticeLogService,
+):
+    """Owns PracticeAttempt recording/reading. Validation checks are named
+    methods (defined in the Validations mixin) rather than inlined.
     """
 
     def __init__(
@@ -42,20 +57,20 @@ class _PracticeLogServiceBase:
         self._logging_broker = logging_broker
 
     def record_attempt(self, attempt: PracticeAttempt) -> None:
-        self._try_catch(lambda: self._record_attempt(attempt))
+        def action() -> None:
+            self._validate_attempt_text(attempt.attempt_text)
+            try:
+                self._practice_log_broker.record_attempt(attempt)
+            except Exception as e:
+                raise PracticeLogUnavailableError(str(e)) from e
 
-    def _record_attempt(self, attempt: PracticeAttempt) -> None:
-        self._validate_attempt_text(attempt.attempt_text)
-        try:
-            self._practice_log_broker.record_attempt(attempt)
-        except Exception as e:
-            raise PracticeLogUnavailableError(str(e)) from e
+        return self._try_catch(action)
 
     def read_attempts(self, flag_id: Optional[str] = None) -> List[PracticeAttempt]:
-        return self._try_catch(lambda: self._read_attempts(flag_id))
+        def action() -> List[PracticeAttempt]:
+            try:
+                return self._practice_log_broker.read_attempts(flag_id)
+            except Exception as e:
+                raise PracticeLogUnavailableError(str(e)) from e
 
-    def _read_attempts(self, flag_id: Optional[str]) -> List[PracticeAttempt]:
-        try:
-            return self._practice_log_broker.read_attempts(flag_id)
-        except Exception as e:
-            raise PracticeLogUnavailableError(str(e)) from e
+        return self._try_catch(action)

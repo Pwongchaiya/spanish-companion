@@ -115,6 +115,10 @@ from api.services.foundations.live_transcript import ILiveTranscriptService
 from api.services.foundations.session_log import ISessionLogService
 from api.services.orchestrations.voice_conversation._mic_gate import _MicGate
 from api.services.orchestrations.voice_conversation._turn_state_observer import _TurnStateObserver
+from api.services.orchestrations.voice_conversation.i_voice_conversation_service import VoiceConversationService
+from api.services.orchestrations.voice_conversation.voice_conversation_service_exceptions import (
+    ConversationOrchestrationServiceExceptions,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -167,7 +171,7 @@ def parse_flag(content: str, logging_broker: LoggingBroker) -> Optional[dict]:
     return {key: flag[key] for key in FLAG_KEYS}
 
 
-class _ConversationOrchestrationServiceBase:
+class ConversationOrchestrationService(ConversationOrchestrationServiceExceptions, VoiceConversationService):
     """Owns the live voice conversation — Pipecat pipeline construction,
     error-flag capture, and periodic persistence.
 

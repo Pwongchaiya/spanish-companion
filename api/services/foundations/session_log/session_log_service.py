@@ -8,10 +8,11 @@ api/services/orchestrations/voice_conversation/voice_conversation_service.py
 pipecat-specific concern this Foundation shouldn't need to know about), and
 passes already-flattened strings in.
 
-Split into a base logic file plus an Exceptions mixin
-(session_log_service_exceptions.py), combined into the concrete
-SessionLogService in __init__.py -- mirrors FlagService's shape, which in
-turn mirrors C#'s `partial class`.
+No composition step in __init__.py -- the concrete class is declared
+directly in this file, inheriting the Exceptions mixin by name. Mirrors
+LearnerProfileService's rebuilt shape (learner_profile_service.py): the
+previous `_SessionLogServiceBase` + __init__.py composition class was the
+invented-`_ServiceBase` pattern CLAUDE.md explicitly disallows -- removed.
 
 H3 of the architecture conformance audit found this service with no
 exception handling at all. Its one call site is in
@@ -23,6 +24,15 @@ No Validations mixin/file: the only input check is the empty-turns
 short-circuit, which returns None rather than raising -- writing no log for
 a session with no turns is a normal outcome, not a rejected input. Matches
 FlagService's precedent of skipping a file that would be empty.
+
+save()'s body is one inline nested closure passed straight to `_try_catch`
+(defined in the Exceptions mixin) -- no separate `_do_thing` private method.
+FileSessionLogBroker.write_session_log doesn't raise SessionLogUnavailableError
+itself (it raises whatever raw OSError Path.write_text throws), so the
+try/except that translates a raw broker failure into SessionLogUnavailableError
+is preserved, just relocated inline inside the closure instead of a separate
+`_save` method -- `_try_catch` then classifies that leaf into
+SessionLogDependencyException the same as before.
 """
 
 from pathlib import Path
@@ -32,15 +42,14 @@ from api.brokers.logging import LoggingBroker
 from api.brokers.session_log import SessionLogBroker
 from api.models.foundations.flag import Flag
 from api.models.foundations.session_log.exceptions import SessionLogUnavailableError
+from api.services.foundations.session_log.i_session_log_service import ISessionLogService
+from api.services.foundations.session_log.session_log_service_exceptions import (
+    SessionLogServiceExceptions,
+)
 
 
-class _SessionLogServiceBase:
-    """Owns formatting + persistence of one session's end-of-run log.
-
-    Public methods delegate to a private `_do_thing` method through
-    `_try_catch` (defined in the Exceptions mixin), per
-    python-adaptations-skill.md's TryCatch translation.
-    """
+class SessionLogService(SessionLogServiceExceptions, ISessionLogService):
+    """Owns formatting + persistence of one session's end-of-run log."""
 
     def __init__(
         self,
@@ -52,22 +61,22 @@ class _SessionLogServiceBase:
         self._logging_broker = logging_broker
 
     def save(self, turns: List[str], flags: List[Flag]) -> Optional[Path]:
-        return self._try_catch(lambda: self._save(turns, flags))
+        def action() -> Optional[Path]:
+            if not turns:
+                return None
 
-    def _save(self, turns: List[str], flags: List[Flag]) -> Optional[Path]:
-        if not turns:
-            return None
+            output_lines = turns[:]
+            if flags:
+                output_lines.append("--- flags ---")
+                for flag in flags:
+                    output_lines.append(
+                        f'[{flag.category}] said: "{flag.said}" -> corrected: "{flag.corrected}"'
+                    )
 
-        output_lines = turns[:]
-        if flags:
-            output_lines.append("--- flags ---")
-            for flag in flags:
-                output_lines.append(
-                    f'[{flag.category}] said: "{flag.said}" -> corrected: "{flag.corrected}"'
-                )
+            content = "\n".join(output_lines) + "\n"
+            try:
+                return self._session_log_broker.write_session_log(content)
+            except Exception as e:
+                raise SessionLogUnavailableError(str(e)) from e
 
-        content = "\n".join(output_lines) + "\n"
-        try:
-            return self._session_log_broker.write_session_log(content)
-        except Exception as e:
-            raise SessionLogUnavailableError(str(e)) from e
+        return self._try_catch(action)

@@ -1,37 +1,46 @@
-"""Base logic for ChunkRepositoryService.
+"""Foundation service wrapping ChunkRepositoryBroker.
 
-Foundation-tier per CLAUDE.md's Phase 2 Layer-Agent Mapping & Waivers:
-single broker dependency (ChunkRepositoryBroker), no waiver needed --
-identical shape to Generation's _GenerationServiceBase, just wrapping a
-different broker.
+Single broker dependency -> Foundation layer per CLAUDE.md's Phase 2
+Layer-Agent Mapping & Waivers.
 
-Split into this base logic file plus Validations and Exceptions mixins
-(chunk_repository_service_validations.py, chunk_repository_service_exceptions.py),
-combined into the concrete ChunkRepositoryService in __init__.py -- mirrors
-C#'s `partial class` merging EntitlementService.cs / .Validations.cs /
-.Exeptions.cs into one class, the same multi-inheritance-merge pattern
-Ingestion's IngestionOrchestrationService uses one layer up. Unlike Generation, this
-service DOES need a Validations mixin: unlike explain()'s flag/chunk
-objects (already validated upstream by the time Generation sees them),
-insert_chunk/search_by_vector are the first stop for raw caller input, and
-a blank topic/source_url/content would otherwise sail into the `chunks`
-table (which has no delete path, per Ingestion's own docstring) or top_k=0
-would silently ask the broker for zero rows.
+Split into this file plus Validations/Exceptions mixins
+(chunk_repository_service_validations.py, chunk_repository_service_exceptions.py)
+-- mirrors C#'s `partial class` merging EntitlementService.cs /
+.Validations.cs / .Exceptions.cs into one class. The concrete class is
+declared directly in THIS file, inheriting the other two mixins by name --
+no separate "_Base" intermediate class, no composition step in __init__.py.
+Matches LearnerProfileService's rebuilt shape exactly. (The previous
+`_ChunkRepositoryServiceBase` + __init__.py composition step was the
+invented-`_ServiceBase` pattern CLAUDE.md explicitly disallows -- removed.)
+
+Public methods are the ONLY thing that wraps with `_try_catch` (defined in
+the Exceptions mixin): each public method's entire body -- validate, then
+call the broker -- is an inline nested closure passed straight to
+`_try_catch`, not a separate `_do_thing` private method with its own local
+try/except. No local try/except inside the closures: every exception --
+domain leaf, raw broker exception, or otherwise -- propagates untouched to
+`_try_catch`, the single dispatch point that classifies and wraps.
 """
 
 from rag.brokers.chunk_repository import ChunkRepositoryBroker
 from rag.brokers.logging import LoggingBroker
 from rag.models.foundations.chunk_repository.exceptions import ChunkRepositoryUnavailableError
 from rag.models.orchestrations.retrieval import ScoredChunk
+from rag.services.foundations.chunk_repository.chunk_repository_service_exceptions import (
+    ChunkRepositoryServiceExceptions,
+)
+from rag.services.foundations.chunk_repository.chunk_repository_service_validations import (
+    ChunkRepositoryServiceValidations,
+)
+from rag.services.foundations.chunk_repository.i_chunk_repository_service import IChunkRepositoryService
 
 
-class _ChunkRepositoryServiceBase:
-    """Validates input, then delegates straight to ChunkRepositoryBroker.
-
-    Each public method delegates through `_try_catch` (defined in the
-    Exceptions mixin) to a private method of the same name, mirroring
-    IngestionOrchestrationService's `ingest_topic` -> `_ingest_topic` split one layer up.
-    """
+class ChunkRepositoryService(
+    ChunkRepositoryServiceExceptions,
+    ChunkRepositoryServiceValidations,
+    IChunkRepositoryService,
+):
+    """Validates input, then delegates straight to ChunkRepositoryBroker."""
 
     def __init__(
         self,
@@ -51,35 +60,23 @@ class _ChunkRepositoryServiceBase:
         embedding_model_version: str,
         chunking_strategy_version: str,
     ) -> int:
-        return self._try_catch(
-            lambda: self._insert_chunk(
-                topic, source_url, content, embedding, embedding_model_version, chunking_strategy_version
-            )
-        )
+        def action() -> int:
+            self._validate_insert_chunk_input(topic, source_url, content)
+            try:
+                return self._chunk_repository.insert_chunk(
+                    topic, source_url, content, embedding, embedding_model_version, chunking_strategy_version
+                )
+            except Exception as e:
+                raise ChunkRepositoryUnavailableError(str(e)) from e
 
-    def _insert_chunk(
-        self,
-        topic: str,
-        source_url: str,
-        content: str,
-        embedding: list[float],
-        embedding_model_version: str,
-        chunking_strategy_version: str,
-    ) -> int:
-        self._validate_insert_chunk_input(topic, source_url, content)
-        try:
-            return self._chunk_repository.insert_chunk(
-                topic, source_url, content, embedding, embedding_model_version, chunking_strategy_version
-            )
-        except Exception as e:
-            raise ChunkRepositoryUnavailableError(str(e)) from e
+        return self._try_catch(action)
 
     def search_by_vector(self, embedding: list[float], top_k: int) -> list[ScoredChunk]:
-        return self._try_catch(lambda: self._search_by_vector(embedding, top_k))
+        def action() -> list[ScoredChunk]:
+            self._validate_search_input(top_k)
+            try:
+                return self._chunk_repository.search_by_vector(embedding, top_k)
+            except Exception as e:
+                raise ChunkRepositoryUnavailableError(str(e)) from e
 
-    def _search_by_vector(self, embedding: list[float], top_k: int) -> list[ScoredChunk]:
-        self._validate_search_input(top_k)
-        try:
-            return self._chunk_repository.search_by_vector(embedding, top_k)
-        except Exception as e:
-            raise ChunkRepositoryUnavailableError(str(e)) from e
+        return self._try_catch(action)

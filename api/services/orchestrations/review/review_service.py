@@ -24,14 +24,23 @@ dep-count limit) is waived: this service coordinates four dependencies, not
 two or three. ORC-002 no longer applies -- nothing here touches a broker
 directly any more.
 
-Split into a base logic file plus an Exceptions mixin (this file,
-review_service_exceptions.py), combined into the concrete ReviewOrchestrationService
-in __init__.py -- mirrors C#'s `partial class` merging
-EntitlementCodesOrchestrationService.cs / .Exeptions.cs into one class, the
-same multi-inheritance-merge already used for Session Lifecycle in this
-codebase. No Validations mixin: the one check that lived here
-(blank attempt_text) now belongs to PracticeLogService, so nothing is
+Concrete class declared directly in this file, inheriting the Exceptions
+mixin (review_service_exceptions.py) and the ReviewService Protocol
+(i_review_service.py) by name -- no separate "_Base" intermediate class, no
+composition step in __init__.py. Matches LearnerProfileService's rebuilt
+shape (the previous `_ReviewOrchestrationServiceBase` + __init__.py
+composition step was the invented-`_ServiceBase` pattern CLAUDE.md
+explicitly disallows -- removed). No Validations mixin: the one check that
+lived here (blank attempt_text) belongs to PracticeLogService, so nothing is
 validated at this tier.
+
+Public methods are the ONLY thing that wraps with `_try_catch` (defined in
+the Exceptions mixin): each public method's entire body is an inline nested
+closure passed straight to `_try_catch`, not a separate `_do_thing` private
+method with its own local try/except. No local try/except inside the
+closures: every exception -- domain leaf, dependency wrapper, or otherwise --
+propagates untouched to `_try_catch`, the single dispatch point that
+classifies and wraps.
 """
 
 from datetime import datetime
@@ -44,19 +53,15 @@ from api.brokers.practice_log import PracticeAttempt
 from api.models.foundations.flag import Flag
 from api.services.foundations.flag import IFlagService
 from api.services.foundations.practice_log import IPracticeLogService
+from api.services.orchestrations.review.i_review_service import ReviewService
+from api.services.orchestrations.review.review_service_exceptions import ReviewOrchestrationServiceExceptions
 from rag.models.foundations.generation import Explanation
 from rag.services.foundations.generation import GenerationService
 from rag.services.orchestrations.retrieval import HybridRetrievalOrchestrationService
 
 
-class _ReviewOrchestrationServiceBase:
-    """Owns Review Mode's flow across flags, retrieval, generation, practice.
-
-    Public methods delegate to a private `_do_thing` method through
-    `_try_catch` (defined in the Exceptions mixin), mirroring
-    EntitlementCodesOrchestrationService.cs:36-65's
-    `RedeemEntitlementCodeForUserAsync(...) => TryCatch(async () => {...})`.
-    """
+class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewService):
+    """Owns Review Mode's flow across flags, retrieval, generation, practice."""
 
     def __init__(
         self,
@@ -105,54 +110,54 @@ class _ReviewOrchestrationServiceBase:
     # exactly one ReviewOrchestrationService is constructed per process.
     @lru_cache(maxsize=None)
     def explain_flag(self, flag_id: str) -> Explanation:
-        return self._try_catch(lambda: self._explain_flag(flag_id))
+        def action() -> Explanation:
+            flag = self._flag_service.get_flag(flag_id)
 
-    def _explain_flag(self, flag_id: str) -> Explanation:
-        flag = self._flag_service.get_flag(flag_id)
+            retrieval_top_k = int(self._configuration_broker.get("RETRIEVAL_TOP_K", "3"))
+            chunks = self._retrieval_service.retrieve(
+                query=flag.corrected,
+                top_k=retrieval_top_k,
+                category=flag.category,
+            )
+            if not chunks:
+                # Review's problem, not Generation's: GenerationService.explain()
+                # requires a real chunk (its contract has no Optional), so calling it
+                # here would be a contract violation, not a graceful degradation.
+                #
+                # This log line is the ONLY thing distinguishing this failure mode
+                # (corpus has nothing on the topic -> ingest more RAE pages) from
+                # Generation's LLM failure (rag/services/generation.py:37-46 ->
+                # retry), because both deliberately return the same user-facing
+                # string.
+                self._logging_broker.log_info("no corpus match for flag_id=%s category=%r", flag_id, flag.category)
+                # Phase 1's exact fallback string, review/review.py:107 — preserve
+                # verbatim, same as GenerationService's. One user-facing "couldn't
+                # help with this" string across the system; debugging splits them in
+                # the logs above, not in the copy.
+                return Explanation(explanation="I'm not certain on that one.", source_url="")
 
-        retrieval_top_k = int(self._configuration_broker.get("RETRIEVAL_TOP_K", "3"))
-        chunks = self._retrieval_service.retrieve(
-            query=flag.corrected,
-            top_k=retrieval_top_k,
-            category=flag.category,
-        )
-        if not chunks:
-            # Review's problem, not Generation's: GenerationService.explain()
-            # requires a real chunk (its contract has no Optional), so calling it
-            # here would be a contract violation, not a graceful degradation.
-            #
-            # This log line is the ONLY thing distinguishing this failure mode
-            # (corpus has nothing on the topic -> ingest more RAE pages) from
-            # Generation's LLM failure (rag/services/generation.py:37-46 ->
-            # retry), because both deliberately return the same user-facing
-            # string.
-            self._logging_broker.log_info("no corpus match for flag_id=%s category=%r", flag_id, flag.category)
-            # Phase 1's exact fallback string, review/review.py:107 — preserve
-            # verbatim, same as GenerationService's. One user-facing "couldn't
-            # help with this" string across the system; debugging splits them in
-            # the logs above, not in the copy.
-            return Explanation(explanation="I'm not certain on that one.", source_url="")
+            # retrieve() returns best-first, so [0] is the top-ranked chunk.
+            return self._generation_service.explain(flag, chunks[0])
 
-        # retrieve() returns best-first, so [0] is the top-ranked chunk.
-        return self._generation_service.explain(flag, chunks[0])
+        return self._try_catch(action)
 
     def record_practice(self, flag_id: str, attempt_text: str) -> PracticeAttempt:
-        return self._try_catch(lambda: self._record_practice(flag_id, attempt_text))
+        def action() -> PracticeAttempt:
+            # Look the flag up purely to reject unknown ids -- same not-found
+            # handling as explain_flag. A practice attempt against a flag that
+            # isn't in the list is a client-side state mismatch worth surfacing,
+            # not an orphan row worth writing.
+            #
+            # Lookup runs BEFORE PracticeLogService.record_attempt()'s blank-text
+            # check, so an unknown flag_id wins when both are bad: an id that is
+            # not in the list is a client-side state mismatch regardless of what
+            # text was submitted. Nothing asserts the opposite precedence -- the
+            # blank-text check is exercised at PracticeLogService's own tier.
+            flag = self._flag_service.get_flag(flag_id)
 
-    def _record_practice(self, flag_id: str, attempt_text: str) -> PracticeAttempt:
-        # Look the flag up purely to reject unknown ids -- same not-found
-        # handling as explain_flag. A practice attempt against a flag that
-        # isn't in the list is a client-side state mismatch worth surfacing,
-        # not an orphan row worth writing.
-        #
-        # Lookup runs BEFORE PracticeLogService.record_attempt()'s blank-text
-        # check, so an unknown flag_id wins when both are bad: an id that is
-        # not in the list is a client-side state mismatch regardless of what
-        # text was submitted. Nothing asserts the opposite precedence -- the
-        # blank-text check is exercised at PracticeLogService's own tier.
-        flag = self._flag_service.get_flag(flag_id)
+            attempt = PracticeAttempt(flag_id=flag.id, attempt_text=attempt_text, timestamp=self._clock())
+            self._practice_log_service.record_attempt(attempt)
+            self._logging_broker.log_info("recorded practice attempt for flag_id=%s", flag.id)
+            return attempt
 
-        attempt = PracticeAttempt(flag_id=flag.id, attempt_text=attempt_text, timestamp=self._clock())
-        self._practice_log_service.record_attempt(attempt)
-        self._logging_broker.log_info("recorded practice attempt for flag_id=%s", flag.id)
-        return attempt
+        return self._try_catch(action)

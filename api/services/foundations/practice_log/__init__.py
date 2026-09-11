@@ -1,23 +1,11 @@
+"""Re-exports the concrete PracticeLogService class, declared directly in
+practice_log_service.py (which inherits the Validations/Exceptions mixins
+by name) -- no composition step here, matching LearnerProfileService's
+rebuilt one-class-declared-once shape.
+"""
+
 from api.services.foundations.practice_log.i_practice_log_service import IPracticeLogService
-from api.services.foundations.practice_log.practice_log_service import _PracticeLogServiceBase
-from api.services.foundations.practice_log.practice_log_service_validations import (
-    PracticeLogServiceValidations,
-)
-from api.services.foundations.practice_log.practice_log_service_exceptions import (
-    PracticeLogServiceExceptions,
-)
-
-
-class PracticeLogService(
-    _PracticeLogServiceBase,
-    PracticeLogServiceValidations,
-    PracticeLogServiceExceptions,
-):
-    """Combines the base logic, validations, and exceptions mixins into the
-    concrete Foundation service -- mirrors C#'s `partial class` merging
-    PracticeLogService.cs / .Validations.cs / .Exeptions.cs into one class.
-    """
-
+from api.services.foundations.practice_log.practice_log_service import PracticeLogService
 
 __all__ = [
     "IPracticeLogService",

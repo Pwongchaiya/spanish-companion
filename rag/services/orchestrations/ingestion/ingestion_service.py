@@ -14,18 +14,35 @@ keeps `requests`/BeautifulSoup out of the service layer and makes ingest_topic
 a pure text -> rows operation.
 
 Split into a base logic file plus Validations/Exceptions mixins (this file,
-ingestion_service_validations.py, ingestion_service_exceptions.py), combined
-into the concrete IngestionOrchestrationService in __init__.py — mirrors C#'s `partial
-class` merging EntitlementCodesOrchestrationService.cs /
-.Validations.cs / .Exeptions.cs into one class, the same
-multi-inheritance-merge already used for Session Lifecycle and Review in this
-codebase.
+ingestion_service_validations.py, ingestion_service_exceptions.py) -- mirrors
+C#'s `partial class` merging EntitlementCodesOrchestrationService.cs /
+.Validations.cs / .Exeptions.cs into one class. Unlike C# (which reuses the
+same class name across every partial file), Python has no `partial`, so the
+concrete class is declared directly in THIS file, inheriting the other two
+mixins by name -- no separate "_Base" intermediate class, no composition step
+in __init__.py. Matches LearnerProfileService's rebuilt shape exactly: one
+class, declared once, `class X(XExceptions, XValidations, IX):`, constructor
+and public methods on it directly. (The previous
+`_IngestionOrchestrationServiceBase` + __init__.py composition step was the
+invented-`_ServiceBase` pattern CLAUDE.md explicitly disallows -- removed.)
+
+The public method is the ONLY thing that wraps with `_try_catch` (defined in
+the Exceptions mixin) -- its entire body (validate, chunk, embed, validate,
+insert) is an inline nested closure passed straight to `_try_catch`, not a
+separate `_ingest_topic` private method with its own delegation hop.
 """
 
 from rag.brokers.configuration import ConfigurationBroker, EnvConfigurationBroker
 from rag.brokers.logging import LoggingBroker
 from rag.services.foundations.chunk_repository import IChunkRepositoryService
 from rag.services.foundations.embedding_model import IEmbeddingModelService
+from rag.services.orchestrations.ingestion.i_ingestion_service import IIngestionService
+from rag.services.orchestrations.ingestion.ingestion_service_exceptions import (
+    IngestionOrchestrationServiceExceptions,
+)
+from rag.services.orchestrations.ingestion.ingestion_service_validations import (
+    IngestionOrchestrationServiceValidations,
+)
 
 # Version tags stamped on every row this service writes. Bump CHUNKING_STRATEGY_VERSION
 # whenever chunk_text's algorithm changes (size, overlap, splitting rule) and
@@ -54,11 +71,15 @@ def chunk_text(text: str, chunk_size: int) -> list[str]:
     return chunks
 
 
-class _IngestionOrchestrationServiceBase:
+class IngestionOrchestrationService(
+    IngestionOrchestrationServiceExceptions,
+    IngestionOrchestrationServiceValidations,
+    IIngestionService,
+):
     """Chunks, embeds, and persists corpus text for one topic.
 
-    The public method delegates to a private `_ingest_topic` through
-    `_try_catch` (defined in the Exceptions mixin), mirroring
+    The public method's entire body is an inline nested closure passed
+    straight to `_try_catch` (defined in the Exceptions mixin), mirroring
     EntitlementCodesOrchestrationService.cs:36-65's
     `RedeemEntitlementCodeForUserAsync(...) => TryCatch(async () => {...})`.
     Validation checks are named methods (defined in the Validations mixin)
@@ -87,50 +108,50 @@ class _IngestionOrchestrationServiceBase:
         self._chunk_size = int(configuration_broker.get("CHUNK_SIZE", "800"))
 
     def ingest_topic(self, topic: str, source_url: str, text: str) -> int:
-        return self._try_catch(lambda: self._ingest_topic(topic, source_url, text))
+        def action() -> int:
+            # Writes to `chunks` are one-way — ChunkRepositoryBroker has no delete path —
+            # and a blank string is not NULL, so it sails past the column's NOT NULL
+            # constraint and lands in the corpus permanently. Guard here, before anything
+            # is embedded or inserted.
+            self._validate_ingest_topic_input(topic, source_url)
 
-    def _ingest_topic(self, topic: str, source_url: str, text: str) -> int:
-        # Writes to `chunks` are one-way — ChunkRepositoryBroker has no delete path —
-        # and a blank string is not NULL, so it sails past the column's NOT NULL
-        # constraint and lands in the corpus permanently. Guard here, before anything
-        # is embedded or inserted.
-        self._validate_ingest_topic_input(topic, source_url)
+            # ponytail: dict.fromkeys is stdlib order-preserving dedupe. Scoped to
+            # THIS call only — repeated boilerplate (nav text, a repeated legal
+            # footer) can make the fixed-size splitter emit byte-identical chunks
+            # from one page. It cannot skip chunks already stored by a previous
+            # run: ChunkRepositoryService exposes only insert_chunk and
+            # search_by_vector, no read/exists path. True idempotent re-ingestion
+            # needs a read method that does not exist yet — see notes.
+            chunks = list(dict.fromkeys(chunk_text(text, self._chunk_size)))
+            if not chunks:
+                return 0
 
-        # ponytail: dict.fromkeys is stdlib order-preserving dedupe. Scoped to
-        # THIS call only — repeated boilerplate (nav text, a repeated legal
-        # footer) can make the fixed-size splitter emit byte-identical chunks
-        # from one page. It cannot skip chunks already stored by a previous
-        # run: ChunkRepositoryService exposes only insert_chunk and
-        # search_by_vector, no read/exists path. True idempotent re-ingestion
-        # needs a read method that does not exist yet — see notes.
-        chunks = list(dict.fromkeys(chunk_text(text, self._chunk_size)))
-        if not chunks:
-            return 0
+            # No local try/except around either dependency call. Infrastructure
+            # failures (sentence-transformers model load, SQLAlchemy, pgvector)
+            # are already caught, wrapped, and logged by the Foundation service
+            # that owns the broker — arriving here as
+            # EmbeddingModelDependencyException / ChunkRepositoryDependencyException,
+            # which _try_catch catches directly. That is the reference project's
+            # cross-service shape (Exeptions.cs:53-76): the outer service catches
+            # the *wrapper* types the layer beneath raises, never re-wraps them
+            # into a leaf of its own.
+            embeddings = self._embedding_model_service.embed(chunks)
 
-        # No local try/except around either dependency call. Infrastructure
-        # failures (sentence-transformers model load, SQLAlchemy, pgvector)
-        # are already caught, wrapped, and logged by the Foundation service
-        # that owns the broker — arriving here as
-        # EmbeddingModelDependencyException / ChunkRepositoryDependencyException,
-        # which _try_catch catches directly. That is the reference project's
-        # cross-service shape (Exeptions.cs:53-76): the outer service catches
-        # the *wrapper* types the layer beneath raises, never re-wraps them
-        # into a leaf of its own.
-        embeddings = self._embedding_model_service.embed(chunks)
+            # Checked up front, not via zip(strict=True) inside the loop: writes have no
+            # rollback (there is no delete path), so a mismatch must fail before any row
+            # is inserted, not after the loop has already written some.
+            self._validate_embeddings_match_chunks(embeddings, chunks)
 
-        # Checked up front, not via zip(strict=True) inside the loop: writes have no
-        # rollback (there is no delete path), so a mismatch must fail before any row
-        # is inserted, not after the loop has already written some.
-        self._validate_embeddings_match_chunks(embeddings, chunks)
+            for chunk, embedding in zip(chunks, embeddings):
+                self._chunk_repository_service.insert_chunk(
+                    topic=topic,
+                    source_url=source_url,
+                    content=chunk,
+                    embedding=embedding,
+                    embedding_model_version=self._embedding_model_service.model_name,
+                    chunking_strategy_version=CHUNKING_STRATEGY_VERSION,
+                )
 
-        for chunk, embedding in zip(chunks, embeddings):
-            self._chunk_repository_service.insert_chunk(
-                topic=topic,
-                source_url=source_url,
-                content=chunk,
-                embedding=embedding,
-                embedding_model_version=self._embedding_model_service.model_name,
-                chunking_strategy_version=CHUNKING_STRATEGY_VERSION,
-            )
+            return len(chunks)
 
-        return len(chunks)
+        return self._try_catch(action)

@@ -8,11 +8,19 @@ embedding), so this Foundation service wraps the broker directly, matching
 how every other single-broker Service in this rebuild is built.
 
 Split into a base logic file plus Validations/Exceptions mixins (this file,
-embedding_model_service_validations.py, embedding_model_service_exceptions.py),
-combined into the concrete EmbeddingModelService in __init__.py -- the same
-3-mixin split rag/services/ingestion uses one layer up, itself mirroring C#'s
-`partial class` merging EntitlementCodesOrchestrationService.cs / .Validations.cs
-/ .Exeptions.cs into one class.
+embedding_model_service_validations.py, embedding_model_service_exceptions.py)
+-- mirrors C#'s `partial class` merging pattern. The concrete class is
+declared directly in THIS file, inheriting the other two mixins by name --
+no separate "_Base" intermediate class, no composition step in __init__.py.
+Matches LearnerProfileService's rebuilt shape
+(api/services/foundations/learner_profile/learner_profile_service.py).
+
+Public methods are the ONLY thing that wraps with `_try_catch` (defined in
+the Exceptions mixin): `embed`'s entire body -- validate, then call the
+broker -- is an inline nested closure passed straight to `_try_catch`, not a
+separate `_embed` private method. `model_name` stays an unwrapped passthrough
+-- no failure mode on the broker's `model_name` property to wrap, same
+reasoning as ReviewOrchestrationService.list_flags().
 """
 
 from typing import List
@@ -20,15 +28,21 @@ from typing import List
 from rag.brokers.embedding_model import EmbeddingModelBroker
 from rag.brokers.logging import LoggingBroker
 from rag.models.foundations.embedding_model.exceptions import EmbeddingModelUnavailableError
+from rag.services.foundations.embedding_model.embedding_model_service_exceptions import (
+    EmbeddingModelServiceExceptions,
+)
+from rag.services.foundations.embedding_model.embedding_model_service_validations import (
+    EmbeddingModelServiceValidations,
+)
+from rag.services.foundations.embedding_model.i_embedding_model_service import IEmbeddingModelService
 
 
-class _EmbeddingModelServiceBase:
-    """Validates input, then delegates to EmbeddingModelBroker.
-
-    The public `embed` method delegates to a private `_embed` through
-    `_try_catch` (defined in the Exceptions mixin), mirroring
-    `_IngestionOrchestrationServiceBase.ingest_topic`'s same delegation one layer up.
-    """
+class EmbeddingModelService(
+    EmbeddingModelServiceExceptions,
+    EmbeddingModelServiceValidations,
+    IEmbeddingModelService,
+):
+    """Validates input, then delegates to EmbeddingModelBroker."""
 
     def __init__(
         self,
@@ -53,16 +67,16 @@ class _EmbeddingModelServiceBase:
         return self._embedding_model.model_name
 
     def embed(self, texts: List[str]) -> List[List[float]]:
-        return self._try_catch(lambda: self._embed(texts))
+        def action() -> List[List[float]]:
+            self._validate_embed_input(texts)
 
-    def _embed(self, texts: List[str]) -> List[List[float]]:
-        self._validate_embed_input(texts)
+            # The one broker call site. Wrapped into a named leaf here, then
+            # into EmbeddingModelDependencyException by _try_catch -- same
+            # `raise X(str(e)) from e` shape as IngestionUnavailableError's
+            # `embed` call site in rag/services/ingestion/ingestion_service.py.
+            try:
+                return self._embedding_model.embed(texts)
+            except Exception as e:
+                raise EmbeddingModelUnavailableError(str(e)) from e
 
-        # The one broker call site. Wrapped into a named leaf here, then
-        # into EmbeddingModelDependencyException by _try_catch -- same
-        # `raise X(str(e)) from e` shape as IngestionUnavailableError's
-        # `embed` call site in rag/services/ingestion/ingestion_service.py.
-        try:
-            return self._embedding_model.embed(texts)
-        except Exception as e:
-            raise EmbeddingModelUnavailableError(str(e)) from e
+        return self._try_catch(action)

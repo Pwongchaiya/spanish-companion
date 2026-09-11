@@ -7,7 +7,7 @@ loaded once at import time and filled in with str.format(). These tests
 pin that the extraction didn't change the interpolated output.
 """
 
-from rag.services.foundations.generation.generation_service import _GenerationServiceBase
+from rag.services.foundations.generation.generation_service import GenerationService
 
 
 class TestGenerationServicePromptLoading:
@@ -16,7 +16,7 @@ class TestGenerationServicePromptLoading:
         self, service, flag, chunk
     ):
         # when
-        prompt = _GenerationServiceBase._build_prompt(service, flag, chunk)
+        prompt = GenerationService._build_prompt(service, flag, chunk)
 
         # then
         assert repr(flag.said) in prompt
@@ -28,7 +28,7 @@ class TestGenerationServicePromptLoading:
         self, service, chunk
     ):
         # when
-        prompt = _GenerationServiceBase._build_judge_prompt(service, "a draft explanation", chunk)
+        prompt = GenerationService._build_judge_prompt(service, "a draft explanation", chunk)
 
         # then
         assert "a draft explanation" in prompt
