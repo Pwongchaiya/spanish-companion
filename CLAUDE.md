@@ -191,6 +191,19 @@ features fail the Auditor (Ingestion, Retrieval, Voice Conversation, Review
 all have Services with 2+ broker/dependency counts — rejected by FND-003 /
 ORC-001 / ORC-002). The mapping and waivers below resolve that mismatch.
 
+**Naming/structure must be verified against the actual `NL.Core.Users` `.cs`
+file, not a sibling entity's Python file and not a third-party snippet.**
+Established 2026-09-11 after MistakePattern's Broker/Foundation/Validations/
+Exceptions needed a full rebuild — every gap (missing validation batching, a
+missing NotFound path, a missing AlreadyExists tier, extra try/except
+indirection, an invented `_ServiceBase` composition class, broker/service
+method and field names missing the entity name) traced back to citing a
+sibling file (`LearnerProfileServiceValidations`'s shape) or an unrelated
+example instead of opening the real source
+(`C:/Users/pwong/source/repos/NL.Core.Users`). "Mirrors X's shape" is not a
+citation unless X is the actual `.cs` file, with a file:line. See
+[[Projects/spanish-companion/decisions/mistake-pattern-source-of-truth-conformance|decision record]].
+
 **Layer-agent mapping:**
 
 | Layer | Agent | Features | Waiver |
