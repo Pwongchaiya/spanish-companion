@@ -192,25 +192,19 @@ all have Services with 2+ broker/dependency counts — rejected by FND-003 /
 ORC-001 / ORC-002). The mapping and waivers below resolve that mismatch.
 
 **Naming/structure must be verified against the actual `NL.Core.Users` `.cs`
-file, not a sibling entity's Python file and not a third-party snippet.**
-Established 2026-09-11 after MistakePattern's Broker/Foundation/Validations/
-Exceptions needed a full rebuild — every gap (missing validation batching, a
-missing NotFound path, a missing AlreadyExists tier, extra try/except
-indirection, an invented `_ServiceBase` composition class, broker/service
-method and field names missing the entity name) traced back to citing a
-sibling file (`LearnerProfileServiceValidations`'s shape) or an unrelated
-example instead of opening the real source
-(`C:/Users/pwong/source/repos/NL.Core.Users`). "Mirrors X's shape" is not a
-citation unless X is the actual `.cs` file, with a file:line. See
-[[Projects/spanish-companion/decisions/mistake-pattern-source-of-truth-conformance|decision record]].
+file** (`C:/Users/pwong/source/repos/NL.Core.Users`) — not a sibling entity's
+Python file, not a third-party snippet. "Mirrors X's shape" is not a
+citation unless X is the real `.cs` file, with a file:line. See
+[[Projects/spanish-companion/decisions/mistake-pattern-source-of-truth-conformance|decision record]]
+for why this rule exists.
 
 **Layer-agent mapping:**
 
 | Layer | Agent | Features | Waiver |
 |---|---|---|---|
 | Broker | Broker Agent | All six | None — SQLAlchemy + Alembic **adopted** (toolkit default kept, not waived). Output paths pinned per the `api`/`rag` layout, not the toolkit's `brokers/storage/` default. |
-| Service, 1 broker | Foundation Agent | Session Lifecycle, Generation | Waive the 9-class default exception hierarchy — pin the actual exception list per feature at build time, verified non-empty for every feature that can fail in more than one way. **Superseded by each feature's source-of-truth rebuild, 2026-08-29**: Session Lifecycle names 4 (`AlreadyRunningSessionException`/`NotRunningSessionException` leaves, always wrapped into `SessionValidationException`/`SessionServiceException` before leaving the service), Generation names 2 (`GenerationError` — broker-level, still swallowed to a fixed fallback string and never wrapped; `GenerationServiceException` — a new Service-tier safety net for genuinely unexpected failures) — all inherit `ApiError`/`RagError`, both of which now carry `inner_exception` directly on the base class. See the [[Projects/spanish-companion/decisions/session-lifecycle-rebuilt-against-source-of-truth\|Session Lifecycle]] and [[Projects/spanish-companion/decisions/ingestion-retrieval-generation-rebuilt-against-source-of-truth\|Ingestion/Retrieval/Generation]] rebuild records. |
-| Service, 2+ broker/deps | Orchestration Agent | Ingestion, Retrieval, Review | Waive ORC-001 (Florance dep-count limit) and ORC-002 (no direct broker deps) — this project has no Foundation layer beneath these, so direct broker deps are correct, not a violation. **Superseded by each feature's source-of-truth rebuild, 2026-08-29**: Ingestion names 5 (`IngestionValidationError`/`IngestionUnavailableError` leaves, wrapped into `IngestionOrchestrationValidationException`/`...DependencyException`/`...ServiceException`), Retrieval names 3 (`RetrievalUnavailableError` leaf, wrapped into `RetrievalOrchestrationDependencyException`/`...ServiceException` — no Validation tier, since `retrieve()`'s only input checks are a bare, deliberately-unwrapped `ValueError`), Review names 6 across 3 wrapper tiers including `NotFoundFlagException` (renamed from `FlagNotFoundException`) — all inherit `ApiError`/`RagError`. Retrieval's leaf now arrives at Review pre-wrapped as `RetrievalOrchestrationDependencyException`, not the raw `RetrievalUnavailableError` — a coordinated cross-feature fix, not a Review-initiated change. See the [[Projects/spanish-companion/decisions/review-rebuilt-against-source-of-truth\|Review]] and [[Projects/spanish-companion/decisions/ingestion-retrieval-generation-rebuilt-against-source-of-truth\|Ingestion/Retrieval/Generation]] rebuild records. |
+| Service, 1 broker | Foundation Agent | Session Lifecycle, Generation | Waive the 9-class default exception hierarchy — pin the actual exception list per feature, verified non-empty for every feature that can fail in more than one way. Verified against source-of-truth: Session Lifecycle names 4, Generation names 2 — all inherit `ApiError`/`RagError`. See [[Projects/spanish-companion/decisions/session-lifecycle-rebuilt-against-source-of-truth\|Session Lifecycle]] and [[Projects/spanish-companion/decisions/ingestion-retrieval-generation-rebuilt-against-source-of-truth\|Ingestion/Retrieval/Generation]] records. |
+| Service, 2+ broker/deps | Orchestration Agent | Ingestion, Retrieval, Review | Waive ORC-001 (Florance dep-count limit) and ORC-002 (no direct broker deps) — no Foundation layer beneath these, so direct broker deps are correct. Verified against source-of-truth: Ingestion names 5, Retrieval names 3 (no Validation tier — `retrieve()`'s only input check is a bare `ValueError`), Review names 6 across 3 wrapper tiers. Retrieval's leaf reaches Review pre-wrapped as `RetrievalOrchestrationDependencyException`. See [[Projects/spanish-companion/decisions/review-rebuilt-against-source-of-truth\|Review]] and [[Projects/spanish-companion/decisions/ingestion-retrieval-generation-rebuilt-against-source-of-truth\|Ingestion/Retrieval/Generation]] records. |
 | Processing | Processing Agent (new entities only, from 2026-09-10) | Per-entity, wherever higher-order logic (upsert, computed occurrence counts, status transitions) sits on top of a single Foundation service | **Reversed project-wide 2026-09-10** — the original "Not used" waiver collapsed Processing into Foundation/Service, which pushed upsert-style logic into what should be a pure CRUD tier (get/put/delete/create/getall only). Going forward, Foundation stays low-level-only; Processing owns higher-order logic on top of it, matching Standard's philosophy. **Not retroactive** — the 5 already-shipped features (Session Lifecycle, Generation, Ingestion, Retrieval, Review) keep their existing 3-layer shape; this applies starting with the LearnerProfile entity cluster's re-split into 3 entities (LearnerProfile, MistakePattern, TopicCovered), each getting its own Broker → Foundation → Processing sequence where it needs one. |
 | Aggregation | **Not used** | — | Its trigger is "Exposer needs >1 Orchestration service"; every controller here calls exactly one service |
 | Controller, HTTP + in-process | Exposer Agent | Session Lifecycle, Review, Retrieval, Generation | Waive `/api/V1.0/` versioning (routes are unversioned: `/start`, `/stop`, `/status`, `/review*`); turn off React output (frontend is separately scaffolded in `frontend/`); for the two in-process controllers (`RetrievalController`, `GenerationController`) waive HTTP status-code mapping — there is no HTTP response to map |
@@ -224,25 +218,20 @@ can discover or test (no agent has a microphone): echo suppression via
 Windows SIGBREAK handling, periodic flag persistence. Gate on a manual
 hardware/mic test, same method as Phase 1.
 
-**Voice Conversation's exception policy, resolved (Phase 3, 2026-08-29):** the
-zero-exception state through Phase 2 was a deferred gap, not a deliberate
-minimal choice — `bot_process.py` carried an explicit `ponytail` comment
-saying so. Names two exceptions, both `ApiError`: `VoiceConversationConfigError`
+**Voice Conversation exceptions** (both `ApiError`): `VoiceConversationConfigError`
 (missing/invalid Azure Speech or Gemini credentials, audio device setup) and
 `VoiceConversationPipelineError` (audio device init failure, unrecoverable
-Gemini failure after retry). A third candidate category — pipeline setup
-exceeding its 60s timeout — is a known, deliberately unclosed gap: pipecat
-1.8.1's `PipelineWorker` swallows its own setup timeout internally (fires
-`on_setup_timeout`, never raises) and does so inside a detached background
-task, so nothing at the `run()` call site can catch it today. Closing it
-requires hooking `@worker.event_handler("on_setup_timeout")` and raising
-`VoiceConversationPipelineError` from inside the handler — left as a
-`ponytail:` comment at the call site rather than half-implemented via a
-try/except that would never fire. Separately, `SubprocessBotProcessBroker`
-now captures and exposes the subprocess's actual return code
-(`get_last_return_code()`), letting `ConversationSessionService.get_status()`
-distinguish a crash from a graceful stop instead of collapsing both into one
-`running=False` signal ([[Projects/spanish-companion/decisions/phase-2-vs-reference-architecture-audit\|F20, F21, F22]]).
+Gemini failure after retry).
+
+**Known gap, deliberately unclosed:** pipeline setup exceeding its 60s
+timeout can't be caught today — pipecat 1.8.1's `PipelineWorker` swallows
+its own setup timeout internally and never raises. Closing it needs
+`@worker.event_handler("on_setup_timeout")` raising `VoiceConversationPipelineError`
+— left as a `ponytail:` comment at the call site, not a try/except that'd
+never fire. `SubprocessBotProcessBroker` exposes the subprocess's return
+code (`get_last_return_code()`) so `ConversationSessionService.get_status()`
+can distinguish a crash from a graceful stop. See
+[[Projects/spanish-companion/decisions/phase-2-vs-reference-architecture-audit|F20-F22]].
 
 **Build order:** Session Lifecycle (full B/S/C loop, validates this waiver
 approach cheaply) → shared broker wave, built once with both consumers'
@@ -254,12 +243,6 @@ Retrieval + Generation Controllers and the `Flag` model) → `app.py`
 integration (factory, controller wiring, `/api/events` SSE, Origin/Referer
 check, serve `frontend/dist` — owned by the main session, no single
 feature/agent owns it) → frontend per feature.
-
-**Status of these waivers is unverified until step 1 runs.** If the
-Auditor Agent does not honor a CLAUDE.md-only waiver in practice, escalate
-to a local `.claude/agents/*.md` patch (gitignored, machine-local, but
-guaranteed to be read since it IS the agent's instructions) rather than
-repeatedly overriding per-invocation.
 
 ### Hierarchical Agent Delegation
 
