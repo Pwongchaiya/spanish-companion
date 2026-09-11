@@ -18,6 +18,7 @@ Projects/spanish-companion/sessions/2026-09-10-1948.md
 | Retrieval | Projects/spanish-companion/entities/retrieval.md |
 | Generation | Projects/spanish-companion/entities/generation.md |
 | Review | Projects/spanish-companion/entities/review.md |
+| LearnerProfile | Projects/spanish-companion/entities/learner-profile.md |
 
 ---
 

@@ -66,3 +66,4 @@ is deferred; at MVP scale (3–5 topics, ~30–50 chunks), manual re-ingestion i
 ## Migration History
 
 - `0001_create_chunks_table.py` — Initial schema with version tracking (Phase 2, replaces Phase 1's raw-DDL table)
+- `0002_create_learner_profile_tables.py` — `learner_profile`, `mistake_pattern`, `topic_covered` (learner memory / dynamic bot behavior, Phase 1 of that roadmap — see `decisions/dynamic-bot-behavior-and-learner-memory.md`)
