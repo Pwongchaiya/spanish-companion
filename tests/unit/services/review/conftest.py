@@ -19,7 +19,6 @@ from unittest.mock import Mock
 
 import pytest
 
-from api.brokers.logging import LoggingBroker
 from api.models.foundations.flag import Flag
 from api.services.foundations.flag import IFlagService
 from api.services.foundations.practice_log import IPracticeLogService
@@ -27,6 +26,7 @@ from api.services.orchestrations.review import ReviewOrchestrationService
 from rag.models.orchestrations.retrieval import ScoredChunk
 from rag.services.foundations.generation import GenerationService
 from rag.services.orchestrations.retrieval import HybridRetrievalOrchestrationService
+from tests.unit.services._api_logging_fixture import mock_logging_broker  # noqa: F401
 
 FIXED_NOW = datetime(2026, 1, 2, 3, 4, 5)
 RETRIEVAL_TOP_K = 3
@@ -76,11 +76,6 @@ def mock_retrieval_service():
 @pytest.fixture
 def mock_generation_service():
     return Mock(spec=GenerationService)
-
-
-@pytest.fixture
-def mock_logging_broker():
-    return Mock(spec=LoggingBroker)
 
 
 @pytest.fixture

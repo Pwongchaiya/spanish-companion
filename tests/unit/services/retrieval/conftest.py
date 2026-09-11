@@ -13,12 +13,12 @@ from unittest.mock import Mock
 
 import pytest
 
-from rag.brokers.logging import LoggingBroker
 from rag.models.orchestrations.retrieval import ScoredChunk
 from rag.services.foundations.embedding_model import IEmbeddingModelService
 from rag.services.orchestrations.retrieval import HybridRetrievalOrchestrationService
 from rag.services.orchestrations.retrieval.strategies.dense import RetrievalStrategy
 from rag.services.orchestrations.retrieval.strategies.fusion import PassThroughRankFusion
+from tests.unit.services._rag_logging_fixture import mock_logging_broker  # noqa: F401
 
 # Deterministic stand-in for a 384-dim embedding. Nothing under test does
 # vector math -- the dense search that would is the broker's job, exercised
@@ -60,11 +60,6 @@ def mock_embedding_model():
 def mock_strategy():
     """Stands in for DenseVectorStrategy at the seam the service depends on."""
     return Mock(spec=RetrievalStrategy)
-
-
-@pytest.fixture
-def mock_logging_broker():
-    return Mock(spec=LoggingBroker)
 
 
 @pytest.fixture

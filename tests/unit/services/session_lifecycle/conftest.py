@@ -17,8 +17,8 @@ from unittest.mock import Mock
 
 from api.brokers.bot_process import BotProcessBroker
 from api.brokers.configuration import ConfigurationBroker
-from api.brokers.logging import LoggingBroker
 from api.services.foundations.session_lifecycle import ConversationSessionService
+from tests.unit.services._api_logging_fixture import mock_logging_broker  # noqa: F401
 
 GRACEFUL_TIMEOUT_SECONDS = 5.0
 TERMINATE_TIMEOUT_SECONDS = 2.0
@@ -54,11 +54,6 @@ class FakeConfigurationBroker:
 @pytest.fixture
 def mock_broker():
     return Mock(spec=BotProcessBroker)
-
-
-@pytest.fixture
-def mock_logging_broker():
-    return Mock(spec=LoggingBroker)
 
 
 @pytest.fixture

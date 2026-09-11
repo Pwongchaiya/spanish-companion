@@ -9,20 +9,15 @@ from unittest.mock import Mock
 
 import pytest
 
-from api.brokers.logging import LoggingBroker
 from api.brokers.session_log import SessionLogBroker
 from api.models.foundations.flag import Flag
 from api.services.foundations.session_log import SessionLogService
+from tests.unit.services._api_logging_fixture import mock_logging_broker  # noqa: F401
 
 
 @pytest.fixture
 def mock_session_log_broker():
     return Mock(spec=SessionLogBroker)
-
-
-@pytest.fixture
-def mock_logging_broker():
-    return Mock(spec=LoggingBroker)
 
 
 @pytest.fixture

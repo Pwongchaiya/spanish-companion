@@ -15,10 +15,10 @@ from unittest.mock import Mock
 import pytest
 
 from rag.brokers.configuration import ConfigurationBroker
-from rag.brokers.logging import LoggingBroker
 from rag.services.foundations.chunk_repository import IChunkRepositoryService
 from rag.services.foundations.embedding_model import IEmbeddingModelService
 from rag.services.orchestrations.ingestion import IngestionOrchestrationService
+from tests.unit.services._rag_logging_fixture import mock_logging_broker  # noqa: F401
 
 CHUNK_SIZE = 800
 
@@ -38,11 +38,6 @@ def mock_configuration_broker():
     broker = Mock(spec=ConfigurationBroker)
     broker.get.return_value = str(CHUNK_SIZE)
     return broker
-
-
-@pytest.fixture
-def mock_logging_broker():
-    return Mock(spec=LoggingBroker)
 
 
 @pytest.fixture

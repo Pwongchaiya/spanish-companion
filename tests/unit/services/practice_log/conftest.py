@@ -11,9 +11,9 @@ from unittest.mock import Mock
 
 import pytest
 
-from api.brokers.logging import LoggingBroker
 from api.brokers.practice_log import PracticeAttempt, PracticeLogBroker
 from api.services.foundations.practice_log import PracticeLogService
+from tests.unit.services._api_logging_fixture import mock_logging_broker  # noqa: F401
 
 FIXED_TIMESTAMP = datetime(2026, 1, 2, 3, 4, 5)
 
@@ -21,11 +21,6 @@ FIXED_TIMESTAMP = datetime(2026, 1, 2, 3, 4, 5)
 @pytest.fixture
 def mock_practice_log_broker():
     return Mock(spec=PracticeLogBroker)
-
-
-@pytest.fixture
-def mock_logging_broker():
-    return Mock(spec=LoggingBroker)
 
 
 @pytest.fixture

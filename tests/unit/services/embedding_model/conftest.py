@@ -11,18 +11,13 @@ from unittest.mock import Mock
 import pytest
 
 from rag.brokers.embedding_model import EmbeddingModelBroker
-from rag.brokers.logging import LoggingBroker
 from rag.services.foundations.embedding_model import EmbeddingModelService
+from tests.unit.services._rag_logging_fixture import mock_logging_broker  # noqa: F401
 
 
 @pytest.fixture
 def mock_broker():
     return Mock(spec=EmbeddingModelBroker)
-
-
-@pytest.fixture
-def mock_logging_broker():
-    return Mock(spec=LoggingBroker)
 
 
 @pytest.fixture
