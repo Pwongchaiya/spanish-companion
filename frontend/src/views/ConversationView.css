@@ -190,7 +190,12 @@
 }
 
 .transcript {
-  flex: 1;
+  /* Peek of previous: capped short so only the latest turn plus a
+     faded sliver of the one before it are visible at rest -- not
+     flex:1, which would fill all remaining height and read as a
+     growing log instead of a current-speaker view. */
+  flex: 0 1 auto;
+  max-height: min(300px, 40vh);
   min-height: 0;
   overflow-y: auto;
   scrollbar-width: none;

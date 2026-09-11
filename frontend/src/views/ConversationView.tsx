@@ -1,7 +1,13 @@
+import { useEffect, useRef } from "react";
 import "./ConversationView.css";
 import { useSessionState } from "../hooks/useSessionState";
 import { useConnectionStore } from "../state/connectionStore";
 import type { TurnState } from "../api/types";
+
+// How close to the bottom (px) still counts as "pinned" -- new turns
+// auto-scroll into view. Past that, the user is reading history and a
+// new turn must not yank their scroll position.
+const PIN_THRESHOLD_PX = 40;
 
 const TURN_STATE_LABELS: Record<Exclude<TurnState, null>, string> = {
   listening: "Listening",
@@ -59,6 +65,21 @@ export function ConversationView() {
       ? "press Start and talk"
       : null;
 
+  const transcriptRef = useRef<HTMLDivElement>(null);
+  const pinnedRef = useRef(true);
+
+  const handleScroll = () => {
+    const el = transcriptRef.current;
+    if (!el) return;
+    pinnedRef.current =
+      el.scrollHeight - el.scrollTop - el.clientHeight < PIN_THRESHOLD_PX;
+  };
+
+  useEffect(() => {
+    const el = transcriptRef.current;
+    if (el && pinnedRef.current) el.scrollTop = el.scrollHeight;
+  }, [transcript]);
+
   return (
     <div className="view conversation-view">
       <div className="breath">
@@ -76,7 +97,7 @@ export function ConversationView() {
         )}
       </div>
 
-      <div className="transcript">
+      <div className="transcript" ref={transcriptRef} onScroll={handleScroll}>
         {transcript.map((turn, i) => (
           <div key={i} className={`turn ${turn.role}`}>
             <span className="role">
