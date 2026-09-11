@@ -15,42 +15,50 @@ from api.models.foundations.mistake_pattern.mistake_pattern import MistakePatter
 
 
 class IMistakePatternService(Protocol):
-    """External-facing contract for MistakePattern's Foundation service."""
+    """External-facing contract for MistakePattern's Foundation service.
 
-    def list_by_profile(self, profile_id: int) -> list[MistakePattern]:
+    Method names embed the entity name, matching NL.Core.Users' Service
+    interface methods (`AddUserProfileAsync`, `ModifyUserProfileAsync`,
+    `RetrieveUserProfileByIdAsync` -- IUserProfileService.cs) -- verbs stay
+    this project's own create/update/list (a project-wide REST/CRUD
+    adaptation of Add/Modify/Retrieve), but the entity name is no longer
+    dropped.
+    """
+
+    def list_mistake_patterns_by_profile(self, profile_id: int) -> list[MistakePattern]:
         """All mistake-pattern rows for the given profile.
 
         Raises MistakePatternValidationException (wrapping
-        InvalidMistakePatternInputError) if profile_id is not a positive int.
+        InvalidMistakePatternException) if profile_id is not a positive int.
         Raises MistakePatternDependencyException (wrapping
-        MistakePatternUnavailableError) if the underlying broker call fails.
+        FailedMistakePatternStorageException) if the underlying broker call fails.
         Raises MistakePatternServiceException for any other unexpected
         failure.
         """
         ...
 
-    def create(self, profile_id: int, category: str) -> MistakePattern:
+    def create_mistake_pattern(self, profile_id: int, category: str) -> MistakePattern:
         """Insert a new mistake-pattern row.
 
         Raises MistakePatternValidationException (wrapping
-        InvalidMistakePatternInputError) if profile_id is not a positive int
+        InvalidMistakePatternException) if profile_id is not a positive int
         or category is None/blank.
         Raises MistakePatternDependencyException (wrapping
-        MistakePatternUnavailableError) if the underlying broker call fails
+        FailedMistakePatternStorageException) if the underlying broker call fails
         (including a duplicate (profile_id, category) pair).
         Raises MistakePatternServiceException for any other unexpected
         failure.
         """
         ...
 
-    def update(self, pattern_id: int, occurrence_count: int, status: str) -> MistakePattern:
+    def update_mistake_pattern(self, pattern_id: int, occurrence_count: int, status: str) -> MistakePattern:
         """Update the given row's occurrence_count and status.
 
         Raises MistakePatternValidationException (wrapping
-        InvalidMistakePatternInputError) if pattern_id is not a positive
+        InvalidMistakePatternException) if pattern_id is not a positive
         int, occurrence_count < 1, or status is not "active"/"resolved".
         Raises MistakePatternDependencyException (wrapping
-        MistakePatternUnavailableError) if the underlying broker call fails
+        FailedMistakePatternStorageException) if the underlying broker call fails
         (including pattern_id not existing).
         Raises MistakePatternServiceException for any other unexpected
         failure.

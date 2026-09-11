@@ -4,7 +4,7 @@ from api.errors import ApiError
 
 
 class MistakePatternValidationException(ApiError):
-    """Wraps InvalidMistakePatternInputError / NotFoundMistakePatternException
+    """Wraps InvalidMistakePatternException / NotFoundMistakePatternException
     for consumers, without leaking internals. Mirrors
     LearnerProfileValidationException's shape.
     """

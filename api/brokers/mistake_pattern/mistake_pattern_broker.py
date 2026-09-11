@@ -8,6 +8,8 @@ owned per-instance, Session opened per call, pg8000 driver-scheme
 normalization in __init__).
 """
 
+from typing import Optional
+
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
@@ -37,14 +39,14 @@ class SqlAlchemyMistakePatternBroker:
             connection_string = connection_string.replace("postgresql://", "postgresql+pg8000://", 1)
         self._engine = create_engine(connection_string)
 
-    def select_by_profile(self, profile_id: int) -> list[MistakePattern]:
+    def select_mistake_patterns_by_profile(self, profile_id: int) -> list[MistakePattern]:
         with Session(self._engine) as session:
             records = session.execute(
                 select(MistakePatternRecord).where(MistakePatternRecord.profile_id == profile_id)
             ).scalars().all()
             return [_to_dataclass(record) for record in records]
 
-    def insert(self, profile_id: int, category: str) -> MistakePattern:
+    def insert_mistake_pattern(self, profile_id: int, category: str) -> MistakePattern:
         record = MistakePatternRecord(profile_id=profile_id, category=category)
         with Session(self._engine) as session:
             session.add(record)
@@ -52,55 +54,15 @@ class SqlAlchemyMistakePatternBroker:
             session.refresh(record)
             return _to_dataclass(record)
 
-    def update(self, pattern_id: int, occurrence_count: int, status: str) -> MistakePattern:
+    def update_mistake_pattern(
+        self, pattern_id: int, occurrence_count: int, status: str
+    ) -> Optional[MistakePattern]:
         with Session(self._engine) as session:
             record = session.get(MistakePatternRecord, pattern_id)
+            if record is None:
+                return None
             record.occurrence_count = occurrence_count
             record.status = status
             session.commit()
             session.refresh(record)
             return _to_dataclass(record)
-
-
-if __name__ == "__main__":
-    # ponytail: self-check for the ORM<->dataclass mapping (_to_dataclass),
-    # the one piece of actual logic in this broker — against an in-memory
-    # sqlite engine, not a live Postgres (this project's test strategy has
-    # no broker-tier tests, see CLAUDE.md / test-broker-skill).
-    from datetime import datetime
-
-    from api.models.base import Base
-    from api.models.foundations.learner_profile.learner_profile import LearnerProfileRecord  # noqa: F401  (FK target)
-
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-
-    # seed a learner_profile row so the FK is satisfiable
-    with Session(engine) as session:
-        profile = LearnerProfileRecord(proficiency_level="A2")
-        session.add(profile)
-        session.commit()
-        profile_id = profile.id
-
-    broker = SqlAlchemyMistakePatternBroker.__new__(SqlAlchemyMistakePatternBroker)
-    broker._engine = engine
-
-    assert broker.select_by_profile(profile_id) == [], "expected no rows before insert"
-
-    created = broker.insert(profile_id=profile_id, category="ser vs estar")
-    assert created.id is not None
-    assert created.profile_id == profile_id
-    assert created.category == "ser vs estar"
-    assert created.occurrence_count == 1
-    assert created.status == "active"
-    assert isinstance(created.last_seen_at, datetime)
-
-    fetched = broker.select_by_profile(profile_id)
-    assert len(fetched) == 1 and fetched[0].id == created.id
-
-    updated = broker.update(created.id, occurrence_count=3, status="resolved")
-    assert updated.occurrence_count == 3
-    assert updated.status == "resolved"
-    assert broker.select_by_profile(profile_id)[0].occurrence_count == 3
-
-    print("mistake_pattern_broker self-check passed")

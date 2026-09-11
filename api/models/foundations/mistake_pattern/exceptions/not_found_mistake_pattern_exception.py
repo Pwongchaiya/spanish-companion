@@ -1,12 +1,14 @@
 """Leaf validation exception raised when a mistake-pattern row doesn't exist.
 
-Not raised by any current MistakePatternService method (list_by_profile
-returns an empty list rather than "not found"; create/update have no
-missing-row read path) -- pinned now per CLAUDE.md's per-entity exception-
-hierarchy waiver so Processing's record_occurrence()/resolve()
-(find-by-category over list_by_profile's results) has it ready to raise
-without a second entity round-trip. Renamed `<Condition><Entity>` per the
-Flag/Session Lifecycle rebuild convention.
+Raised by two independent callers, for two different lookups:
+Processing's resolve() (find-by-category over list_by_profile's results,
+no DB round-trip) and Foundation's update() (broker returns None when
+pattern_id doesn't exist -- same convention as select_by_profile()
+returning an empty list for no rows; Foundation checks for None and raises
+this directly, mirroring LearnerProfileService._get_profile()).
+list_by_profile() itself still returns an empty list rather than raising --
+"no rows for this profile" isn't a not-found condition. Renamed
+`<Condition><Entity>` per the Flag/Session Lifecycle rebuild convention.
 """
 
 from api.errors import ApiError

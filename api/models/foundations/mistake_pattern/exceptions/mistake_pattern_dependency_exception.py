@@ -4,7 +4,7 @@ from api.errors import ApiError
 
 
 class MistakePatternDependencyException(ApiError):
-    """Wraps MistakePatternUnavailableError for consumers, without leaking
+    """Wraps FailedMistakePatternStorageException for consumers, without leaking
     internals. Mirrors LearnerProfileDependencyException's shape.
     """
 
