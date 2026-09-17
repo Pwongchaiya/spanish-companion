@@ -48,6 +48,21 @@ class TestGenerationServiceExplainExceptions:
         )
         assert mock_broker.generate.call_count == 2
 
+    def test_should_log_judge_verdict_when_draft_not_grounded(self, service, mock_broker, mock_logging_broker, flag, chunk):
+        # given
+        mock_broker.generate.side_effect = [
+            "The corrected form is right because reasons unrelated to the source.",
+            "NO, the reference content does not support this claim.",
+        ]
+
+        # when
+        service.explain(flag, chunk)
+
+        # then
+        mock_logging_broker.log_info.assert_any_call(
+            "grounding judge verdict: %s", "NO, the reference content does not support this claim."
+        )
+
     def test_should_return_fallback_explanation_when_judge_call_itself_raises_generation_error(
         self, service, mock_broker, flag, chunk
     ):

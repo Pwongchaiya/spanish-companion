@@ -19,6 +19,7 @@ process (see BotProcessBroker).
 """
 
 import json
+import logging
 import os
 import time
 from dataclasses import asdict
@@ -52,6 +53,7 @@ from rag.services.orchestrations.retrieval.strategies.filters import MaxDistance
 from rag.services.orchestrations.retrieval.strategies.fusion import PassThroughRankFusion
 
 load_dotenv()
+logging.basicConfig(level=logging.INFO)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 FRONTEND_DIST = REPO_ROOT / "frontend" / "dist"

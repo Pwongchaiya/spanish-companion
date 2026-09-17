@@ -67,22 +67,24 @@ TOPICS: list[tuple[str, str]] = [
 
 
 def fetch_page_text(url: str, timeout_seconds: int) -> str:
-    """Fetch a RAE page and extract its visible main-content text.
+    """Fetch a RAE grammar page and extract its grammar-body text.
 
-    Extraction logic unchanged from Phase 1's rag/ingest.py:fetch_page_text —
-    working, no reason to change it in a clean rewrite. `timeout_seconds` is
-    now passed in rather than read from a module-level constant (H1: this
-    exposer is its own composition root, so it constructs the
-    ConfigurationBroker itself, inside main(), not at import time).
+    RAE's page has no semantic `<main>`/`<article>` tag — `soup.find("main")`
+    matches nothing, so the original extraction fell back to `soup.body`,
+    pulling in the "container diccionario" sidebar (dictionary search links,
+    "También le interesará" news items) alongside the real grammar text.
+    The actual grammar body lives in `<div id="resultados">`, confirmed by
+    inspecting the ser-vs-estar page's DOM directly — every ingested topic
+    is a RAE "gramática básica" page sharing this same template.
     """
     response = requests.get(url, timeout=timeout_seconds)
     response.raise_for_status()
 
     soup = BeautifulSoup(response.text, "html.parser")
-    for tag in soup.find_all(["nav", "header", "footer", "script", "style"]):
+    content = soup.find(id="resultados") or soup.body or soup
+    for tag in content.find_all(["nav", "header", "footer", "script", "style"]):
         tag.decompose()
 
-    content = soup.find("main") or soup.find("article") or soup.body or soup
     text = content.get_text()
     text = "\n".join(line for line in text.split("\n") if line.strip())
     lines = [" ".join(line.split()) for line in text.split("\n")]
@@ -114,5 +116,37 @@ def main() -> None:
         print(f"{topic}: {count} chunks ({url})")
 
 
+def _selftest() -> None:
+    """Assert-based check: fetch_page_text must pull only #resultados text,
+    dropping sidebar/nav content sitting outside it -- the exact bug this
+    function was fixed for (junk chunks in the ingested corpus)."""
+    import unittest.mock as mock
+
+    html = """
+    <html><body>
+      <nav>skip me</nav>
+      <div class="container diccionario">
+        <div class="row">
+          <div class="col-xs-12 col-md-8">
+            <div id="resultados"><p>Real grammar content.</p></div>
+          </div>
+          <div class="col-xs-12 col-md-4">Tambien le interesara: sidebar junk</div>
+        </div>
+      </div>
+    </body></html>
+    """
+    fake_response = mock.Mock(text=html, raise_for_status=lambda: None)
+    with mock.patch("requests.get", return_value=fake_response):
+        text = fetch_page_text("http://example.invalid", timeout_seconds=1)
+    assert text == "Real grammar content.", text
+    assert "sidebar junk" not in text
+    print("ok")
+
+
 if __name__ == "__main__":
-    main()
+    import sys
+
+    if "--selftest" in sys.argv:
+        _selftest()
+    else:
+        main()

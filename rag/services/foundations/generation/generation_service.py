@@ -111,7 +111,10 @@ class GenerationService(GenerationServiceExceptions, IGenerationService):
             verdict = self._broker.generate(judge_prompt)
         except GenerationError:
             return False
-        return verdict.strip().upper().startswith("YES")
+        grounded = verdict.strip().upper().startswith("YES")
+        if not grounded:
+            self._logging_broker.log_info("grounding judge verdict: %s", verdict.strip())
+        return grounded
 
     def _build_prompt(self, flag: FlagLike, chunk: ScoredChunk) -> str:
         return _EXPLANATION_PROMPT.format(
