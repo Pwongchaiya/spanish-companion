@@ -296,6 +296,13 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
         # turns still hang, or if legitimate mid-sentence pauses start
         # getting cut off.
         vad_stop_secs = float(self._configuration_broker.get("VAD_STOP_SECS", "0.5"))
+        # ponytail: same hardware-calibration category as VAD_STOP_SECS above.
+        # Silero VAD's stock confidence threshold (0.7) let background noise
+        # (fan, hum, room noise) false-trigger "user speaking" in the
+        # 2026-09-17 hardware test (checklist item #3). Raise via
+        # VAD_CONFIDENCE if noise still triggers false starts, or lower it if
+        # quiet speech onset starts getting missed.
+        vad_confidence = float(self._configuration_broker.get("VAD_CONFIDENCE", "0.7"))
 
         stt = self._stt_broker.create()
 
@@ -308,7 +315,9 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
             # speakers, Azure STT transcribes it, and the bot ends up replying to
             # itself in a loop.
             user_params=LLMUserAggregatorParams(
-                vad_analyzer=SileroVADAnalyzer(params=VADParams(stop_secs=vad_stop_secs)),
+                vad_analyzer=SileroVADAnalyzer(
+                    params=VADParams(stop_secs=vad_stop_secs, confidence=vad_confidence)
+                ),
                 user_mute_strategies=[AlwaysUserMuteStrategy()],
             ),
         )
