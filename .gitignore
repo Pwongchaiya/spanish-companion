@@ -8,6 +8,7 @@ data/flags.json
 data/practice_log.jsonl
 data/live_transcript.jsonl
 data/session_logs/
+data/turn_state.txt
 .claude
 .claude-toolkit
 voice/logs/
