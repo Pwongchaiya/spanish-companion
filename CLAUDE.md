@@ -217,11 +217,13 @@ for why rule exist.
 | Broker interfaces | — | All | `typing.Protocol`, not `ABC` — waive `python-adaptations-skill`'s ABC default and BRK-004 ("no local interface defined"). Reframed post-audit: this doesn't diverge from reference `NL.Core.Entitlements` project, it matches it — `IEntitlementService.cs` sits next to `EntitlementService.cs` there too, interfaces co-located with implementation. Toolkit's ABC/BRK-004 default the outlier, not this waiver ([[Projects/spanish-companion/decisions/phase-2-vs-reference-architecture-audit\|F18]]) |
 
 **Voice Conversation: no agent, any layer.** Full manual, supervised port
-of Phase 1's `voice/bot.py`. Carries four hardware-verified fixes no agent
+of Phase 1's `voice/bot.py`. Carries three hardware-verified fixes no agent
 can discover or test (no agent has microphone): echo suppression via
 `AlwaysUserMuteStrategy`, the 44100/24000Hz sample-rate mismatch fix,
-Windows SIGBREAK handling, periodic flag persistence. Gate on manual
-hardware/mic test, same method as Phase 1.
+periodic flag persistence. Graceful `/stop` uses a polled stop-flag file
+(`_watch_for_stop_signal`), not Phase 1's Windows SIGBREAK port — that
+mechanism was confirmed broken via isolated repro, 2026-08-29. Gate on
+manual hardware/mic test, same method as Phase 1.
 
 **Voice Conversation exceptions** (both `ApiError`): `VoiceConversationConfigError`
 (missing/invalid Azure Speech or Gemini credentials, audio device setup) and
