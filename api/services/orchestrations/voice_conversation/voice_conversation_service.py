@@ -79,6 +79,7 @@ from typing import List, Optional, Tuple
 
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.audio.vad.vad_analyzer import VADParams
+from pipecat.frames.frames import TTSSpeakFrame
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.worker import PipelineParams, PipelineWorker
 from pipecat.processors.aggregators.llm_context import LLMContext
@@ -372,6 +373,16 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
             ]
         )
 
+        # Gemini's own retry (retry_on_timeout=True, set at construction in
+        # api/exposers/voice_conversation.py) fires once; if the retried call
+        # also stalls, pipecat gives up silently -- no spoken reply, no
+        # context entry, conversation just hangs on "thinking" until the user
+        # gives up and hits /stop. This speaks a fallback line and lets the
+        # user try again instead of hanging indefinitely.
+        @self._llm.event_handler("on_completion_timeout")
+        async def on_completion_timeout(llm: GoogleLLMService) -> None:
+            await llm.push_frame(TTSSpeakFrame("Sorry, I lost my train of thought. Could you say that again?"))
+
         # ponytail: cold Windows start (AV scanning fresh native DLLs: Azure Speech
         # SDK, ONNX runtime, scikit-learn via NLTK warm-up) can blow the default
         # 20s setup window; bump it rather than chase per-processor timing.
@@ -428,7 +439,7 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
             await asyncio.sleep(1.0)
             if self._stop_signal_file_path.exists():
                 self._stop_signal_file_path.unlink(missing_ok=True)
-                runner.end("stop requested")
+                await runner.end("stop requested")
                 return
 
     async def _write_live_transcript(self, context: LLMContext, flags: List[Flag]) -> None:
