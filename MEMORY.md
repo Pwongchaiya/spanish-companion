@@ -7,7 +7,7 @@ Updated automatically by /session-end (Last Session).
 ---
 
 ## Last Session
-Projects/spanish-companion/sessions/2026-09-17-1247.md
+~/.claude/projects/c--Users-pwong-OneDrive-Documents-personal-projects-spanish-companion/memory/sessions/2026-09-17-1323.md (Obsidian unavailable — failsafe path)
 ## Entity Manifest
 
 | Feature | Path |
