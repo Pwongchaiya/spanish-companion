@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import "./ConversationView.css";
 import { useSessionState } from "../hooks/useSessionState";
+import { useMicPermission } from "../hooks/useMicPermission";
 import { useConnectionStore } from "../state/connectionStore";
 import type { TurnState } from "../api/types";
 
@@ -42,6 +43,7 @@ const CONNECTION_HINT: Record<"retrying" | "down", string> = {
 
 export function ConversationView() {
   const { status, transcript, turnState, start, stop } = useSessionState();
+  const mic = useMicPermission();
   const phase = useConnectionStore((s) => s.phase);
   const connectionOk = phase === "ok";
   // listening/idle share the "ready" ring state -- only thinking/speaking
@@ -96,6 +98,16 @@ export function ConversationView() {
           </button>
         )}
       </div>
+
+      {/* ponytail: WebRTC spike step, standalone mic-permission check, not wired
+          to backend signaling yet. See
+          decisions/voice-conversation-browser-webrtc-transport.md. */}
+      <button className="conversation-toggle" onClick={mic.requestMic}>
+        {mic.status === "idle" && "Request mic access"}
+        {mic.status === "granted" && "Mic access granted"}
+        {mic.status === "denied" && "Mic access denied — retry"}
+        {mic.status === "error" && `Mic error: ${mic.error}`}
+      </button>
 
       <div className="transcript" ref={transcriptRef} onScroll={handleScroll}>
         {transcript.map((turn, i) => (

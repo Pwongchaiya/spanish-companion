@@ -49,3 +49,18 @@ services:
       # does not copy -- only data/demo_flags.json ships in the image.
       - key: FLAGS_FILE_PATH
         value: /app/data/demo_flags.json
+
+  # Standalone WebRTC signaling spike -- answers the two open questions in
+  # decisions/voice-conversation-browser-webrtc-transport.md before any
+  # Broker/Orchestration/Exposer rebuild: does aiortc build on Render's
+  # Docker environment, and does Render's networking pass the ICE/UDP
+  # traffic an external browser needs. Separate service/image on purpose --
+  # unrelated to the main app, delete once the question is answered either
+  # way. See spike/webrtc_offer.py.
+  - type: web
+    name: spanish-companion-webrtc-spike
+    runtime: docker
+    dockerfilePath: ./spike/Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /

@@ -1,5 +1,5 @@
 python-dotenv
-pipecat-ai[local,google]==1.8.1
+pipecat-ai[local,google,webrtc]==1.8.1
 azure-cognitiveservices-speech
 pg8000
 pgvector
