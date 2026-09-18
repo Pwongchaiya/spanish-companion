@@ -33,14 +33,23 @@ from flask import Flask, Response, jsonify, request, send_from_directory
 from api.brokers.bot_process import SubprocessBotProcessBroker
 from api.brokers.configuration import EnvConfigurationBroker
 from api.brokers.flag import JsonFileFlagBroker
+from api.brokers.learner_profile import SqlAlchemyLearnerProfileBroker
 from api.brokers.logging import StdlibLoggingBroker
+from api.brokers.mistake_pattern.mistake_pattern_broker import SqlAlchemyMistakePatternBroker
 from api.brokers.practice_log import JsonLinesPracticeLogBroker
+from api.brokers.topic_covered import SqlAlchemyTopicCoveredBroker
+from api.exposers.learner_profile import LearnerProfileController
 from api.exposers.review import make_review_blueprint
 from api.exposers.session_lifecycle import make_session_lifecycle_blueprint
 from api.services.foundations.flag import FlagService
+from api.services.foundations.learner_profile import LearnerProfileService
+from api.services.foundations.mistake_pattern import MistakePatternService
 from api.services.foundations.practice_log import PracticeLogService
 from api.services.foundations.session_lifecycle import ConversationSessionService
+from api.services.foundations.topic_covered import TopicCoveredService
+from api.services.orchestrations.learner_profile import LearnerProfileOrchestrationService
 from api.services.orchestrations.review import ReviewOrchestrationService
+from api.services.processings.learner_profile import LearnerProfileProcessingService
 from rag.brokers.chunk_repository import SqlAlchemyChunkRepositoryBroker
 from rag.brokers.embedding_model import SentenceTransformerEmbeddingModelBroker
 from rag.brokers.generation import GeminiGenerationBroker
@@ -140,19 +149,47 @@ def create_app() -> Flask:
     # (audit finding H1).
     configuration_broker = EnvConfigurationBroker()
 
+    # flag_service is built here (ahead of Session Lifecycle and Review, both
+    # of which need it) rather than duplicated — LearnerProfile's
+    # scenario-suggestion orchestrator and Review's orchestrator share this
+    # one FlagService/JsonFileFlagBroker instance.
+    flag_service = FlagService(JsonFileFlagBroker(), logging_broker=logging_broker)
+
+    # --- LearnerProfile (Phase 3: session-scenario suggestion, see
+    # decisions/dynamic-bot-behavior-and-learner-memory.md) ---
+    database_url = os.environ["DATABASE_URL"]
+    learner_profile_service = LearnerProfileService(
+        SqlAlchemyLearnerProfileBroker(database_url), logging_broker=logging_broker
+    )
+    mistake_pattern_service = MistakePatternService(
+        SqlAlchemyMistakePatternBroker(database_url), logging_broker=logging_broker
+    )
+    topic_covered_service = TopicCoveredService(
+        SqlAlchemyTopicCoveredBroker(database_url), logging_broker=logging_broker
+    )
+    learner_profile_orchestrator = LearnerProfileOrchestrationService(
+        LearnerProfileProcessingService(learner_profile_service),
+        mistake_pattern_service,
+        topic_covered_service,
+        flag_service,
+        logging_broker=logging_broker,
+        configuration_broker=configuration_broker,
+    )
+    learner_profile_controller = LearnerProfileController(learner_profile_orchestrator)
+
     # --- Session Lifecycle ---
     session_service = ConversationSessionService(
         SubprocessBotProcessBroker(),
         logging_broker=logging_broker,
         configuration_broker=configuration_broker,
     )
-    app.register_blueprint(make_session_lifecycle_blueprint(session_service))
+    app.register_blueprint(make_session_lifecycle_blueprint(session_service, learner_profile_controller))
 
     # --- Review (composes Retrieval + Generation via rag's Foundation/
     # Orchestration services directly -- RetrievalController/
     # GenerationController were pure pass-throughs and are gone) ---
     chunk_repository_service = ChunkRepositoryService(
-        SqlAlchemyChunkRepositoryBroker(connection_string=os.environ["DATABASE_URL"]),
+        SqlAlchemyChunkRepositoryBroker(connection_string=database_url),
         logging_broker=logging_broker,
     )
     embedding_model_service = EmbeddingModelService(
@@ -172,7 +209,6 @@ def create_app() -> Flask:
         logging_broker=logging_broker,
     )
     generation_service = GenerationService(GeminiGenerationBroker(), logging_broker=logging_broker)
-    flag_service = FlagService(JsonFileFlagBroker(), logging_broker=logging_broker)
     practice_log_service = PracticeLogService(JsonLinesPracticeLogBroker(), logging_broker=logging_broker)
     review_orchestrator = ReviewOrchestrationService(
         flag_service=flag_service,
