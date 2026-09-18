@@ -14,8 +14,8 @@ Voice-first Spanish conversation partner. User talk to it like friend; agent res
 **Design principle drive every scope decision:** 
 live talk must stay fast, natural — nothing expensive (RAG, verify) run during Conversation Mode. All ground and correction work happen in separate, untimed Review Mode.
 
-Full MVP scope, out-of-scope list, build order:
-`spanish-companion-mvp-scope.md`.
+Full scope, out-of-scope list, build order:
+`spanish-companion-mvp-scope.md` (filename kept for history; project is past MVP stage).
 
 Shared agent, skill toolkit live at `.claude-toolkit/` as git
 submodule. All agents, skills, slash commands load from that path.
@@ -37,7 +37,7 @@ Before make any schema, table, or API contract, confirm structure with user. Nev
 | LLM | Gemini Flash-Lite — both talk + RAG generate |
 | Database | Postgres + pgvector |
 | Embeddings | sentence-transformers, paraphrase-multilingual-MiniLM-L12-v2 (384-dim; BGE-small-en drop — English-only, no embed Spanish query) |
-| Corpus source | RAE grammar pages (MVP: 3-5 start topic) |
+| Corpus source | RAE grammar pages (initial: 3-5 start topic) |
 | UI | Flask — minimal server, plain HTML/vanilla JS, no build tool (Phase 1, shipped) |
 | Config | python-dotenv — single `.env` at repo root |
 
@@ -51,7 +51,7 @@ HTML/vanilla JS row above.
 
 **Phase 1 (Steps 0-5) shipped, not entity/layer-based.** Not follow
 The Standard's Broker → Foundation → Processing → Orchestration →
-Aggregation → Exposer build sequence — no CRUD entity registry, staged MVP
+Aggregation → Exposer build sequence — no CRUD entity registry, staged
 plan instead, track in `Projects/spanish-companion/state.md` (Pending
 Work), mirror from `spanish-companion-mvp-scope.md` Section 7:
 
@@ -148,7 +148,7 @@ full-coverage push across frontend. `npm test` (alias for `vitest`) from
 
 - Feature branch off `main`. Conventional commit: `type: short description`.
 - Never commit to `main` direct.
-- Commit after every meaning step, not one giant commit per MVP stage.
+- Commit after every meaningful step, not one giant commit per build stage.
 
 ---
 
@@ -343,7 +343,7 @@ Vault path: `c:\Users\pwong\OneDrive\Documents\Obsidian\Notes`
 ### When to read
 
 - At `/session-start`: read `Projects/spanish-companion/state.md` for current
-  MVP stage and pending work.
+  build stage and pending work.
 - When concept comes up, check `Projects/concepts/` before answering from
   training data.
 
@@ -358,7 +358,7 @@ Vault path: `c:\Users\pwong\OneDrive\Documents\Obsidian\Notes`
 
 | File | Purpose |
 | --- | --- |
-| `Projects/spanish-companion/state.md` | MVP stage tracker, pending work |
+| `Projects/spanish-companion/state.md` | Build stage tracker, pending work |
 | `Projects/spanish-companion/sessions/` | Per-session summaries |
 | `Projects/spanish-companion/decisions/` | Architectural decision records |
 

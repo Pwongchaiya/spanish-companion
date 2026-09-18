@@ -72,6 +72,31 @@ class TestSessionLifecycleRoutesStart:
         # then
         mock_service.start.assert_called_once_with("practice ordering coffee")
 
+    def test_should_fold_session_length_hint_into_scenario_text(self, client, mock_service):
+        # given
+        mock_service.get_status.return_value = SessionStatus(running=True, ready=False, graceful=None)
+
+        # when
+        client.post(
+            "/start",
+            json={"scenario_text": "practice ordering coffee", "session_length_hint": "5"},
+        )
+
+        # then
+        mock_service.start.assert_called_once_with(
+            "practice ordering coffee Aim for about a 5-minute conversation."
+        )
+
+    def test_should_pass_session_length_hint_alone_when_no_scenario_text(self, client, mock_service):
+        # given
+        mock_service.get_status.return_value = SessionStatus(running=True, ready=False, graceful=None)
+
+        # when
+        client.post("/start", json={"session_length_hint": "20"})
+
+        # then
+        mock_service.start.assert_called_once_with("Aim for about a 20-minute conversation.")
+
     def test_should_return_409_when_session_already_running(self, client, mock_service):
         # given
         mock_service.start.side_effect = SessionValidationException(inner_exception=AlreadyRunningSessionException())

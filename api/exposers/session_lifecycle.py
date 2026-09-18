@@ -77,6 +77,15 @@ def make_session_lifecycle_blueprint(
     def start():
         body = request.get_json(silent=True) or {}
         scenario_text = body.get("scenario_text")
+        # ponytail: session_length_hint is pacing-only, never persisted, so it
+        # folds straight into scenario_text here rather than threading a new
+        # parameter through Foundation/Broker -- promote it to its own
+        # param on SessionLifecycleService.start() if it ever needs to be
+        # inspected independently of the free-text scenario.
+        session_length_hint = body.get("session_length_hint")
+        if session_length_hint:
+            hint_text = f"Aim for about a {session_length_hint}-minute conversation."
+            scenario_text = f"{scenario_text} {hint_text}".strip() if scenario_text else hint_text
         try:
             service.start(scenario_text)
             return jsonify(asdict(service.get_status())), 200
