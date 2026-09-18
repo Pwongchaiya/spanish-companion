@@ -51,10 +51,14 @@ from api.brokers.configuration import ConfigurationBroker, EnvConfigurationBroke
 from api.brokers.logging import LoggingBroker
 from api.brokers.practice_log import PracticeAttempt
 from api.models.foundations.flag import Flag
+from api.models.foundations.mistake_pattern.exceptions import NotFoundMistakePatternException
+from api.models.orchestrations.review.practice_result import PracticeResult
 from api.services.foundations.flag import IFlagService
 from api.services.foundations.practice_log import IPracticeLogService
 from api.services.orchestrations.review.i_review_service import ReviewService
 from api.services.orchestrations.review.review_service_exceptions import ReviewOrchestrationServiceExceptions
+from api.services.processings.learner_profile import ILearnerProfileProcessingService
+from api.services.processings.mistake_pattern import IMistakePatternProcessingService
 from rag.models.foundations.generation import Explanation
 from rag.services.foundations.generation import GenerationService
 from rag.services.orchestrations.retrieval import HybridRetrievalOrchestrationService
@@ -69,6 +73,8 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
         practice_log_service: IPracticeLogService,
         retrieval_service: HybridRetrievalOrchestrationService,
         generation_service: GenerationService,
+        learner_profile_processing_service: ILearnerProfileProcessingService,
+        mistake_pattern_processing_service: IMistakePatternProcessingService,
         clock: Callable[[], datetime] = datetime.now,
         *,
         logging_broker: LoggingBroker,
@@ -78,6 +84,12 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
         self._practice_log_service = practice_log_service
         self._retrieval_service = retrieval_service
         self._generation_service = generation_service
+        # LearnerProfile Phase 2: record_practice() judges the attempt and
+        # writes the verdict to mistake_pattern -- both new dependencies are
+        # Processing-tier, same convention LearnerProfileOrchestrationService
+        # already established (ORC-001 dep-count waiver already covers Review).
+        self._learner_profile_processing_service = learner_profile_processing_service
+        self._mistake_pattern_processing_service = mistake_pattern_processing_service
         # Injected for the same reason session_lifecycle injects time_source:
         # CLAUDE.md's unit-test rule forbids live datetime.now().
         self._clock = clock
@@ -141,8 +153,8 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
 
         return self._try_catch(action)
 
-    def record_practice(self, flag_id: str, attempt_text: str) -> PracticeAttempt:
-        def action() -> PracticeAttempt:
+    def record_practice(self, flag_id: str, attempt_text: str) -> PracticeResult:
+        def action() -> PracticeResult:
             # Look the flag up purely to reject unknown ids -- same not-found
             # handling as explain_flag. A practice attempt against a flag that
             # isn't in the list is a client-side state mismatch worth surfacing,
@@ -158,6 +170,30 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
             attempt = PracticeAttempt(flag_id=flag.id, attempt_text=attempt_text, timestamp=self._clock())
             self._practice_log_service.record_attempt(attempt)
             self._logging_broker.log_info("recorded practice attempt for flag_id=%s", flag.id)
-            return attempt
+
+            # LearnerProfile Phase 2: judge the attempt, then write the
+            # verdict to mistake_pattern. Single-user app -- default_level
+            # matches LearnerProfileOrchestrationService's own config key, so
+            # a profile created here or there converges on the same default.
+            default_level = self._configuration_broker.get("DEFAULT_PROFICIENCY_LEVEL", "beginner")
+            profile = self._learner_profile_processing_service.ensure_profile(default_level)
+            mastered = self._generation_service.judge_practice_attempt(flag, attempt_text)
+            if mastered:
+                try:
+                    self._mistake_pattern_processing_service.resolve(profile.id, flag.category)
+                except NotFoundMistakePatternException:
+                    # Nothing to resolve -- this category never had a recorded
+                    # occurrence (e.g. its first-ever practice attempt was
+                    # mastered on the first try). Not a failure, Review's own
+                    # business decision, same shape as explain_flag's
+                    # no-corpus-match fallback.
+                    self._logging_broker.log_info(
+                        "practice mastered for category=%s but no mistake_pattern existed to resolve",
+                        flag.category,
+                    )
+            else:
+                self._mistake_pattern_processing_service.record_occurrence(profile.id, flag.category)
+
+            return PracticeResult(attempt=attempt, mastered=mastered)
 
         return self._try_catch(action)

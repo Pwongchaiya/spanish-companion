@@ -87,8 +87,13 @@ def make_review_blueprint(orchestrator: ReviewOrchestrationService) -> Blueprint
         if not isinstance(attempt_text, str) or not attempt_text.strip():
             return jsonify({"error": "attempt_text is required"}), 400
         try:
-            attempt = orchestrator.record_practice(flag_id, attempt_text)
-            return jsonify({**asdict(attempt), "timestamp": attempt.timestamp.isoformat()}), 201
+            result = orchestrator.record_practice(flag_id, attempt_text)
+            body = {
+                **asdict(result.attempt),
+                "timestamp": result.attempt.timestamp.isoformat(),
+                "mastered": result.mastered,
+            }
+            return jsonify(body), 201
         except ReviewOrchestrationValidationException as e:
             if isinstance(e.inner_exception.inner_exception, NotFoundFlagException):
                 return jsonify({"error": str(e.inner_exception)}), 404

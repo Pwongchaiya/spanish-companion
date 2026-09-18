@@ -19,12 +19,18 @@ from flask import Flask, jsonify, request, send_from_directory
 
 from api.app import ALLOWED_ORIGINS, FRONTEND_DIST, _is_allowed_origin
 from api.brokers.flag import JsonFileFlagBroker
+from api.brokers.learner_profile import SqlAlchemyLearnerProfileBroker
 from api.brokers.logging import StdlibLoggingBroker
+from api.brokers.mistake_pattern.mistake_pattern_broker import SqlAlchemyMistakePatternBroker
 from api.brokers.practice_log import JsonLinesPracticeLogBroker
 from api.exposers.review import make_review_blueprint
 from api.services.foundations.flag import FlagService
+from api.services.foundations.learner_profile import LearnerProfileService
+from api.services.foundations.mistake_pattern import MistakePatternService
 from api.services.foundations.practice_log import PracticeLogService
 from api.services.orchestrations.review import ReviewOrchestrationService
+from api.services.processings.learner_profile import LearnerProfileProcessingService
+from api.services.processings.mistake_pattern import MistakePatternProcessingService
 from rag.brokers.chunk_repository import SqlAlchemyChunkRepositoryBroker
 from rag.brokers.embedding_model import SentenceTransformerEmbeddingModelBroker
 from rag.brokers.generation import GeminiGenerationBroker
@@ -53,8 +59,9 @@ def create_public_app() -> Flask:
 
     # --- Review (same dependency graph as create_app(), minus Session
     # Lifecycle / /api/events) ---
+    database_url = os.environ["DATABASE_URL"]
     chunk_repository_service = ChunkRepositoryService(
-        SqlAlchemyChunkRepositoryBroker(connection_string=os.environ["DATABASE_URL"]),
+        SqlAlchemyChunkRepositoryBroker(connection_string=database_url),
         logging_broker=logging_broker,
     )
     embedding_model_service = EmbeddingModelService(
@@ -76,11 +83,22 @@ def create_public_app() -> Flask:
     generation_service = GenerationService(GeminiGenerationBroker(), logging_broker=logging_broker)
     flag_service = FlagService(JsonFileFlagBroker(), logging_broker=logging_broker)
     practice_log_service = PracticeLogService(JsonLinesPracticeLogBroker(), logging_broker=logging_broker)
+
+    # LearnerProfile Phase 2: record_practice() judges the attempt and writes
+    # mistake_pattern -- same DB this deployment already reads for retrieval.
+    learner_profile_processing_service = LearnerProfileProcessingService(
+        LearnerProfileService(SqlAlchemyLearnerProfileBroker(database_url), logging_broker=logging_broker)
+    )
+    mistake_pattern_processing_service = MistakePatternProcessingService(
+        MistakePatternService(SqlAlchemyMistakePatternBroker(database_url), logging_broker=logging_broker)
+    )
     review_orchestrator = ReviewOrchestrationService(
         flag_service=flag_service,
         practice_log_service=practice_log_service,
         retrieval_service=retrieval_service,
         generation_service=generation_service,
+        learner_profile_processing_service=learner_profile_processing_service,
+        mistake_pattern_processing_service=mistake_pattern_processing_service,
         logging_broker=logging_broker,
     )
     app.register_blueprint(make_review_blueprint(review_orchestrator))

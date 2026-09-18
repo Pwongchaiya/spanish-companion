@@ -16,6 +16,7 @@ from flask import Flask
 
 from api.brokers.practice_log import PracticeAttempt
 from api.exposers.review import make_review_blueprint
+from api.models.orchestrations.review.practice_result import PracticeResult
 from api.models.foundations.flag import Flag
 from api.models.foundations.flag.exceptions import FlagValidationException, NotFoundFlagException
 from api.models.orchestrations.review.exceptions import (
@@ -163,10 +164,13 @@ class TestRecordPractice:
 
     def test_should_return_201_with_isoformat_timestamp_when_practice_recorded(self, client, mock_orchestrator):
         # given
-        mock_orchestrator.record_practice.return_value = PracticeAttempt(
-            flag_id="flag-1",
-            attempt_text="yo tengo",
-            timestamp=datetime(2026, 8, 1, 12, 5, 0),
+        mock_orchestrator.record_practice.return_value = PracticeResult(
+            attempt=PracticeAttempt(
+                flag_id="flag-1",
+                attempt_text="yo tengo",
+                timestamp=datetime(2026, 8, 1, 12, 5, 0),
+            ),
+            mastered=True,
         )
 
         # when
@@ -179,6 +183,7 @@ class TestRecordPractice:
             "flag_id": "flag-1",
             "attempt_text": "yo tengo",
             "timestamp": "2026-08-01T12:05:00",
+            "mastered": True,
         }
         assert isinstance(body["timestamp"], str)
         mock_orchestrator.record_practice.assert_called_once_with("flag-1", "yo tengo")

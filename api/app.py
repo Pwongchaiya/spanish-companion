@@ -50,6 +50,7 @@ from api.services.foundations.topic_covered import TopicCoveredService
 from api.services.orchestrations.learner_profile import LearnerProfileOrchestrationService
 from api.services.orchestrations.review import ReviewOrchestrationService
 from api.services.processings.learner_profile import LearnerProfileProcessingService
+from api.services.processings.mistake_pattern import MistakePatternProcessingService
 from rag.brokers.chunk_repository import SqlAlchemyChunkRepositoryBroker
 from rag.brokers.embedding_model import SentenceTransformerEmbeddingModelBroker
 from rag.brokers.generation import GeminiGenerationBroker
@@ -167,8 +168,12 @@ def create_app() -> Flask:
     topic_covered_service = TopicCoveredService(
         SqlAlchemyTopicCoveredBroker(database_url), logging_broker=logging_broker
     )
+    # Shared with Review below (LearnerProfile Phase 2) -- both stateless,
+    # one instance each is enough.
+    learner_profile_processing_service = LearnerProfileProcessingService(learner_profile_service)
+    mistake_pattern_processing_service = MistakePatternProcessingService(mistake_pattern_service)
     learner_profile_orchestrator = LearnerProfileOrchestrationService(
-        LearnerProfileProcessingService(learner_profile_service),
+        learner_profile_processing_service,
         mistake_pattern_service,
         topic_covered_service,
         flag_service,
@@ -215,6 +220,8 @@ def create_app() -> Flask:
         practice_log_service=practice_log_service,
         retrieval_service=retrieval_service,
         generation_service=generation_service,
+        learner_profile_processing_service=learner_profile_processing_service,
+        mistake_pattern_processing_service=mistake_pattern_processing_service,
         logging_broker=logging_broker,
         configuration_broker=configuration_broker,
     )

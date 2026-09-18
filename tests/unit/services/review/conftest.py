@@ -20,9 +20,12 @@ from unittest.mock import Mock
 import pytest
 
 from api.models.foundations.flag import Flag
+from api.models.foundations.learner_profile.learner_profile import LearnerProfile
 from api.services.foundations.flag import IFlagService
 from api.services.foundations.practice_log import IPracticeLogService
 from api.services.orchestrations.review import ReviewOrchestrationService
+from api.services.processings.learner_profile import ILearnerProfileProcessingService
+from api.services.processings.mistake_pattern import IMistakePatternProcessingService
 from rag.models.orchestrations.retrieval import ScoredChunk
 from rag.services.foundations.generation import GenerationService
 from rag.services.orchestrations.retrieval import HybridRetrievalOrchestrationService
@@ -79,6 +82,18 @@ def mock_generation_service():
 
 
 @pytest.fixture
+def mock_learner_profile_processing_service():
+    mock = Mock(spec=ILearnerProfileProcessingService)
+    mock.ensure_profile.return_value = LearnerProfile(id=1, proficiency_level="beginner", updated_at=FIXED_NOW)
+    return mock
+
+
+@pytest.fixture
+def mock_mistake_pattern_processing_service():
+    return Mock(spec=IMistakePatternProcessingService)
+
+
+@pytest.fixture
 def clock():
     return FakeClock()
 
@@ -94,6 +109,8 @@ def service(
     mock_practice_log_service,
     mock_retrieval_service,
     mock_generation_service,
+    mock_learner_profile_processing_service,
+    mock_mistake_pattern_processing_service,
     clock,
     configuration_broker,
     mock_logging_broker,
@@ -103,6 +120,8 @@ def service(
         practice_log_service=mock_practice_log_service,
         retrieval_service=mock_retrieval_service,
         generation_service=mock_generation_service,
+        learner_profile_processing_service=mock_learner_profile_processing_service,
+        mistake_pattern_processing_service=mock_mistake_pattern_processing_service,
         clock=clock,
         configuration_broker=configuration_broker,
         logging_broker=mock_logging_broker,
