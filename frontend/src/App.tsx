@@ -2,12 +2,13 @@ import { useState } from "react";
 import "./App.css";
 import { ConversationView } from "./views/ConversationView";
 import { ReviewView } from "./views/ReviewView";
+import { MinimalPairDrill } from "./components/MinimalPairDrill";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ToastContainer } from "./components/Toast";
 import { ConnectionBanner } from "./components/ConnectionBanner";
 import { useTheme } from "./hooks/useTheme";
 
-type Tab = "conversation" | "review";
+type Tab = "conversation" | "review" | "listening";
 
 // ponytail: build-time flag only (no runtime toggle needed) -- public deploy
 // has no Voice Conversation backend, so ConversationView/useSessionState must
@@ -73,13 +74,21 @@ function App() {
       <>
         <header className="tabs">
           <Brand />
-          <ThemeToggle theme={theme} onToggle={toggleTheme} />
+          <div className="tabs-right">
+            <nav>
+              <button className={tab === "review" ? "active" : ""} onClick={() => setTab("review")}>
+                Review
+              </button>
+              <button className={tab === "listening" ? "active" : ""} onClick={() => setTab("listening")}>
+                Listening
+              </button>
+            </nav>
+            <ThemeToggle theme={theme} onToggle={toggleTheme} />
+          </div>
         </header>
         <ConnectionBanner />
         <main>
-          <ErrorBoundary>
-            <ReviewView />
-          </ErrorBoundary>
+          <ErrorBoundary key={tab}>{tab === "listening" ? <MinimalPairDrill /> : <ReviewView />}</ErrorBoundary>
         </main>
         <ToastContainer />
       </>
@@ -98,6 +107,9 @@ function App() {
             <button className={tab === "review" ? "active" : ""} onClick={() => setTab("review")}>
               Review
             </button>
+            <button className={tab === "listening" ? "active" : ""} onClick={() => setTab("listening")}>
+              Listening
+            </button>
           </nav>
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
         </div>
@@ -105,7 +117,9 @@ function App() {
       <ConnectionBanner />
 
       <main>
-        <ErrorBoundary key={tab}>{tab === "conversation" ? <ConversationView /> : <ReviewView />}</ErrorBoundary>
+        <ErrorBoundary key={tab}>
+          {tab === "conversation" ? <ConversationView /> : tab === "review" ? <ReviewView /> : <MinimalPairDrill />}
+        </ErrorBoundary>
       </main>
       <ToastContainer />
     </>

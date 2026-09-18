@@ -36,4 +36,20 @@ export const apiClient = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ attempt_text: attemptText }),
     }).then(json<PracticeAttempt>),
+
+  // Raw WAV bytes, not JSON -- can't go through json<T>() above, which
+  // assumes a JSON body on both success and error paths.
+  synthesizeSpeech: async (text: string): Promise<Blob> => {
+    const res = await fetch("/tts/synthesize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      const message = (body as { error?: string }).error ?? `Request failed: ${res.status}`;
+      throw createApiClientError(message, res.status);
+    }
+    return res.blob();
+  },
 };
