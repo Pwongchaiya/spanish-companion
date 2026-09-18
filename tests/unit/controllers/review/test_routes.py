@@ -188,7 +188,42 @@ class TestRecordPractice:
             "mastered": True,
         }
         assert isinstance(body["timestamp"], str)
-        mock_orchestrator.record_practice.assert_called_once_with("flag-1", "yo tengo")
+        mock_orchestrator.record_practice.assert_called_once_with("flag-1", "yo tengo", None)
+
+    def test_should_pass_a_known_roleplay_slug_through_to_the_orchestrator(self, client, mock_orchestrator):
+        # given
+        mock_orchestrator.record_practice.return_value = PracticeResult(
+            attempt=PracticeAttempt(
+                flag_id="flag-1",
+                attempt_text="yo tengo",
+                timestamp=datetime(2026, 8, 1, 12, 5, 0),
+            ),
+            mastered=True,
+        )
+
+        # when
+        response = client.post(
+            "/review/flags/flag-1/practice",
+            json={"attempt_text": "yo tengo", "roleplay_slug": "ordering_coffee"},
+        )
+
+        # then
+        assert response.status_code == 201
+        mock_orchestrator.record_practice.assert_called_once_with("flag-1", "yo tengo", "ordering_coffee")
+
+    def test_should_return_400_without_calling_orchestrator_when_roleplay_slug_unknown(
+        self, client, mock_orchestrator
+    ):
+        # when
+        response = client.post(
+            "/review/flags/flag-1/practice",
+            json={"attempt_text": "yo tengo", "roleplay_slug": "not_a_real_scenario"},
+        )
+
+        # then
+        assert response.status_code == 400
+        assert response.get_json() == {"error": "Invalid roleplay_slug: 'not_a_real_scenario'"}
+        mock_orchestrator.record_practice.assert_not_called()
 
     def test_should_return_404_with_error_body_when_flag_not_found(self, client, mock_orchestrator):
         # given -- mirrors the real orchestrator's wrap depth: the leaf sits
