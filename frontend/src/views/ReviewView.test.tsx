@@ -88,6 +88,48 @@ describe("ReviewView when listFlags has never succeeded", () => {
   });
 });
 
+describe("ReviewView explanation source excerpt", () => {
+  beforeEach(() => {
+    useConnectionStore.getState().setOk();
+  });
+
+  const selectedFlag = {
+    id: "f1",
+    said: "comía",
+    corrected: "comí",
+    category: "Preterite vs imperfect",
+    timestamp: "2026-09-17T00:00:00Z",
+  };
+
+  it("renders the retrieved passage text under the source link", () => {
+    mockFlow({
+      selectedFlag,
+      explanation: {
+        explanation: "Use preterite for a completed past action.",
+        source_url: "https://rae.es/preterite",
+        source_excerpt: "El pretérito perfecto simple expresa acciones pasadas y acabadas.",
+      },
+    });
+    render(<ReviewView />);
+
+    expect(screen.getByText(/el pretérito perfecto simple expresa acciones/i)).toBeTruthy();
+  });
+
+  it("renders no excerpt block when source_excerpt is empty", () => {
+    mockFlow({
+      selectedFlag,
+      explanation: {
+        explanation: "I'm not certain on that one.",
+        source_url: "",
+        source_excerpt: "",
+      },
+    });
+    render(<ReviewView />);
+
+    expect(document.querySelector(".excerpt")).toBeNull();
+  });
+});
+
 describe("ReviewView after a practice attempt", () => {
   beforeEach(() => {
     useConnectionStore.getState().setOk();

@@ -97,7 +97,7 @@ class GenerationService(GenerationServiceExceptions, IGenerationService):
                 self._logging_broker.log_info("generation failed, using fallback: %s", e)
                 # Phase 1's exact fallback string, review/review.py:107 — preserve verbatim
                 text = "I'm not certain on that one."
-            return Explanation(explanation=text, source_url=chunk.source_url)
+            return Explanation(explanation=text, source_url=chunk.source_url, source_excerpt=chunk.content)
 
         return self._try_catch(action)
 

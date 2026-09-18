@@ -97,6 +97,7 @@ def mock_generation_service():
     mock.explain.return_value = Explanation(
         explanation="Use 'tengo' for the first person present of tener.",
         source_url="https://rae.es/verb-conjugation",
+        source_excerpt="El verbo 'tener' se conjuga como 'tengo' en la primera persona.",
     )
     mock.judge_practice_attempt.return_value = True
     return mock
@@ -163,6 +164,7 @@ class TestExplainFlag:
         assert response.get_json() == {
             "explanation": "Use 'tengo' for the first person present of tener.",
             "source_url": "https://rae.es/verb-conjugation",
+            "source_excerpt": "El verbo 'tener' se conjuga como 'tengo' en la primera persona.",
         }
 
     def test_should_return_404_for_unknown_flag(self, client):

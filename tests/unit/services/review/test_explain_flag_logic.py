@@ -32,7 +32,9 @@ class TestReviewOrchestratorExplainFlag:
         runner_up = make_chunk(chunk_id=11, score=0.42)
         mock_retrieval_service.retrieve.return_value = [top_chunk, runner_up]
 
-        expected = Explanation(explanation="grounded answer", source_url=top_chunk.source_url)
+        expected = Explanation(
+            explanation="grounded answer", source_url=top_chunk.source_url, source_excerpt=top_chunk.content
+        )
         mock_generation_service.explain.return_value = expected
 
         # when
@@ -66,7 +68,7 @@ class TestReviewOrchestratorExplainFlag:
         actual = service.explain_flag("flag-1")
 
         # then
-        assert actual == Explanation(explanation="I'm not certain on that one.", source_url="")
+        assert actual == Explanation(explanation="I'm not certain on that one.", source_url="", source_excerpt="")
         mock_flag_service.get_flag.assert_called_once_with("flag-1")
         mock_retrieval_service.retrieve.assert_called_once_with(
             query="fui al mercado",

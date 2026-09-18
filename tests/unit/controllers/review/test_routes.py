@@ -130,6 +130,7 @@ class TestExplainFlag:
         mock_orchestrator.explain_flag.return_value = Explanation(
             explanation="Use 'tengo' for the first person present of tener.",
             source_url="https://rae.es/some-topic",
+            source_excerpt="El verbo 'tener' se conjuga como 'tengo' en la primera persona.",
         )
 
         # when
@@ -140,6 +141,7 @@ class TestExplainFlag:
         assert response.get_json() == {
             "explanation": "Use 'tengo' for the first person present of tener.",
             "source_url": "https://rae.es/some-topic",
+            "source_excerpt": "El verbo 'tener' se conjuga como 'tengo' en la primera persona.",
         }
         mock_orchestrator.explain_flag.assert_called_once_with("flag-1")
 

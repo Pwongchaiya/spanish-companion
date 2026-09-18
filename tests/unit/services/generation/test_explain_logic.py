@@ -26,6 +26,7 @@ class TestGenerationServiceExplain:
         assert result == Explanation(
             explanation="Great question! 'Tengo' is the correct form.",
             source_url=chunk.source_url,
+            source_excerpt=chunk.content,
         )
         assert mock_broker.generate.call_count == 2
 

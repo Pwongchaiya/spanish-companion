@@ -32,6 +32,8 @@ from api.models.orchestrations.review.exceptions import ReviewOrchestrationValid
 from api.services.foundations.flag import FlagService
 from api.services.foundations.practice_log import PracticeLogService
 from api.services.orchestrations.review import ReviewOrchestrationService
+from api.services.processings.learner_profile import ILearnerProfileProcessingService
+from api.services.processings.mistake_pattern import IMistakePatternProcessingService
 from rag.models.foundations.generation import Explanation
 from rag.models.orchestrations.retrieval import ScoredChunk
 from rag.services.foundations.generation import GenerationService
@@ -86,13 +88,38 @@ def mock_generation_service():
     return Mock(spec=GenerationService)
 
 
+# ponytail: pre-existing gap, not F3 -- this fixture predates commit 62af299
+# ("LearnerProfile Phase 2"), which added two required constructor params to
+# ReviewOrchestrationService without updating this integration fixture. Mocked
+# here the same way the acceptance test's fixtures already do it
+# (tests/acceptance/apis/review/test_review_flow.py), so the suite runs green
+# while F3's own change is verified.
 @pytest.fixture
-def service(flag_service, practice_log_service, mock_retrieval_service, mock_generation_service):
+def mock_learner_profile_processing_service():
+    return Mock(spec=ILearnerProfileProcessingService)
+
+
+@pytest.fixture
+def mock_mistake_pattern_processing_service():
+    return Mock(spec=IMistakePatternProcessingService)
+
+
+@pytest.fixture
+def service(
+    flag_service,
+    practice_log_service,
+    mock_retrieval_service,
+    mock_generation_service,
+    mock_learner_profile_processing_service,
+    mock_mistake_pattern_processing_service,
+):
     return ReviewOrchestrationService(
         flag_service=flag_service,
         practice_log_service=practice_log_service,
         retrieval_service=mock_retrieval_service,
         generation_service=mock_generation_service,
+        learner_profile_processing_service=mock_learner_profile_processing_service,
+        mistake_pattern_processing_service=mock_mistake_pattern_processing_service,
         clock=lambda: FIXED_NOW,
         logging_broker=StdlibLoggingBroker(),
         configuration_broker=FakeConfigurationBroker({"RETRIEVAL_TOP_K": str(RETRIEVAL_TOP_K)}),
@@ -125,6 +152,10 @@ class TestReviewOrchestratorIntegration:
     def test_should_list_no_flags_when_the_file_was_never_written(self, service):
         assert service.list_flags() == []
 
+    # ponytail: pre-existing gap, not F3 -- record_practice() started returning
+    # PracticeResult (attempt + mastered) as of commit 342ca57, this test still
+    # compared against the raw PracticeAttempt. Unwrapped via .attempt, same as
+    # the exposer does (api/exposers/review.py's asdict(result.attempt)).
     def test_should_append_a_readable_line_to_the_real_practice_log(self, service, flag_broker, practice_log_broker):
         # given
         flag_broker.save_flags([make_flag("flag-1"), make_flag("flag-2")])
@@ -134,8 +165,8 @@ class TestReviewOrchestratorIntegration:
         second = service.record_practice("flag-2", "comí demasiado")
 
         # then -- read back off disk, through the broker's own read path
-        assert practice_log_broker.read_attempts() == [first, second]
-        assert practice_log_broker.read_attempts(flag_id="flag-2") == [second]
+        assert practice_log_broker.read_attempts() == [first.attempt, second.attempt]
+        assert practice_log_broker.read_attempts(flag_id="flag-2") == [second.attempt]
 
     def test_should_explain_the_top_chunk_for_a_flag_loaded_from_the_real_file(
         self, service, flag_broker, mock_retrieval_service, mock_generation_service
@@ -152,7 +183,9 @@ class TestReviewOrchestratorIntegration:
             score=0.9,
         )
         mock_retrieval_service.retrieve.return_value = [top_chunk]
-        expected = Explanation(explanation="grounded answer", source_url=top_chunk.source_url)
+        expected = Explanation(
+            explanation="grounded answer", source_url=top_chunk.source_url, source_excerpt=top_chunk.content
+        )
         mock_generation_service.explain.return_value = expected
 
         # when
