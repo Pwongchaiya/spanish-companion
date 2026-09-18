@@ -26,6 +26,7 @@ export interface PracticeAttempt {
   flag_id: string;
   attempt_text: string;
   timestamp: string;
+  mastered: boolean;
 }
 
 export type TurnState = "listening" | "thinking" | "speaking" | "idle" | null;

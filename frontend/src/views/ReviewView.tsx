@@ -126,13 +126,16 @@ export function ReviewView() {
                 />
               </svg>
             </div>
-            <div className="st">Logged</div>
+            <div className="st">{attempt.mastered ? "Mastered" : "Logged"}</div>
           </div>
 
           <div>
             <p className="kicker">{selectedFlag.category}</p>
             <p className="logged">
-              You said it back as <q>{attempt.attempt_text}</q> — that&rsquo;s the one. It&rsquo;s saved with the flag.
+              You said it back as <q>{attempt.attempt_text}</q> — that&rsquo;s the one.{" "}
+              {attempt.mastered
+                ? "You've got this one now."
+                : "It's saved with the flag — you'll see it again."}
             </p>
           </div>
 

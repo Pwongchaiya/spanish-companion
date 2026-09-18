@@ -87,3 +87,39 @@ describe("ReviewView when listFlags has never succeeded", () => {
     expect(screen.queryByText(/can't check for flags/i)).toBeNull();
   });
 });
+
+describe("ReviewView after a practice attempt", () => {
+  beforeEach(() => {
+    useConnectionStore.getState().setOk();
+  });
+
+  const selectedFlag = {
+    id: "f1",
+    said: "comía",
+    corrected: "comí",
+    category: "Preterite vs imperfect",
+    timestamp: "2026-09-17T00:00:00Z",
+  };
+
+  it("shows Mastered once the judge verdict is mastered:true", () => {
+    mockFlow({
+      selectedFlag,
+      attempt: { flag_id: "f1", attempt_text: "comí", timestamp: "2026-09-18T00:00:00Z", mastered: true },
+    });
+    render(<ReviewView />);
+
+    expect(screen.getByText("Mastered")).toBeTruthy();
+    expect(screen.getByText(/you've got this one now/i)).toBeTruthy();
+  });
+
+  it("shows Logged, not Mastered, when the verdict is still shaky", () => {
+    mockFlow({
+      selectedFlag,
+      attempt: { flag_id: "f1", attempt_text: "como", timestamp: "2026-09-18T00:00:00Z", mastered: false },
+    });
+    render(<ReviewView />);
+
+    expect(screen.getByText("Logged")).toBeTruthy();
+    expect(screen.queryByText("Mastered")).toBeNull();
+  });
+});
