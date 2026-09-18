@@ -72,6 +72,11 @@ class JsonFileFlagBroker:
                         corrected=item["corrected"],
                         category=item["category"],
                         timestamp=datetime.fromisoformat(item["timestamp"]),
+                        # .get() with the dataclass default, not item[...] --
+                        # a flags.json written before 2026-09-18 (A7+B3) has
+                        # neither key, and that's not malformed data.
+                        channel=item.get("channel", "grammar"),
+                        occurrence_count=item.get("occurrence_count", 1),
                     )
                 )
             except (KeyError, TypeError, ValueError):
@@ -112,5 +117,22 @@ if __name__ == "__main__":
                 raise AssertionError("expected PermissionError to propagate after exhausting retries")
             except PermissionError:
                 pass
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        # Pre-2026-09-18 flags.json has neither "channel" nor
+        # "occurrence_count" -- confirms load_flags() defaults them instead
+        # of dropping the row (KeyError would hit the except (KeyError,
+        # TypeError, ValueError): continue branch above and silently lose it).
+        old_format_path = Path(tmp_dir) / "flags.json"
+        old_format_path.write_text(
+            json.dumps(
+                [{"id": "1", "said": "hablo", "corrected": "hablé", "category": "tense", "timestamp": "2026-08-01T12:00:00"}]
+            ),
+            encoding="utf-8",
+        )
+        loaded = JsonFileFlagBroker(path=old_format_path).load_flags()
+        assert len(loaded) == 1
+        assert loaded[0].channel == "grammar"
+        assert loaded[0].occurrence_count == 1
 
     print("flag_broker self-check passed")
