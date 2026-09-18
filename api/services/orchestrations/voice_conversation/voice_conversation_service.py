@@ -115,6 +115,7 @@ from api.services.foundations.flag import IFlagService
 from api.services.foundations.live_transcript import ILiveTranscriptService
 from api.services.foundations.session_log import ISessionLogService
 from api.services.orchestrations.voice_conversation._mic_gate import _MicGate
+from api.services.orchestrations.voice_conversation._pressure import get_pressure_level
 from api.services.orchestrations.voice_conversation._turn_state_observer import _TurnStateObserver
 from api.services.orchestrations.voice_conversation.i_voice_conversation_service import VoiceConversationService
 from api.services.orchestrations.voice_conversation.voice_conversation_service_exceptions import (
@@ -346,6 +347,11 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
         # quiet speech onset starts getting missed.
         vad_confidence = float(self._configuration_broker.get("VAD_CONFIDENCE", "0.7"))
 
+        # D5 pressure dial -- idle-rescue timing only. VAD_STOP_SECS/
+        # VAD_CONFIDENCE above stay hardware-calibration-only, never
+        # pressure-driven (see _pressure.py's module docstring).
+        pressure = get_pressure_level(self._configuration_broker.get("SESSION_PRESSURE"))
+
         stt = self._stt_broker.create()
 
         context = LLMContext()
@@ -361,8 +367,18 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
                     params=VADParams(stop_secs=vad_stop_secs, confidence=vad_confidence)
                 ),
                 user_mute_strategies=[AlwaysUserMuteStrategy()],
+                user_idle_timeout=pressure.user_idle_timeout,
             ),
         )
+
+        # Rescue-when-stalled: fires only when user_idle_timeout > 0 (push
+        # level sets it to 0, which disables pipecat's idle event entirely --
+        # see LLMUserAggregatorParams' docstring -- so this handler is simply
+        # never called at push level, by design).
+        if pressure.rescue_line:
+            @user_aggregator.event_handler("on_user_turn_idle")
+            async def on_user_turn_idle(aggregator) -> None:
+                await aggregator.push_frame(TTSSpeakFrame(pressure.rescue_line))
 
         session_flags: List[Flag] = []
 

@@ -87,10 +87,10 @@ class ConversationSessionService(
         self._started_at: Optional[float] = None
         self._last_stop_graceful: Optional[bool] = None
 
-    def start(self, scenario_text: Optional[str] = None) -> None:
+    def start(self, scenario_text: Optional[str] = None, pressure_level: Optional[str] = None) -> None:
         def action() -> None:
             self._validate_not_already_running()
-            self._broker.start(scenario_text)
+            self._broker.start(scenario_text, pressure_level)
             self._started_at = self._time_source()
 
         self._try_catch(action)

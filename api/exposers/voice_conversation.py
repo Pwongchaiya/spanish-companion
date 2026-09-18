@@ -72,6 +72,7 @@ from api.services.foundations.session_log import SessionLogService
 from api.services.foundations.topic_covered import TopicCoveredService
 from api.services.orchestrations.learner_profile import LearnerProfileOrchestrationService
 from api.services.orchestrations.voice_conversation import ConversationOrchestrationService
+from api.services.orchestrations.voice_conversation._pressure import get_pressure_level
 from api.services.processings.learner_profile import LearnerProfileProcessingService
 
 
@@ -135,10 +136,10 @@ def _default_scenario_text(logging_broker: LoggingBroker) -> str:
     return " ".join(parts)
 
 
-def _compose_system_prompt(logging_broker: LoggingBroker) -> str:
+def _compose_system_prompt(logging_broker: LoggingBroker, pressure_prompt_block: str) -> str:
     base_rules = FilePromptBroker().get_system_prompt()
     scenario_text = _read_and_clear_scenario_override() or _default_scenario_text(logging_broker)
-    return f"{base_rules}\n\nFor this session, practice: {scenario_text}"
+    return f"{base_rules}\n\nFor this session, practice: {scenario_text}\n\n{pressure_prompt_block}"
 
 
 def main() -> None:
@@ -155,6 +156,8 @@ def main() -> None:
     # -- see api/brokers/session_log/i_session_log_broker.py.
     session_log_broker = FileSessionLogBroker()
 
+    pressure = get_pressure_level(configuration_broker.get("SESSION_PRESSURE"))
+
     try:
         transport = LocalAudioTransport(
             LocalAudioTransportParams(audio_in_enabled=True, audio_out_enabled=True)
@@ -168,13 +171,15 @@ def main() -> None:
                 # on a Spanish-only voice.
                 voice=configuration_broker.get("AZURE_TTS_VOICE", "es-ES-XimenaMultilingualNeural"),
                 language=Language.ES_ES,
+                # D5 pressure dial -- SSML prosody rate, e.g. "-15%"/"+12%".
+                rate=pressure.tts_rate,
             ),
         )
         llm = GoogleLLMService(
             api_key=configuration_broker.require("GEMINI_API_KEY"),
             settings=GoogleLLMService.Settings(
                 model=configuration_broker.get("GEMINI_MODEL", "gemini-flash-lite-latest"),
-                system_instruction=_compose_system_prompt(logging_broker),
+                system_instruction=_compose_system_prompt(logging_broker, pressure.prompt_block),
             ),
             # A slow first chunk (network blip, API-side latency) otherwise drops
             # the turn silently with no assistant reply ever recorded — the user
