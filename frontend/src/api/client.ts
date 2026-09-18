@@ -20,11 +20,15 @@ async function json<T>(res: Response): Promise<T> {
 export const apiClient = {
   getStatus: (): Promise<SessionStatus> => fetch("/status").then(json<SessionStatus>),
   getSessionScenario: (): Promise<SessionScenario> => fetch("/session-scenario").then(json<SessionScenario>),
-  startSession: (scenarioText?: string, sessionLengthHint?: string): Promise<SessionStatus> =>
+  startSession: (scenarioText?: string, sessionLengthHint?: string, pressureLevel?: string): Promise<SessionStatus> =>
     fetch("/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ scenario_text: scenarioText, session_length_hint: sessionLengthHint }),
+      body: JSON.stringify({
+        scenario_text: scenarioText,
+        session_length_hint: sessionLengthHint,
+        pressure_level: pressureLevel,
+      }),
     }).then(json<SessionStatus>),
   stopSession: (): Promise<SessionStatus> => fetch("/stop", { method: "POST" }).then(json<SessionStatus>),
 

@@ -39,13 +39,19 @@ class SubprocessBotProcessBroker:
         self._process: Optional[subprocess.Popen] = None
         self._last_return_code: Optional[int] = None
 
-    def start(self, scenario_text: Optional[str] = None) -> None:
+    def start(self, scenario_text: Optional[str] = None, pressure_level: Optional[str] = None) -> None:
         if scenario_text is not None:
             self._scenario_override_path.parent.mkdir(parents=True, exist_ok=True)
             self._scenario_override_path.write_text(scenario_text, encoding="utf-8")
         else:
             self._scenario_override_path.unlink(missing_ok=True)
-        self._process = subprocess.Popen(self._command, cwd=str(self._cwd))
+        # D5 pressure dial -- a structured value (not prose), so it crosses
+        # the process boundary as an env var rather than the scenario-text
+        # file: the child's EnvConfigurationBroker reads SESSION_PRESSURE via
+        # os.environ, and load_dotenv(override=False) means this injected
+        # value wins over anything in .env.
+        env = {**os.environ, "SESSION_PRESSURE": pressure_level} if pressure_level is not None else None
+        self._process = subprocess.Popen(self._command, cwd=str(self._cwd), env=env)
 
     def send_graceful_signal(self) -> None:
         self._stop_signal_path.parent.mkdir(parents=True, exist_ok=True)
@@ -85,10 +91,14 @@ if __name__ == "__main__":
         broker = SubprocessBotProcessBroker(
             command=[sys.executable, "-c", "pass"], scenario_override_path=override_path
         )
-        with patch("subprocess.Popen"):
+        with patch("subprocess.Popen") as mock_popen:
             broker.start("practice ordering coffee")
             assert override_path.read_text(encoding="utf-8") == "practice ordering coffee"
+            assert mock_popen.call_args.kwargs["env"] is None
 
             broker.start(None)
             assert not override_path.exists()
+
+            broker.start(pressure_level="push")
+            assert mock_popen.call_args.kwargs["env"]["SESSION_PRESSURE"] == "push"
     print("OK")
