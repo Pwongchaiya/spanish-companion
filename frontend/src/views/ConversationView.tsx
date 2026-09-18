@@ -4,6 +4,7 @@ import { useSessionState } from "../hooks/useSessionState";
 import { useMicPermission } from "../hooks/useMicPermission";
 import { useConnectionStore } from "../state/connectionStore";
 import type { SessionScenario, TurnState } from "../api/types";
+import { ROLEPLAY_SCENARIOS } from "../data/roleplayScenarios";
 
 // How close to the bottom (px) still counts as "pinned" -- new turns
 // auto-scroll into view. Past that, the user is reading history and a
@@ -204,6 +205,30 @@ export function ConversationView() {
                     setSceneEdited(true);
                   }}
                 />
+                <label className="field-label" htmlFor="roleplay-select">
+                  Or pick a roleplay
+                </label>
+                <select
+                  id="roleplay-select"
+                  className="scene-input"
+                  value=""
+                  onChange={(e) => {
+                    const picked = ROLEPLAY_SCENARIOS.find((s) => s.slug === e.target.value);
+                    if (picked) {
+                      setSceneText(picked.setting);
+                      setSceneEdited(true);
+                    }
+                  }}
+                >
+                  <option value="" disabled>
+                    Choose a scenario…
+                  </option>
+                  {ROLEPLAY_SCENARIOS.map((s) => (
+                    <option key={s.slug} value={s.slug}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
                 <span className="field-label">Session length</span>
                 <div className="pressure-dial" role="group" aria-label="Session length">
                   {SESSION_LENGTHS.map((len) => (

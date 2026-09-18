@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ReviewView } from "./ReviewView";
 import { useConnectionStore } from "../state/connectionStore";
@@ -127,6 +127,51 @@ describe("ReviewView explanation source excerpt", () => {
     render(<ReviewView />);
 
     expect(document.querySelector(".excerpt")).toBeNull();
+  });
+});
+
+describe("ReviewView practice roleplay picker (Phase 4)", () => {
+  beforeEach(() => {
+    useConnectionStore.getState().setOk();
+  });
+
+  const selectedFlag = {
+    id: "f1",
+    said: "comía",
+    corrected: "comí",
+    category: "Preterite vs imperfect",
+    timestamp: "2026-09-17T00:00:00Z",
+  };
+
+  const explanation = {
+    explanation: "Use preterite for a completed past action.",
+    source_url: "https://rae.es/preterite",
+    source_excerpt: "El pretérito perfecto simple expresa acciones pasadas y acabadas.",
+  };
+
+  it("submits with no roleplay_slug when left on the default option", () => {
+    const submitPractice = vi.fn();
+    mockFlow({ selectedFlag, explanation, submitPractice });
+    render(<ReviewView />);
+
+    fireEvent.change(screen.getByLabelText("Now say it the way you meant it."), { target: { value: "comí" } });
+    fireEvent.click(screen.getByRole("button", { name: "Log this" }));
+
+    expect(submitPractice).toHaveBeenCalledWith("comí", undefined);
+  });
+
+  it("passes the picked roleplay slug through to submitPractice", () => {
+    const submitPractice = vi.fn();
+    mockFlow({ selectedFlag, explanation, submitPractice });
+    render(<ReviewView />);
+
+    fireEvent.change(screen.getByLabelText("Now say it the way you meant it."), { target: { value: "comí" } });
+    fireEvent.change(screen.getByLabelText("Practice it in a scene (optional)"), {
+      target: { value: "casual_chat" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Log this" }));
+
+    expect(submitPractice).toHaveBeenCalledWith("comí", "casual_chat");
   });
 });
 
