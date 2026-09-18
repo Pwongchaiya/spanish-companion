@@ -54,7 +54,7 @@ class IGenerationService(Protocol):
         """
         ...
 
-    def judge_practice_attempt(self, flag: FlagLike, attempt_text: str) -> bool:
+    def judge_practice_attempt(self, flag: FlagLike, attempt_text: str, roleplay_setting: str | None = None) -> bool:
         """Return True if `attempt_text` correctly applies flag's correction.
 
         LearnerProfile Phase 2 (see decisions/dynamic-bot-behavior-and-
@@ -64,5 +64,10 @@ class IGenerationService(Protocol):
         "not mastered" (can't verify, so don't credit it) rather than
         raising -- same swallow-to-fallback shape as the grounding judge.
         May raise GenerationServiceException for anything else unexpected.
+
+        `roleplay_setting` (LearnerProfile Phase 4, optional) frames the
+        judged attempt inside a roleplay scene instead of a bare sentence --
+        resolved from a known slug by Review, api-side; this layer only ever
+        sees the resolved text, never a slug (rag must not import api/data).
         """
         ...
