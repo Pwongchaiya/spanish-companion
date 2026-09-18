@@ -38,15 +38,18 @@ from api.brokers.logging import StdlibLoggingBroker
 from api.brokers.mistake_pattern.mistake_pattern_broker import SqlAlchemyMistakePatternBroker
 from api.brokers.practice_log import JsonLinesPracticeLogBroker
 from api.brokers.topic_covered import SqlAlchemyTopicCoveredBroker
+from api.brokers.tts import AzureTtsBroker
 from api.exposers.learner_profile import LearnerProfileController
 from api.exposers.review import make_review_blueprint
 from api.exposers.session_lifecycle import make_session_lifecycle_blueprint
+from api.exposers.tts import make_tts_blueprint
 from api.services.foundations.flag import FlagService
 from api.services.foundations.learner_profile import LearnerProfileService
 from api.services.foundations.mistake_pattern import MistakePatternService
 from api.services.foundations.practice_log import PracticeLogService
 from api.services.foundations.session_lifecycle import ConversationSessionService
 from api.services.foundations.topic_covered import TopicCoveredService
+from api.services.foundations.tts import TtsService
 from api.services.orchestrations.learner_profile import LearnerProfileOrchestrationService
 from api.services.orchestrations.review import ReviewOrchestrationService
 from api.services.processings.learner_profile import LearnerProfileProcessingService
@@ -226,6 +229,11 @@ def create_app() -> Flask:
         configuration_broker=configuration_broker,
     )
     app.register_blueprint(make_review_blueprint(review_orchestrator))
+
+    # --- Tts (roadmap item B6: minimal-pair listening check) -- stateless
+    # single-call feature, no Orchestration layer needed ---
+    tts_service = TtsService(AzureTtsBroker(), logging_broker=logging_broker)
+    app.register_blueprint(make_tts_blueprint(tts_service))
 
     # --- /api/events SSE — status/transcript/flags/turn_state, per the
     # architecture decision record's "Resolved: /api/events SSE event
