@@ -41,14 +41,14 @@ const CONNECTION_HINT: Record<"retrying" | "down", string> = {
   down: "Starting a conversation needs the server. Reading this one doesn't.",
 };
 
-// D3 pressure dial: replaces the old fixed "Speak at a {level} proficiency
-// level" framing with a user-chosen pacing phrase, folded together with the
-// free-text scene direction into the single scenarioText string start()
-// sends -- see composeStartText below.
-const PRESSURE_LEVELS: { key: "gentle" | "normal" | "push"; label: string; phrase: string }[] = [
-  { key: "gentle", label: "Gentle", phrase: "Take it gently." },
-  { key: "normal", label: "Normal", phrase: "Take it at a normal pace." },
-  { key: "push", label: "Push", phrase: "Push me." },
+// D5 pressure dial: sends only the level token now -- the backend owns all
+// pacing prose (TTS rate, lexical range, rescue timing) next to the system
+// prompt it modifies, per decisions/feature-plan-D5-pressure-dial-2026-09-18.md
+// §5.5. Replaces D3's frontend-authored phrase folded into scenarioText.
+const PRESSURE_LEVELS: { key: "gentle" | "normal" | "push"; label: string }[] = [
+  { key: "gentle", label: "Gentle" },
+  { key: "normal", label: "Normal" },
+  { key: "push", label: "Push" },
 ];
 const SESSION_LENGTHS = ["5", "10", "20"] as const;
 
@@ -81,8 +81,8 @@ function MicGlyph({ state }: { state: import("../hooks/useMicPermission").MicPer
   );
 }
 
-// Prefill for the free-text scene field -- just the topic half of the old
-// composeScenarioText, since pressure now carries the proficiency framing.
+// Prefill for the free-text scene field -- pacing/proficiency framing is
+// D5's backend-owned pressure prompt block now, not composed here.
 function composeSceneText(scenario: SessionScenario): string {
   return scenario.suggested_topic ? `Focus this session on: ${scenario.suggested_topic}.` : "";
 }
@@ -104,8 +104,7 @@ export function ConversationView() {
     if (scenario && !sceneEdited) setSceneText(composeSceneText(scenario));
   }, [scenario, sceneEdited]);
 
-  const pressurePhrase = PRESSURE_LEVELS.find((p) => p.key === pressure)!.phrase;
-  const scenarioText = [pressurePhrase, sceneText.trim()].filter(Boolean).join(" ");
+  const scenarioText = sceneText.trim();
   const phase = useConnectionStore((s) => s.phase);
   const connectionOk = phase === "ok";
   // listening/idle share the "ready" ring state -- only thinking/speaking
@@ -249,7 +248,7 @@ export function ConversationView() {
                 stop();
               } else {
                 setPanelOpen(false);
-                start(scenarioText || undefined, sessionLength ?? undefined);
+                start(scenarioText || undefined, sessionLength ?? undefined, pressure);
                 setSceneEdited(false);
               }
             }}

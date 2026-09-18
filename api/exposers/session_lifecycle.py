@@ -55,6 +55,13 @@ from api.models.orchestrations.learner_profile.exceptions import (
 from api.exposers.learner_profile import LearnerProfileController
 from api.services.foundations.session_lifecycle import SessionLifecycleService
 
+# D5 pressure dial (decisions/feature-plan-D5-pressure-dial-2026-09-18.md
+# §5.1) -- matches frontend ConversationView.tsx's PRESSURE_LEVELS keys.
+# A closed 3-value enum at an HTTP trust boundary gets explicit rejection
+# (400), not silent coercion -- deliberately stricter than session_length_hint
+# below, which stays unvalidated free text.
+VALID_PRESSURE_LEVELS = ("gentle", "normal", "push")
+
 
 def make_session_lifecycle_blueprint(
     service: SessionLifecycleService, learner_profile_controller: LearnerProfileController
@@ -86,8 +93,11 @@ def make_session_lifecycle_blueprint(
         if session_length_hint:
             hint_text = f"Aim for about a {session_length_hint}-minute conversation."
             scenario_text = f"{scenario_text} {hint_text}".strip() if scenario_text else hint_text
+        pressure_level = body.get("pressure_level")
+        if pressure_level is not None and pressure_level not in VALID_PRESSURE_LEVELS:
+            return jsonify({"error": f"Invalid pressure_level: {pressure_level!r}"}), 400
         try:
-            service.start(scenario_text)
+            service.start(scenario_text, pressure_level)
             return jsonify(asdict(service.get_status())), 200
         except SessionValidationException as e:
             if isinstance(e.inner_exception, AlreadyRunningSessionException):

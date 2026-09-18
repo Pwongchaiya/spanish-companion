@@ -44,13 +44,18 @@ class BotProcessBroker(Protocol):
     terminate() -> wait(timeout) -> kill() itself.
     """
 
-    def start(self, scenario_text: Optional[str] = None) -> None:
+    def start(self, scenario_text: Optional[str] = None, pressure_level: Optional[str] = None) -> None:
         """Launch the subprocess. Non-blocking.
 
         `scenario_text`, if given, is written to a one-shot file the child
         reads at startup to compose its system prompt -- see the module
         docstring. If None, the child falls back to its own default
         scenario suggestion.
+
+        `pressure_level` (D5, "gentle"/"normal"/"push"), if given, is
+        injected as a SESSION_PRESSURE env var into the child process --
+        a structured value, not prose, so it can't travel via the
+        scenario-text file. If None, the child falls back to "normal".
         """
         ...
 

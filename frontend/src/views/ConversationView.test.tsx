@@ -88,7 +88,7 @@ describe("ConversationView scenario picker", () => {
     expect(screen.getByRole("button", { name: "+ More to adjust" })).toBeTruthy();
   });
 
-  it("composes the pressure phrase plus scene text and passes it to start() on Start", () => {
+  it("passes scene text and the selected pressure level token to start() on Start (D5: no more phrase-folding)", () => {
     const startMock = vi.fn();
     mockSession({ status: { running: false, ready: false, graceful: null }, scenario: loadedScenario, start: startMock });
     render(<ConversationView />);
@@ -98,7 +98,7 @@ describe("ConversationView scenario picker", () => {
     fireEvent.click(screen.getByRole("button", { name: "Push" }));
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
 
-    expect(startMock).toHaveBeenCalledWith("Push me. talk about the weather", undefined);
+    expect(startMock).toHaveBeenCalledWith("talk about the weather", undefined, "push");
   });
 
   it("passes the selected session length as a hint, and Done/Start both collapse the panel", () => {
@@ -114,7 +114,7 @@ describe("ConversationView scenario picker", () => {
     expect(screen.getByRole("button", { name: "+ More to adjust" })).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
-    expect(startMock).toHaveBeenCalledWith(expect.any(String), "5");
+    expect(startMock).toHaveBeenCalledWith(expect.any(String), "5", "normal");
   });
 });
 
