@@ -15,7 +15,7 @@ class is `ConversationSessionService`. Here the Protocol is
 `ReviewOrchestrationService`.
 """
 
-from typing import List, Protocol
+from typing import List, Optional, Protocol
 
 from api.models.foundations.flag import Flag
 from api.models.orchestrations.review.practice_result import PracticeResult
@@ -52,7 +52,9 @@ class ReviewService(Protocol):
         """
         ...
 
-    def record_practice(self, flag_id: str, attempt_text: str) -> PracticeResult:
+    def record_practice(
+        self, flag_id: str, attempt_text: str, roleplay_slug: Optional[str] = None
+    ) -> PracticeResult:
         """Log the learner's practice attempt, then judge it against the
         flag's correction and update learner memory (LearnerProfile Phase 2).
 
@@ -62,6 +64,11 @@ class ReviewService(Protocol):
         exists for this category yet); a "still shaky" verdict records an
         occurrence, creating the row if this is the first one. The returned
         PracticeResult carries both the durable attempt and the verdict.
+
+        `roleplay_slug` (LearnerProfile Phase 4, optional) names a known
+        roleplay scenario (api/data/roleplay_scenarios.py) -- resolved to its
+        setting text here and passed to the judge for richer context. An
+        unrecognized slug is silently treated as no roleplay context.
 
         Raises ReviewOrchestrationValidationException wrapping either
         FlagValidationException (unknown flag_id, holding

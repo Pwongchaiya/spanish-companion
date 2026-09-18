@@ -45,9 +45,10 @@ classifies and wraps.
 
 from datetime import datetime
 from functools import lru_cache
-from typing import Callable, List
+from typing import Callable, List, Optional
 
 from api.brokers.configuration import ConfigurationBroker, EnvConfigurationBroker
+from api.data.roleplay_scenarios import get_roleplay_scenario
 from api.brokers.logging import LoggingBroker
 from api.brokers.practice_log import PracticeAttempt
 from api.models.foundations.flag import Flag
@@ -153,7 +154,9 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
 
         return self._try_catch(action)
 
-    def record_practice(self, flag_id: str, attempt_text: str) -> PracticeResult:
+    def record_practice(
+        self, flag_id: str, attempt_text: str, roleplay_slug: Optional[str] = None
+    ) -> PracticeResult:
         def action() -> PracticeResult:
             # Look the flag up purely to reject unknown ids -- same not-found
             # handling as explain_flag. A practice attempt against a flag that
@@ -177,7 +180,17 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
             # a profile created here or there converges on the same default.
             default_level = self._configuration_broker.get("DEFAULT_PROFICIENCY_LEVEL", "beginner")
             profile = self._learner_profile_processing_service.ensure_profile(default_level)
-            mastered = self._generation_service.judge_practice_attempt(flag, attempt_text)
+            # LearnerProfile Phase 4: a known slug resolves to its setting text
+            # here, api-side, before crossing into rag -- rag must never import
+            # api/data (one-directional dependency). An unrecognized slug (the
+            # Exposer already rejects one with a 400 -- see api/exposers/
+            # review.py -- so this is only reachable from another caller) is
+            # silently treated as no roleplay context, same "optional, never
+            # load-bearing" shape as the scenario picker elsewhere.
+            roleplay = get_roleplay_scenario(roleplay_slug) if roleplay_slug else None
+            mastered = self._generation_service.judge_practice_attempt(
+                flag, attempt_text, roleplay.setting if roleplay else None
+            )
             if mastered:
                 try:
                     self._mistake_pattern_processing_service.resolve(profile.id, flag.category)
