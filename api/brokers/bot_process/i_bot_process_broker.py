@@ -24,6 +24,12 @@ identically cross-platform.
 import subprocess
 from typing import Optional, Protocol
 
+# ponytail: scenario_text crosses the process boundary via a one-shot file,
+# mirroring the existing stop-flag file convention (see
+# ConversationOrchestrationService._watch_for_stop_signal) -- the subprocess
+# is launched with a fixed argv (bot_process_broker.py's BOT_COMMAND), so a
+# file is the only channel available without inventing a new IPC mechanism.
+
 # ponytail: no double-start exception type here — that's
 # ConversationSessionService vocabulary (it owns the refusal decision), and
 # nothing calls one yet. Add it in that service's own module when it's built,
@@ -38,8 +44,14 @@ class BotProcessBroker(Protocol):
     terminate() -> wait(timeout) -> kill() itself.
     """
 
-    def start(self) -> None:
-        """Launch the subprocess. Non-blocking."""
+    def start(self, scenario_text: Optional[str] = None) -> None:
+        """Launch the subprocess. Non-blocking.
+
+        `scenario_text`, if given, is written to a one-shot file the child
+        reads at startup to compose its system prompt -- see the module
+        docstring. If None, the child falls back to its own default
+        scenario suggestion.
+        """
         ...
 
     def send_graceful_signal(self) -> None:

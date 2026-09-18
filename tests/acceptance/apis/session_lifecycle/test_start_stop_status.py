@@ -11,12 +11,14 @@ fixture command tests/integration/brokers/test_bot_process.py uses -- a real
 """
 
 import sys
+from unittest.mock import Mock
 
 import pytest
 from flask import Flask
 
 from api.brokers.bot_process import SubprocessBotProcessBroker
 from api.brokers.logging import StdlibLoggingBroker
+from api.exposers.learner_profile import LearnerProfileController
 from api.exposers.session_lifecycle import make_session_lifecycle_blueprint
 from api.services.foundations.session_lifecycle import ConversationSessionService
 
@@ -48,7 +50,8 @@ def broker(tmp_path):
 def client(broker):
     app = Flask(__name__)
     service = ConversationSessionService(broker=broker, logging_broker=StdlibLoggingBroker())
-    app.register_blueprint(make_session_lifecycle_blueprint(service))
+    learner_profile_controller = Mock(spec=LearnerProfileController)
+    app.register_blueprint(make_session_lifecycle_blueprint(service, learner_profile_controller))
     app.config["TESTING"] = True
     return app.test_client()
 

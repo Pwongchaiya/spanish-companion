@@ -12,6 +12,7 @@ from unittest.mock import Mock
 import pytest
 from flask import Flask
 
+from api.exposers.learner_profile import LearnerProfileController
 from api.exposers.session_lifecycle import make_session_lifecycle_blueprint
 from api.models.foundations.session_lifecycle.exceptions import (
     AlreadyRunningSessionException,
@@ -19,6 +20,12 @@ from api.models.foundations.session_lifecycle.exceptions import (
     SessionValidationException,
 )
 from api.models.foundations.session_lifecycle.session_status import SessionStatus
+from api.models.orchestrations.learner_profile.exceptions import (
+    LearnerProfileOrchestrationDependencyException,
+    LearnerProfileOrchestrationServiceException,
+    LearnerProfileOrchestrationValidationException,
+)
+from api.models.orchestrations.learner_profile.session_scenario import SessionScenario
 from api.services.foundations.session_lifecycle import SessionLifecycleService
 
 
@@ -28,9 +35,14 @@ def mock_service():
 
 
 @pytest.fixture
-def client(mock_service):
+def mock_learner_profile_controller():
+    return Mock(spec=LearnerProfileController)
+
+
+@pytest.fixture
+def client(mock_service, mock_learner_profile_controller):
     app = Flask(__name__)
-    app.register_blueprint(make_session_lifecycle_blueprint(mock_service))
+    app.register_blueprint(make_session_lifecycle_blueprint(mock_service, mock_learner_profile_controller))
     app.config["TESTING"] = True
     return app.test_client()
 
@@ -47,8 +59,18 @@ class TestSessionLifecycleRoutesStart:
         # then
         assert response.status_code == 200
         assert response.get_json() == {"running": True, "ready": False, "graceful": None}
-        mock_service.start.assert_called_once_with()
+        mock_service.start.assert_called_once_with(None)
         mock_service.get_status.assert_called_once_with()
+
+    def test_should_pass_scenario_text_from_body_through_to_service(self, client, mock_service):
+        # given
+        mock_service.get_status.return_value = SessionStatus(running=True, ready=False, graceful=None)
+
+        # when
+        client.post("/start", json={"scenario_text": "practice ordering coffee"})
+
+        # then
+        mock_service.start.assert_called_once_with("practice ordering coffee")
 
     def test_should_return_409_when_session_already_running(self, client, mock_service):
         # given
@@ -60,8 +82,69 @@ class TestSessionLifecycleRoutesStart:
         # then
         assert response.status_code == 409
         assert response.get_json() == {"error": "A conversation session is already running"}
-        mock_service.start.assert_called_once_with()
+        mock_service.start.assert_called_once_with(None)
         mock_service.get_status.assert_not_called()
+
+
+class TestSessionLifecycleRoutesSessionScenario:
+
+    def test_should_return_200_and_scenario_when_suggestion_succeeds(self, client, mock_learner_profile_controller):
+        # given
+        mock_learner_profile_controller.suggest_session_scenario.return_value = SessionScenario(
+            proficiency_level="beginner",
+            focus_category="gender_agreement",
+            suggested_topic="gender_agreement",
+            recent_mistake_categories=["gender_agreement"],
+        )
+
+        # when
+        response = client.get("/session-scenario")
+
+        # then
+        assert response.status_code == 200
+        assert response.get_json() == {
+            "proficiency_level": "beginner",
+            "focus_category": "gender_agreement",
+            "suggested_topic": "gender_agreement",
+            "recent_mistake_categories": ["gender_agreement"],
+        }
+        mock_learner_profile_controller.suggest_session_scenario.assert_called_once_with()
+
+    def test_should_return_400_when_validation_fails(self, client, mock_learner_profile_controller):
+        # given
+        mock_learner_profile_controller.suggest_session_scenario.side_effect = (
+            LearnerProfileOrchestrationValidationException(inner_exception=Exception("bad state"))
+        )
+
+        # when
+        response = client.get("/session-scenario")
+
+        # then
+        assert response.status_code == 400
+
+    def test_should_return_500_when_dependency_fails(self, client, mock_learner_profile_controller):
+        # given
+        mock_learner_profile_controller.suggest_session_scenario.side_effect = (
+            LearnerProfileOrchestrationDependencyException(inner_exception=Exception("db down"))
+        )
+
+        # when
+        response = client.get("/session-scenario")
+
+        # then
+        assert response.status_code == 500
+
+    def test_should_return_500_when_service_fails(self, client, mock_learner_profile_controller):
+        # given
+        mock_learner_profile_controller.suggest_session_scenario.side_effect = (
+            LearnerProfileOrchestrationServiceException(inner_exception=Exception("boom"))
+        )
+
+        # when
+        response = client.get("/session-scenario")
+
+        # then
+        assert response.status_code == 500
 
 
 class TestSessionLifecycleRoutesStop:

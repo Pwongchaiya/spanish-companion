@@ -8,7 +8,7 @@ for the same reason: the reference project itself co-locates the interface
 file with its implementation in the same folder.
 """
 
-from typing import Protocol
+from typing import Optional, Protocol
 
 from api.models.foundations.session_lifecycle.session_status import SessionStatus
 
@@ -16,8 +16,11 @@ from api.models.foundations.session_lifecycle.session_status import SessionStatu
 class SessionLifecycleService(Protocol):
     """External-facing contract for Session Lifecycle's Foundation service."""
 
-    def start(self) -> None:
+    def start(self, scenario_text: Optional[str] = None) -> None:
         """Start the voice-conversation subprocess.
+
+        `scenario_text`, if given, overrides the subprocess's own default
+        session-scenario suggestion (LearnerProfile Phase 3).
 
         Raises SessionValidationException (wrapping AlreadyRunningSessionException)
         if a session is already running.
