@@ -22,9 +22,12 @@ from api.brokers.logging import StdlibLoggingBroker
 from api.brokers.practice_log import JsonLinesPracticeLogBroker
 from api.exposers.review import make_review_blueprint
 from api.models.foundations.flag import Flag
+from api.models.foundations.learner_profile.learner_profile import LearnerProfile
 from api.services.foundations.flag import FlagService
 from api.services.foundations.practice_log import PracticeLogService
 from api.services.orchestrations.review import ReviewOrchestrationService
+from api.services.processings.learner_profile import ILearnerProfileProcessingService
+from api.services.processings.mistake_pattern import IMistakePatternProcessingService
 from rag.models.foundations.generation import Explanation
 from rag.models.orchestrations.retrieval import ScoredChunk
 from rag.services.foundations.generation import GenerationService
@@ -95,16 +98,40 @@ def mock_generation_service():
         explanation="Use 'tengo' for the first person present of tener.",
         source_url="https://rae.es/verb-conjugation",
     )
+    mock.judge_practice_attempt.return_value = True
     return mock
 
 
 @pytest.fixture
-def client(flag_service, practice_log_service, mock_retrieval_service, mock_generation_service):
+def mock_learner_profile_processing_service():
+    mock = Mock(spec=ILearnerProfileProcessingService)
+    mock.ensure_profile.return_value = LearnerProfile(
+        id=1, proficiency_level="beginner", updated_at=datetime(2026, 8, 1)
+    )
+    return mock
+
+
+@pytest.fixture
+def mock_mistake_pattern_processing_service():
+    return Mock(spec=IMistakePatternProcessingService)
+
+
+@pytest.fixture
+def client(
+    flag_service,
+    practice_log_service,
+    mock_retrieval_service,
+    mock_generation_service,
+    mock_learner_profile_processing_service,
+    mock_mistake_pattern_processing_service,
+):
     orchestrator = ReviewOrchestrationService(
         flag_service=flag_service,
         practice_log_service=practice_log_service,
         retrieval_service=mock_retrieval_service,
         generation_service=mock_generation_service,
+        learner_profile_processing_service=mock_learner_profile_processing_service,
+        mistake_pattern_processing_service=mock_mistake_pattern_processing_service,
         logging_broker=StdlibLoggingBroker(),
     )
     app = Flask(__name__)

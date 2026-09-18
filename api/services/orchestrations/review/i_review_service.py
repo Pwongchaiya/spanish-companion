@@ -17,8 +17,8 @@ class is `ConversationSessionService`. Here the Protocol is
 
 from typing import List, Protocol
 
-from api.brokers.practice_log import PracticeAttempt
 from api.models.foundations.flag import Flag
+from api.models.orchestrations.review.practice_result import PracticeResult
 from rag.models.foundations.generation import Explanation
 
 
@@ -52,8 +52,16 @@ class ReviewService(Protocol):
         """
         ...
 
-    def record_practice(self, flag_id: str, attempt_text: str) -> PracticeAttempt:
-        """Log the learner's single practice attempt at a flag's correction.
+    def record_practice(self, flag_id: str, attempt_text: str) -> PracticeResult:
+        """Log the learner's practice attempt, then judge it against the
+        flag's correction and update learner memory (LearnerProfile Phase 2).
+
+        After recording the attempt, a broker call judges whether
+        attempt_text correctly applies flag.corrected. A "mastered" verdict
+        resolves the matching mistake_pattern row (a no-op, logged, if none
+        exists for this category yet); a "still shaky" verdict records an
+        occurrence, creating the row if this is the first one. The returned
+        PracticeResult carries both the durable attempt and the verdict.
 
         Raises ReviewOrchestrationValidationException wrapping either
         FlagValidationException (unknown flag_id, holding

@@ -61,6 +61,7 @@ from rag.services.foundations.generation.i_generation_service import FlagLike, I
 _PROMPTS_DIR = Path(rag.__file__).parent / "data" / "prompts"
 _EXPLANATION_PROMPT = (_PROMPTS_DIR / "explanation.txt").read_text(encoding="utf-8")
 _GROUNDING_JUDGE_PROMPT = (_PROMPTS_DIR / "grounding_judge.txt").read_text(encoding="utf-8")
+_PRACTICE_JUDGE_PROMPT = (_PROMPTS_DIR / "practice_judge.txt").read_text(encoding="utf-8")
 
 
 class GenerationService(GenerationServiceExceptions, IGenerationService):
@@ -99,6 +100,30 @@ class GenerationService(GenerationServiceExceptions, IGenerationService):
             return Explanation(explanation=text, source_url=chunk.source_url)
 
         return self._try_catch(action)
+
+    def judge_practice_attempt(self, flag: FlagLike, attempt_text: str) -> bool:
+        def action() -> bool:
+            prompt = self._build_practice_judge_prompt(flag, attempt_text)
+            try:
+                verdict = self._broker.generate(prompt)
+            except GenerationError as e:
+                self._logging_broker.log_info("practice judge call failed, treating as not mastered: %s", e)
+                return False
+            mastered = verdict.strip().upper().startswith("YES")
+            self._logging_broker.log_info(
+                "practice judge verdict for category=%s: %s", flag.category, verdict.strip()
+            )
+            return mastered
+
+        return self._try_catch(action)
+
+    def _build_practice_judge_prompt(self, flag: FlagLike, attempt_text: str) -> str:
+        return _PRACTICE_JUDGE_PROMPT.format(
+            said=flag.said,
+            corrected=flag.corrected,
+            category=flag.category,
+            attempt=attempt_text,
+        )
 
     def _is_grounded(self, explanation: str, chunk: ScoredChunk) -> bool:
         """Reflective judge (Ch.8): a second call to the same LLM reconsiders

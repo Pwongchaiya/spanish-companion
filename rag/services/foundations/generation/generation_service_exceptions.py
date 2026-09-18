@@ -19,16 +19,17 @@ _GenerationServiceBase._explain(), so it never reaches this mixin's
 as it was before this rebuild.
 """
 
-from typing import Callable
+from typing import Callable, TypeVar
 
-from rag.models.foundations.generation import Explanation
 from rag.models.foundations.generation.exceptions import GenerationServiceException
+
+T = TypeVar("T")
 
 
 class GenerationServiceExceptions:
     """Mixin: centralised try/catch + exception creation/logging."""
 
-    def _try_catch(self, fn: Callable[[], Explanation]) -> Explanation:
+    def _try_catch(self, fn: Callable[[], T]) -> T:
         try:
             return fn()
         except Exception as e:

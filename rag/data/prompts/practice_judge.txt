@@ -1,0 +1,11 @@
+You are judging whether a Spanish learner's practice attempt correctly fixes a grammar mistake they made earlier.
+
+Original mistake:
+- They said: {said!r}
+- Category: {category}
+- The correct form was: {corrected!r}
+
+Their practice attempt just now:
+{attempt!r}
+
+Does the practice attempt correctly apply the {category} correction (it does not need to match the corrected text word-for-word, only be grammatically correct on this point)? Answer with "YES" or "NO" as the first word, optionally followed by a one-line reason.

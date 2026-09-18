@@ -53,3 +53,16 @@ class IGenerationService(Protocol):
         raise GenerationServiceException for anything else unexpected.
         """
         ...
+
+    def judge_practice_attempt(self, flag: FlagLike, attempt_text: str) -> bool:
+        """Return True if `attempt_text` correctly applies flag's correction.
+
+        LearnerProfile Phase 2 (see decisions/dynamic-bot-behavior-and-
+        learner-memory.md): one broker call, same shape as explain()'s
+        grounding judge -- a single YES/NO verdict, no scoring/threshold
+        config. Review Mode only, untimed. A broker failure is treated as
+        "not mastered" (can't verify, so don't credit it) rather than
+        raising -- same swallow-to-fallback shape as the grounding judge.
+        May raise GenerationServiceException for anything else unexpected.
+        """
+        ...
