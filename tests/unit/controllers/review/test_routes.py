@@ -69,6 +69,8 @@ class TestListFlags:
                 "corrected": "yo tengo",
                 "category": "verb_conjugation",
                 "timestamp": "2026-08-01T12:00:00",
+                "channel": "grammar",
+                "occurrence_count": 1,
             }
         ]
         assert isinstance(body[0]["timestamp"], str)

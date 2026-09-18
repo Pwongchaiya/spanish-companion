@@ -11,6 +11,16 @@ as soon as something needs to reference one durably: the frontend needs a
 stable React key for the SSE `flags` push, and `PracticeAttempt.flag_id`
 (`api/brokers/practice_log.py`) needs something to link a practice attempt
 back to the flag it was practicing.
+
+`channel` and `occurrence_count` are new 2026-09-18 (A7+B3, confirmed user
+decision) — default to "grammar"/1 so every pre-existing Flag(...) call site
+and every already-saved flags.json row keeps working untouched. `channel`
+distinguishes what kind of mistake this is (grammar | lexis | pronunciation |
+orthography); Voice Conversation drops orthography-channel flags before they
+ever reach this dataclass, since a spoken session can't legitimately produce
+one (see voice_conversation_service.py's `_record_flag`). `occurrence_count`
+collapses repeat flags for the same (category, said, corrected) within one
+session instead of one row per repeat.
 """
 
 from dataclasses import dataclass
@@ -24,3 +34,5 @@ class Flag:
     corrected: str
     category: str
     timestamp: datetime
+    channel: str = "grammar"
+    occurrence_count: int = 1

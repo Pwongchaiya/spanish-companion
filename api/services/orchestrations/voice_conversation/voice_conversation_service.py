@@ -127,6 +127,10 @@ FLAG_START = "<flag>"
 FLAG_END = "</flag>"
 FLAG_TYPE = "error_flag"
 FLAG_KEYS = ("said", "corrected", "category")
+# "channel" is validated separately (defaulted, not required) -- flag
+# emission is prompt-compliance-only (see the ponytail note below), and an
+# older/non-compliant model turn that omits it shouldn't drop the whole flag.
+FLAG_CHANNELS = ("grammar", "lexis", "pronunciation", "orthography")
 
 
 # ponytail: flag emission is prompt-compliance-only, no API-level guarantee.
@@ -169,7 +173,45 @@ def parse_flag(content: str, logging_broker: LoggingBroker) -> Optional[dict]:
     if not isinstance(flag, dict) or not all(isinstance(flag.get(key), str) for key in FLAG_KEYS):
         logging_broker.log_warning("Dropped malformed error flag: %r", content)
         return None
-    return {key: flag[key] for key in FLAG_KEYS}
+    channel = flag.get("channel")
+    if channel not in FLAG_CHANNELS:
+        channel = "grammar"
+    return {**{key: flag[key] for key in FLAG_KEYS}, "channel": channel}
+
+
+def _record_flag(session_flags: List[Flag], parsed: dict, logging_broker: LoggingBroker) -> None:
+    """Apply one parsed flag to the running session_flags list — the single
+    point A7 (dedupe) and B3 (channel suppression) both act at, so every
+    future flag writer inherits both for free instead of re-implementing
+    them per caller.
+
+    Orthography-channel flags are dropped outright: a spoken session can't
+    produce a legitimate one (there's no writing to get wrong) until E2
+    (dictation-back) exists. A repeat of the same (category, said, corrected)
+    within this session increments the existing Flag's occurrence_count
+    instead of appending a new row.
+    """
+    if parsed["channel"] == "orthography":
+        logging_broker.log_info(f"Suppressed orthography-channel flag (spoken session): {parsed['said']!r}")
+        return
+    for existing in session_flags:
+        if (existing.category, existing.said, existing.corrected) == (
+            parsed["category"],
+            parsed["said"],
+            parsed["corrected"],
+        ):
+            existing.occurrence_count += 1
+            return
+    flag = Flag(
+        id=uuid.uuid4().hex,
+        said=parsed["said"],
+        corrected=parsed["corrected"],
+        category=parsed["category"],
+        channel=parsed["channel"],
+        timestamp=datetime.now(),
+    )
+    session_flags.append(flag)
+    logging_broker.log_info(f"FLAG {flag.category}: {flag.said!r} -> {flag.corrected!r}")
 
 
 class ConversationOrchestrationService(ConversationOrchestrationServiceExceptions, VoiceConversationService):
@@ -336,15 +378,7 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
             parsed = parse_flag(match.text, self._logging_broker)
             if parsed is None:
                 return
-            flag = Flag(
-                id=uuid.uuid4().hex,
-                said=parsed["said"],
-                corrected=parsed["corrected"],
-                category=parsed["category"],
-                timestamp=datetime.now(),
-            )
-            session_flags.append(flag)
-            self._logging_broker.log_info(f"FLAG {flag.category}: {flag.said!r} -> {flag.corrected!r}")
+            _record_flag(session_flags, parsed, self._logging_broker)
 
         flag_aggregator.on_pattern_match(FLAG_TYPE, on_error_flag)
 
