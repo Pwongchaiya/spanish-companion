@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { useReviewFlow } from "../hooks/useReviewFlow";
 import { useConnectionStore } from "../state/connectionStore";
+import { ROLEPLAY_SCENARIOS } from "../data/roleplayScenarios";
 import "./ReviewView.css";
 
 export function ReviewView() {
   const { flags, hasLoaded, selectedFlag, explanation, attempt, error, selectFlag, submitPractice, backToList } =
     useReviewFlow();
   const [attemptText, setAttemptText] = useState("");
+  const [roleplaySlug, setRoleplaySlug] = useState("");
   // Explaining a flag needs retrieval, and retrieval needs the server -- so
   // the list stays visible but non-interactive during an outage rather than
   // failing silently per-click (Aliento error-handling mockup, "Review gets
@@ -91,7 +93,7 @@ export function ReviewView() {
               className="practice"
               onSubmit={(e) => {
                 e.preventDefault();
-                submitPractice(attemptText);
+                submitPractice(attemptText, roleplaySlug || undefined);
               }}
             >
               <label htmlFor="practice-input">Now say it the way you meant it.</label>
@@ -105,6 +107,19 @@ export function ReviewView() {
                 spellCheck={false}
                 autoFocus
               />
+              <label htmlFor="practice-roleplay">Practice it in a scene (optional)</label>
+              <select
+                id="practice-roleplay"
+                value={roleplaySlug}
+                onChange={(e) => setRoleplaySlug(e.target.value)}
+              >
+                <option value="">Just the sentence</option>
+                {ROLEPLAY_SCENARIOS.map((s) => (
+                  <option key={s.slug} value={s.slug}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
               <button className="primary" type="submit" disabled={!attemptText.trim()}>
                 Log this
               </button>

@@ -45,11 +45,11 @@ export const apiClient = {
     fetch("/progress/mistakes").then(json<MistakePatternSummary[]>),
   listTopicCoverage: (): Promise<TopicCoverageEntry[]> => fetch("/progress/topics").then(json<TopicCoverageEntry[]>),
   explainFlag: (flagId: string): Promise<Explanation> => fetch(`/review/flags/${flagId}/explain`).then(json<Explanation>),
-  submitPractice: (flagId: string, attemptText: string): Promise<PracticeAttempt> =>
+  submitPractice: (flagId: string, attemptText: string, roleplaySlug?: string): Promise<PracticeAttempt> =>
     fetch(`/review/flags/${flagId}/practice`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ attempt_text: attemptText }),
+      body: JSON.stringify({ attempt_text: attemptText, roleplay_slug: roleplaySlug }),
     }).then(json<PracticeAttempt>),
 
   // Raw WAV bytes, not JSON -- can't go through json<T>() above, which

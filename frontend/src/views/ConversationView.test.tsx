@@ -170,6 +170,48 @@ describe("ConversationView mic control (P2 placement)", () => {
   });
 });
 
+describe("ConversationView roleplay picker (Phase 4)", () => {
+  const loadedScenario = {
+    proficiency_level: "beginner",
+    focus_category: null,
+    suggested_topic: null,
+    recent_mistake_categories: [],
+  };
+
+  beforeEach(() => {
+    useConnectionStore.getState().setOk();
+    mockSession({ status: { running: false, ready: false, graceful: null }, scenario: loadedScenario });
+  });
+
+  it("fills the scene field with the picked scenario's setting", () => {
+    render(<ConversationView />);
+    fireEvent.click(screen.getByRole("button", { name: "+ More to adjust" }));
+
+    fireEvent.change(screen.getByLabelText("Or pick a roleplay"), { target: { value: "ordering_coffee" } });
+
+    const sceneInput = screen.getByLabelText("Set the scene — who should I be?") as HTMLInputElement;
+    expect(sceneInput.value).toBe(
+      "You are a barista at a small café. The user is a customer ordering a drink and something to eat.",
+    );
+  });
+
+  it("passes the picked setting through to start() on Start", () => {
+    const start = vi.fn();
+    mockSession({ status: { running: false, ready: false, graceful: null }, scenario: loadedScenario, start });
+    render(<ConversationView />);
+    fireEvent.click(screen.getByRole("button", { name: "+ More to adjust" }));
+
+    fireEvent.change(screen.getByLabelText("Or pick a roleplay"), { target: { value: "job_interview" } });
+    fireEvent.click(screen.getByRole("button", { name: "Start" }));
+
+    expect(start).toHaveBeenCalledWith(
+      "You are an interviewer at a company. The user is a candidate interviewing for a job.",
+      undefined,
+      "normal",
+    );
+  });
+});
+
 describe("ConversationView connection-degraded states", () => {
   it("hides the Start/Stop button entirely while quietly retrying", () => {
     useConnectionStore.getState().setRetrying(2, 4);

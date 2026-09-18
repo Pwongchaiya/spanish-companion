@@ -64,14 +64,14 @@ export function useReviewFlow() {
     }
   }
 
-  async function submitPractice(attemptText: string) {
+  async function submitPractice(attemptText: string, roleplaySlug?: string) {
     if (!selectedFlagId) return;
     try {
-      setAttempt(await apiClient.submitPractice(selectedFlagId, attemptText));
+      setAttempt(await apiClient.submitPractice(selectedFlagId, attemptText, roleplaySlug));
     } catch (e) {
       handleCaughtError(
         e,
-        () => submitPractice(attemptText),
+        () => submitPractice(attemptText, roleplaySlug),
         "Couldn't save that practice attempt.",
         "Your answer is still in the box.",
       );
