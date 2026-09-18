@@ -186,7 +186,19 @@ describe("useSessionState", () => {
       await result.current.start("practice ordering coffee");
     });
 
-    expect(apiClient.startSession).toHaveBeenCalledWith("practice ordering coffee");
+    expect(apiClient.startSession).toHaveBeenCalledWith("practice ordering coffee", undefined);
+  });
+
+  it("start should pass an optional session-length hint through to the API client", async () => {
+    (apiClient.startSession as any).mockResolvedValueOnce({});
+
+    const { result } = renderHook(() => useSessionState());
+
+    await act(async () => {
+      await result.current.start("practice ordering coffee", "5");
+    });
+
+    expect(apiClient.startSession).toHaveBeenCalledWith("practice ordering coffee", "5");
   });
 
   it("start should optimistically set running=true", async () => {

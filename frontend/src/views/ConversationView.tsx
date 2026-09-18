@@ -41,32 +41,71 @@ const CONNECTION_HINT: Record<"retrying" | "down", string> = {
   down: "Starting a conversation needs the server. Reading this one doesn't.",
 };
 
-// Composes the same "Speak at a {level} level. Focus this session on:
-// {topic}." shape the backend's own default-scenario fallback uses
-// (api/exposers/voice_conversation.py::_default_scenario_text), so the
-// text a user sees and edits here matches what an un-overridden session
-// would open with.
-function composeScenarioText(scenario: SessionScenario): string {
-  const parts = [`Speak at a ${scenario.proficiency_level} proficiency level.`];
-  if (scenario.suggested_topic) {
-    parts.push(`Focus this session on: ${scenario.suggested_topic}.`);
-  }
-  return parts.join(" ");
+// D3 pressure dial: replaces the old fixed "Speak at a {level} proficiency
+// level" framing with a user-chosen pacing phrase, folded together with the
+// free-text scene direction into the single scenarioText string start()
+// sends -- see composeStartText below.
+const PRESSURE_LEVELS: { key: "gentle" | "normal" | "push"; label: string; phrase: string }[] = [
+  { key: "gentle", label: "Gentle", phrase: "Take it gently." },
+  { key: "normal", label: "Normal", phrase: "Take it at a normal pace." },
+  { key: "push", label: "Push", phrase: "Push me." },
+];
+const SESSION_LENGTHS = ["5", "10", "20"] as const;
+
+// P2 placement: the mic-permission control (M2 look -- glyph + label,
+// state-driven icon) moves from its own standalone button into the
+// "+ More to adjust" panel as a setup row, per
+// https://claude.ai/artifact/69fYrFAx75s4pf1B44MpAB. Collapsed by default;
+// a denied/error state leaks an ember badge onto the closed reveal link so
+// a blocked mic is never fully hidden.
+const MIC_LABELS: Record<import("../hooks/useMicPermission").MicPermissionStatus, string> = {
+  idle: "Grant access",
+  granted: "Ready",
+  denied: "Blocked — retry",
+  error: "Error",
+};
+
+function MicGlyph({ state }: { state: import("../hooks/useMicPermission").MicPermissionStatus }) {
+  return (
+    <svg className="glyph" viewBox="0 0 16 16" aria-hidden="true">
+      <rect x="5.5" y="1.5" width="5" height="8" rx="2.5" />
+      <path d="M3 7.5a5 5 0 0 0 10 0M8 12.5V15" />
+      {state === "denied" && <path d="M2.5 13.5 13.5 2.5" />}
+      {state === "error" && (
+        <>
+          <path d="M8 1.5v4.2" />
+          <circle cx="8" cy="8.3" r="0.5" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+// Prefill for the free-text scene field -- just the topic half of the old
+// composeScenarioText, since pressure now carries the proficiency framing.
+function composeSceneText(scenario: SessionScenario): string {
+  return scenario.suggested_topic ? `Focus this session on: ${scenario.suggested_topic}.` : "";
 }
 
 export function ConversationView() {
   const { status, transcript, turnState, scenario, start, stop } = useSessionState();
   const mic = useMicPermission();
-  const [scenarioText, setScenarioText] = useState("");
-  const [scenarioEdited, setScenarioEdited] = useState(false);
+  const [pressure, setPressure] = useState<(typeof PRESSURE_LEVELS)[number]["key"]>("normal");
+  const [sceneText, setSceneText] = useState("");
+  const [sceneEdited, setSceneEdited] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [sessionLength, setSessionLength] = useState<(typeof SESSION_LENGTHS)[number] | null>(null);
 
   // Reset to the freshly-fetched suggestion whenever a new one arrives,
   // unless the user has already started typing their own override --
-  // scenarioEdited is cleared on stop() below so the next idle period
-  // starts from the new suggestion again, not a stale hand-typed one.
+  // sceneEdited is cleared on Start below so the next idle period starts
+  // from the new suggestion again, not a stale hand-typed one.
   useEffect(() => {
-    if (scenario && !scenarioEdited) setScenarioText(composeScenarioText(scenario));
-  }, [scenario, scenarioEdited]);
+    if (scenario && !sceneEdited) setSceneText(composeSceneText(scenario));
+  }, [scenario, sceneEdited]);
+
+  const pressurePhrase = PRESSURE_LEVELS.find((p) => p.key === pressure)!.phrase;
+  const scenarioText = [pressurePhrase, sceneText.trim()].filter(Boolean).join(" ");
   const phase = useConnectionStore((s) => s.phase);
   const connectionOk = phase === "ok";
   // listening/idle share the "ready" ring state -- only thinking/speaking
@@ -119,16 +158,87 @@ export function ConversationView() {
         {label && <p className="status-label">{label}</p>}
         {hint && <p className="hint">{hint}</p>}
         {showScenarioPicker && (
-          <textarea
-            className="scenario-input"
-            aria-label="Session scenario"
-            rows={2}
-            value={scenarioText}
-            onChange={(e) => {
-              setScenarioText(e.target.value);
-              setScenarioEdited(true);
-            }}
-          />
+          <div className="scene-control">
+            <div className="pressure-dial" role="group" aria-label="Pressure">
+              {PRESSURE_LEVELS.map((p) => (
+                <button
+                  key={p.key}
+                  type="button"
+                  className="dial-notch"
+                  aria-pressed={pressure === p.key}
+                  onClick={() => setPressure(p.key)}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
+            {!panelOpen && (
+              <button type="button" className="reveal-more" onClick={() => setPanelOpen(true)}>
+                + More to adjust
+                {(mic.status === "denied" || mic.status === "error") && (
+                  <span className="mic-badge">· Needs mic</span>
+                )}
+              </button>
+            )}
+
+            <div className={`more-panel${panelOpen ? " open" : ""}`}>
+              <div className="more-panel-inner">
+                <div className="more-panel-head">
+                  <span>More to adjust</span>
+                  <button type="button" className="done-corner" onClick={() => setPanelOpen(false)}>
+                    Done
+                  </button>
+                </div>
+                <label className="field-label" htmlFor="scene-text-input">
+                  Set the scene — who should I be?
+                </label>
+                <input
+                  id="scene-text-input"
+                  className="scene-input"
+                  type="text"
+                  maxLength={80}
+                  value={sceneText}
+                  placeholder="Pretend you're a waiter and I'm ordering…"
+                  onChange={(e) => {
+                    setSceneText(e.target.value);
+                    setSceneEdited(true);
+                  }}
+                />
+                <span className="field-label">Session length</span>
+                <div className="pressure-dial" role="group" aria-label="Session length">
+                  {SESSION_LENGTHS.map((len) => (
+                    <button
+                      key={len}
+                      type="button"
+                      className="dial-notch"
+                      aria-pressed={sessionLength === len}
+                      onClick={() => setSessionLength((prev) => (prev === len ? null : len))}
+                    >
+                      {len} min
+                    </button>
+                  ))}
+                </div>
+                <div className="more-panel-row">
+                  <span className="row-key">Microphone</span>
+                  {/* ponytail: WebRTC spike step, standalone mic-permission
+                      check, not wired to backend signaling yet. See
+                      decisions/voice-conversation-browser-webrtc-transport.md. */}
+                  <button
+                    type="button"
+                    className="mic-control"
+                    data-state={mic.status}
+                    aria-disabled={mic.status === "granted"}
+                    title={mic.status === "error" ? mic.error ?? undefined : undefined}
+                    onClick={mic.status === "granted" ? undefined : mic.requestMic}
+                  >
+                    <MicGlyph state={mic.status} />
+                    <span className="mic-label">{MIC_LABELS[mic.status]}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
         {phase !== "retrying" && (
           <button
@@ -138,8 +248,9 @@ export function ConversationView() {
               if (status.running) {
                 stop();
               } else {
-                start(scenarioText.trim() || undefined);
-                setScenarioEdited(false);
+                setPanelOpen(false);
+                start(scenarioText || undefined, sessionLength ?? undefined);
+                setSceneEdited(false);
               }
             }}
           >
@@ -147,16 +258,6 @@ export function ConversationView() {
           </button>
         )}
       </div>
-
-      {/* ponytail: WebRTC spike step, standalone mic-permission check, not wired
-          to backend signaling yet. See
-          decisions/voice-conversation-browser-webrtc-transport.md. */}
-      <button className="conversation-toggle" onClick={mic.requestMic}>
-        {mic.status === "idle" && "Request mic access"}
-        {mic.status === "granted" && "Mic access granted"}
-        {mic.status === "denied" && "Mic access denied — retry"}
-        {mic.status === "error" && `Mic error: ${mic.error}`}
-      </button>
 
       <div className="transcript" ref={transcriptRef} onScroll={handleScroll}>
         {transcript.map((turn, i) => (

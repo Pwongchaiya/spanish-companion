@@ -10,7 +10,15 @@ const mockUseReviewFlow = vi.mocked(useReviewFlow);
 
 function mockFlow(overrides: Partial<ReturnType<typeof useReviewFlow>>) {
   mockUseReviewFlow.mockReturnValue({
-    flags: [{ id: "f1", said: "comía", corrected: "comí", category: "Preterite vs imperfect" }],
+    flags: [
+      {
+        id: "f1",
+        said: "comía",
+        corrected: "comí",
+        category: "Preterite vs imperfect",
+        timestamp: "2026-09-17T00:00:00Z",
+      },
+    ],
     hasLoaded: true,
     selectedFlag: null,
     explanation: null,

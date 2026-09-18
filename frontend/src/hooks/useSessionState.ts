@@ -65,14 +65,19 @@ export function useSessionState() {
     }
   }
 
-  async function start(scenarioText?: string) {
+  async function start(scenarioText?: string, sessionLengthHint?: string) {
     const previousStatus = status;
     setStatus({ running: true, ready: false, graceful: null });
     try {
-      await apiClient.startSession(scenarioText);
+      await apiClient.startSession(scenarioText, sessionLengthHint);
     } catch (e) {
       setStatus(previousStatus);
-      handleActionError(e, () => start(scenarioText), "Couldn't start the conversation.", "Try again when you're ready.");
+      handleActionError(
+        e,
+        () => start(scenarioText, sessionLengthHint),
+        "Couldn't start the conversation.",
+        "Try again when you're ready.",
+      );
     }
   }
 
