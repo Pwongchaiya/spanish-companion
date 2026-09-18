@@ -39,6 +39,21 @@ export interface SessionScenario {
   recent_mistake_categories: string[];
 }
 
+export interface MistakePatternSummary {
+  id: number;
+  profile_id: number;
+  category: string;
+  occurrence_count: number;
+  last_seen_at: string;
+  status: "active" | "resolved";
+}
+
+export interface TopicCoverageEntry {
+  topic: string;
+  covered: boolean;
+  first_covered_at: string | null;
+}
+
 export type ServerEvent =
   | { type: "status"; status: SessionStatus }
   | { type: "transcript"; turns: TranscriptTurn[] }
