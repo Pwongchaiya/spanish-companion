@@ -7,6 +7,7 @@ import type { SessionStatus } from "../api/types";
 vi.mock("../api/client", () => ({
   apiClient: {
     getStatus: vi.fn(),
+    getSessionScenario: vi.fn(),
     startSession: vi.fn(),
     stopSession: vi.fn(),
   },
@@ -99,6 +100,12 @@ describe("useSessionState", () => {
 
     // Setup API client mocks to resolve by default
     (apiClient.getStatus as any).mockResolvedValue(INITIAL_STATUS);
+    (apiClient.getSessionScenario as any).mockResolvedValue({
+      proficiency_level: "beginner",
+      focus_category: null,
+      suggested_topic: null,
+      recent_mistake_categories: [],
+    });
     (apiClient.startSession as any).mockResolvedValue(INITIAL_STATUS);
     (apiClient.stopSession as any).mockResolvedValue(INITIAL_STATUS);
   });
@@ -136,6 +143,50 @@ describe("useSessionState", () => {
     await vi.waitFor(() => {
       expect(setStatusMock).toHaveBeenCalledWith(newStatus);
     });
+  });
+
+  it("fetches a session scenario suggestion while idle", async () => {
+    const { result } = renderHook(() => useSessionState());
+
+    await vi.waitFor(() => {
+      expect(apiClient.getSessionScenario).toHaveBeenCalledOnce();
+    });
+    await vi.waitFor(() => {
+      expect(result.current.scenario).toEqual({
+        proficiency_level: "beginner",
+        focus_category: null,
+        suggested_topic: null,
+        recent_mistake_categories: [],
+      });
+    });
+  });
+
+  it("does not fetch a scenario suggestion while a session is running", () => {
+    (useSessionStore as any).mockImplementation((selector: any) => {
+      const store = {
+        status: { running: true, ready: true, graceful: null } as SessionStatus,
+        transcript: [],
+        setStatus: vi.fn(),
+        applyEvent: vi.fn(),
+      };
+      return selector(store);
+    });
+
+    renderHook(() => useSessionState());
+
+    expect(apiClient.getSessionScenario).not.toHaveBeenCalled();
+  });
+
+  it("start should pass an optional scenario override through to the API client", async () => {
+    (apiClient.startSession as any).mockResolvedValueOnce({});
+
+    const { result } = renderHook(() => useSessionState());
+
+    await act(async () => {
+      await result.current.start("practice ordering coffee");
+    });
+
+    expect(apiClient.startSession).toHaveBeenCalledWith("practice ordering coffee");
   });
 
   it("start should optimistically set running=true", async () => {
