@@ -20,6 +20,7 @@ export interface Flag {
 export interface Explanation {
   explanation: string;
   source_url: string;
+  source_excerpt: string;
 }
 
 export interface PracticeAttempt {

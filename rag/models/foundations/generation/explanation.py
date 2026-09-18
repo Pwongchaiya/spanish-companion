@@ -1,7 +1,8 @@
 """Generation feature's output type.
 
 Explanation is what GenerationService.explain() returns to Review — the
-final grounded, sourced text plus the chunk's source_url for display.
+final grounded, sourced text plus the chunk's source_url and source_excerpt
+(the retrieved passage text itself) for display.
 
 File name mirrors api/models/foundations/session_lifecycle/session_status.py's
 convention: the dataclass gets its own file named after itself, re-exported
@@ -16,3 +17,4 @@ from dataclasses import dataclass
 class Explanation:
     explanation: str
     source_url: str
+    source_excerpt: str

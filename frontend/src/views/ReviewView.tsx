@@ -81,6 +81,7 @@ export function ReviewView() {
                 <a href={explanation.source_url} target="_blank" rel="noreferrer">
                   {explanation.source_url}
                 </a>
+                {explanation.source_excerpt && <blockquote className="excerpt">{explanation.source_excerpt}</blockquote>}
               </div>
             </div>
           )}

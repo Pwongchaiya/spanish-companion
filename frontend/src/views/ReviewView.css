@@ -224,6 +224,18 @@
   text-decoration-color: var(--accent);
 }
 
+.source .excerpt {
+  margin: 6px 0 0;
+  padding-left: 10px;
+  border-left: 1px solid var(--accent-border);
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  max-width: 46ch;
+}
+
 .practice {
   display: flex;
   flex-direction: column;

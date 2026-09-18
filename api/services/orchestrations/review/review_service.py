@@ -146,7 +146,7 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
                 # verbatim, same as GenerationService's. One user-facing "couldn't
                 # help with this" string across the system; debugging splits them in
                 # the logs above, not in the copy.
-                return Explanation(explanation="I'm not certain on that one.", source_url="")
+                return Explanation(explanation="I'm not certain on that one.", source_url="", source_excerpt="")
 
             # retrieve() returns best-first, so [0] is the top-ranked chunk.
             return self._generation_service.explain(flag, chunks[0])

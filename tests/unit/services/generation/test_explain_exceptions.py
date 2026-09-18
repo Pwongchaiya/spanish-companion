@@ -26,6 +26,7 @@ class TestGenerationServiceExplainExceptions:
         assert result == Explanation(
             explanation="I'm not certain on that one.",
             source_url=chunk.source_url,
+            source_excerpt=chunk.content,
         )
         mock_broker.generate.assert_called_once()
 
@@ -45,6 +46,7 @@ class TestGenerationServiceExplainExceptions:
         assert result == Explanation(
             explanation="I'm not certain on that one.",
             source_url=chunk.source_url,
+            source_excerpt=chunk.content,
         )
         assert mock_broker.generate.call_count == 2
 
@@ -80,5 +82,6 @@ class TestGenerationServiceExplainExceptions:
         assert result == Explanation(
             explanation="I'm not certain on that one.",
             source_url=chunk.source_url,
+            source_excerpt=chunk.content,
         )
         assert mock_broker.generate.call_count == 2
