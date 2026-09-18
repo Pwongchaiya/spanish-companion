@@ -1,4 +1,12 @@
-import type { Explanation, Flag, PracticeAttempt, SessionScenario, SessionStatus } from "./types";
+import type {
+  Explanation,
+  Flag,
+  MistakePatternSummary,
+  PracticeAttempt,
+  SessionScenario,
+  SessionStatus,
+  TopicCoverageEntry,
+} from "./types";
 
 export type ApiClientError = Error & { status?: number };
 
@@ -33,6 +41,9 @@ export const apiClient = {
   stopSession: (): Promise<SessionStatus> => fetch("/stop", { method: "POST" }).then(json<SessionStatus>),
 
   listFlags: (): Promise<Flag[]> => fetch("/review/flags").then(json<Flag[]>),
+  listMistakeSummary: (): Promise<MistakePatternSummary[]> =>
+    fetch("/progress/mistakes").then(json<MistakePatternSummary[]>),
+  listTopicCoverage: (): Promise<TopicCoverageEntry[]> => fetch("/progress/topics").then(json<TopicCoverageEntry[]>),
   explainFlag: (flagId: string): Promise<Explanation> => fetch(`/review/flags/${flagId}/explain`).then(json<Explanation>),
   submitPractice: (flagId: string, attemptText: string): Promise<PracticeAttempt> =>
     fetch(`/review/flags/${flagId}/practice`, {
