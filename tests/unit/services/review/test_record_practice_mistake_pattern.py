@@ -91,5 +91,45 @@ class TestReviewOrchestratorRecordPracticeMistakePattern:
         # when
         service.record_practice("flag-1", "la mesa")
 
+        # then -- no roleplay_slug given, so the judge gets no roleplay context
+        mock_generation_service.judge_practice_attempt.assert_called_once_with(flag, "la mesa", None)
+
+    def test_should_resolve_a_known_roleplay_slug_and_pass_its_setting_to_the_judge(
+        self,
+        service,
+        mock_flag_service,
+        mock_generation_service,
+        make_flag,
+    ):
+        # given
+        flag = make_flag("flag-1", category="gender")
+        mock_flag_service.get_flag.return_value = flag
+        mock_generation_service.judge_practice_attempt.return_value = True
+
+        # when
+        service.record_practice("flag-1", "la mesa", "ordering_coffee")
+
         # then
-        mock_generation_service.judge_practice_attempt.assert_called_once_with(flag, "la mesa")
+        (actual_flag, actual_attempt, actual_setting), _ = mock_generation_service.judge_practice_attempt.call_args
+        assert actual_flag is flag
+        assert actual_attempt == "la mesa"
+        assert "barista" in actual_setting
+
+    def test_should_ignore_an_unrecognized_roleplay_slug(
+        self,
+        service,
+        mock_flag_service,
+        mock_generation_service,
+        make_flag,
+    ):
+        # given -- reachable only from a caller other than the Exposer, which
+        # already rejects an unknown slug with a 400 before this is called.
+        flag = make_flag("flag-1", category="gender")
+        mock_flag_service.get_flag.return_value = flag
+        mock_generation_service.judge_practice_attempt.return_value = True
+
+        # when
+        service.record_practice("flag-1", "la mesa", "not_a_real_scenario")
+
+        # then
+        mock_generation_service.judge_practice_attempt.assert_called_once_with(flag, "la mesa", None)
