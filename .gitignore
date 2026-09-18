@@ -18,3 +18,4 @@ review/logs/
 .playwright-mcp
 .mcp.json
 .agents
+.vscode/
