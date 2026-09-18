@@ -30,6 +30,13 @@ export interface PracticeAttempt {
 
 export type TurnState = "listening" | "thinking" | "speaking" | "idle" | null;
 
+export interface SessionScenario {
+  proficiency_level: string;
+  focus_category: string | null;
+  suggested_topic: string | null;
+  recent_mistake_categories: string[];
+}
+
 export type ServerEvent =
   | { type: "status"; status: SessionStatus }
   | { type: "transcript"; turns: TranscriptTurn[] }

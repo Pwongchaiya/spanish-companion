@@ -14,8 +14,8 @@ Voice-first Spanish conversation partner. User talk to it like friend; agent res
 **Design principle drive every scope decision:** 
 live talk must stay fast, natural — nothing expensive (RAG, verify) run during Conversation Mode. All ground and correction work happen in separate, untimed Review Mode.
 
-Full MVP scope, out-of-scope list, build order:
-`spanish-companion-mvp-scope.md`.
+Full scope, out-of-scope list, build order:
+`spanish-companion-mvp-scope.md` (filename kept for history; project is past MVP stage).
 
 Shared agent, skill toolkit live at `.claude-toolkit/` as git
 submodule. All agents, skills, slash commands load from that path.
@@ -37,7 +37,7 @@ Before make any schema, table, or API contract, confirm structure with user. Nev
 | LLM | Gemini Flash-Lite — both talk + RAG generate |
 | Database | Postgres + pgvector |
 | Embeddings | sentence-transformers, paraphrase-multilingual-MiniLM-L12-v2 (384-dim; BGE-small-en drop — English-only, no embed Spanish query) |
-| Corpus source | RAE grammar pages (MVP: 3-5 start topic) |
+| Corpus source | RAE grammar pages (initial: 3-5 start topic) |
 | UI | Flask — minimal server, plain HTML/vanilla JS, no build tool (Phase 1, shipped) |
 | Config | python-dotenv — single `.env` at repo root |
 
@@ -51,7 +51,7 @@ HTML/vanilla JS row above.
 
 **Phase 1 (Steps 0-5) shipped, not entity/layer-based.** Not follow
 The Standard's Broker → Foundation → Processing → Orchestration →
-Aggregation → Exposer build sequence — no CRUD entity registry, staged MVP
+Aggregation → Exposer build sequence — no CRUD entity registry, staged
 plan instead, track in `Projects/spanish-companion/state.md` (Pending
 Work), mirror from `spanish-companion-mvp-scope.md` Section 7:
 
@@ -148,7 +148,7 @@ full-coverage push across frontend. `npm test` (alias for `vitest`) from
 
 - Feature branch off `main`. Conventional commit: `type: short description`.
 - Never commit to `main` direct.
-- Commit after every meaning step, not one giant commit per MVP stage.
+- Commit after every meaningful step, not one giant commit per build stage.
 
 ---
 
@@ -212,7 +212,7 @@ for why rule exist.
 | Service, 2+ broker/deps | Orchestration Agent | Ingestion, Retrieval, Review | Waive ORC-001 (Florance dep-count limit). ORC-002 (no direct broker deps) waiver **stale as of six-layer rebuild** — verified 2026-09-11 against actual constructors: `IngestionOrchestrationService.__init__` (`rag/services/orchestrations/ingestion/ingestion_service.py:89-95`) takes `chunk_repository_service`/`embedding_model_service` (both Foundation), `RetrievalOrchestrationService.__init__` (`rag/services/orchestrations/retrieval/retrieval_service.py:74-82`) takes `embedding_model_service` (Foundation) + strategy objects, `ReviewOrchestrationService.__init__` (`api/services/orchestrations/review/review_service.py:66-76`) takes `flag_service`/`practice_log_service`/`generation_service` (Foundation) + `retrieval_service` (another Orchestration). None hold direct business-broker dependency — only `logging_broker`/`configuration_broker`, cross-cutting and exempt under Standard regardless. ORC-002 no longer need waive for any of three; keep only ORC-001 dep-count waiver. Verified against source-of-truth: Ingestion names 5, Retrieval names 3 (no Validation tier — `retrieve()`'s only input check bare `ValueError`), Review names 6 across 3 wrapper tiers. Retrieval's leaf reaches Review pre-wrapped as `RetrievalOrchestrationDependencyException`. See [[Projects/spanish-companion/decisions/review-rebuilt-against-source-of-truth\|Review]] and [[Projects/spanish-companion/decisions/ingestion-retrieval-generation-rebuilt-against-source-of-truth\|Ingestion/Retrieval/Generation]] records. |
 | Processing | Processing Agent (new entities only, from 2026-09-10) | Per-entity, wherever higher-order logic (upsert, computed occurrence counts, status transitions) sits on top of a single Foundation service | **Reversed project-wide 2026-09-10** — original "Not used" waiver collapsed Processing into Foundation/Service, which pushed upsert-style logic into what should be pure CRUD tier (get/put/delete/create/getall only). Going forward, Foundation stay low-level-only; Processing owns higher-order logic on top, matching Standard's philosophy. **Not retroactive** — 5 already-shipped features (Session Lifecycle, Generation, Ingestion, Retrieval, Review) keep existing 3-layer shape; this applies starting with LearnerProfile entity cluster's re-split into 3 entities (LearnerProfile, MistakePattern, TopicCovered), each getting own Broker → Foundation → Processing sequence where it needs one. |
 | Aggregation | **Not used** | — | Its trigger "Exposer needs >1 Orchestration service"; every controller here calls exactly one service |
-| Controller, HTTP + in-process | Exposer Agent | Session Lifecycle, Review, Retrieval, Generation | Waive `/api/V1.0/` versioning (routes unversioned: `/start`, `/stop`, `/status`, `/review*`); turn off React output (frontend separately scaffolded in `frontend/`); for two in-process controllers (`RetrievalController`, `GenerationController`) waive HTTP status-code mapping — no HTTP response to map |
+| Controller, HTTP + in-process | Exposer Agent | Session Lifecycle, Review, LearnerProfile | Waive `/api/V1.0/` versioning (routes unversioned: `/start`, `/stop`, `/status`, `/review*`); turn off React output (frontend separately scaffolded in `frontend/`). `RetrievalController`/`GenerationController` were deleted (`fcf743a`) as valueless pass-throughs with a single caller each — Review now depends on Retrieval/Generation's own services directly. `LearnerProfileController` (`api/exposers/learner_profile.py`) kept despite that precedent because it has two eventual callers (`voice_conversation.py`, `review.py`); waives HTTP status-code mapping — no HTTP response to map |
 | Controller, CLI/subprocess | **Hand-written, no agent** | Ingestion CLI, Voice Conversation `main()` | Not worth waiver for ~20 lines of argparse/entrypoint code |
 | Broker interfaces | — | All | `typing.Protocol`, not `ABC` — waive `python-adaptations-skill`'s ABC default and BRK-004 ("no local interface defined"). Reframed post-audit: this doesn't diverge from reference `NL.Core.Entitlements` project, it matches it — `IEntitlementService.cs` sits next to `EntitlementService.cs` there too, interfaces co-located with implementation. Toolkit's ABC/BRK-004 default the outlier, not this waiver ([[Projects/spanish-companion/decisions/phase-2-vs-reference-architecture-audit\|F18]]) |
 
@@ -343,7 +343,7 @@ Vault path: `c:\Users\pwong\OneDrive\Documents\Obsidian\Notes`
 ### When to read
 
 - At `/session-start`: read `Projects/spanish-companion/state.md` for current
-  MVP stage and pending work.
+  build stage and pending work.
 - When concept comes up, check `Projects/concepts/` before answering from
   training data.
 
@@ -358,7 +358,7 @@ Vault path: `c:\Users\pwong\OneDrive\Documents\Obsidian\Notes`
 
 | File | Purpose |
 | --- | --- |
-| `Projects/spanish-companion/state.md` | MVP stage tracker, pending work |
+| `Projects/spanish-companion/state.md` | Build stage tracker, pending work |
 | `Projects/spanish-companion/sessions/` | Per-session summaries |
 | `Projects/spanish-companion/decisions/` | Architectural decision records |
 

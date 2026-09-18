@@ -12,6 +12,14 @@ instance must be shared across requests -- constructed once by api/app.py
 (a later step) and injected here via make_session_lifecycle_blueprint().
 This module never constructs the service or its broker itself.
 
+GET /session-scenario and the optional scenario_text body on POST /start
+are LearnerProfile Phase 3 (session-scenario composition, see
+decisions/dynamic-bot-behavior-and-learner-memory.md): the frontend fetches
+a suggested scenario before /start, may let the user override it, and
+passes whatever text it settles on back in /start's body.
+LearnerProfileController is injected the same way ConversationSessionService
+is -- constructed once by api/app.py, never by this module.
+
 Origin/Referer CSRF-shaped checking is NOT implemented here -- it lives
 app-wide in api/app.py, applied uniformly across /start /stop /status and
 /review*.
@@ -31,7 +39,7 @@ leaf), not from `e` itself, matching the C# pattern of returning
 
 from dataclasses import asdict
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 
 from api.models.foundations.session_lifecycle.exceptions import (
     AlreadyRunningSessionException,
@@ -39,16 +47,47 @@ from api.models.foundations.session_lifecycle.exceptions import (
     SessionServiceException,
     SessionValidationException,
 )
+from api.models.orchestrations.learner_profile.exceptions import (
+    LearnerProfileOrchestrationDependencyException,
+    LearnerProfileOrchestrationServiceException,
+    LearnerProfileOrchestrationValidationException,
+)
+from api.exposers.learner_profile import LearnerProfileController
 from api.services.foundations.session_lifecycle import SessionLifecycleService
 
 
-def make_session_lifecycle_blueprint(service: SessionLifecycleService) -> Blueprint:
+def make_session_lifecycle_blueprint(
+    service: SessionLifecycleService, learner_profile_controller: LearnerProfileController
+) -> Blueprint:
     session_lifecycle_blueprint = Blueprint("session_lifecycle", __name__)
+
+    @session_lifecycle_blueprint.route("/session-scenario", methods=["GET"])
+    def session_scenario():
+        try:
+            scenario = learner_profile_controller.suggest_session_scenario()
+            return jsonify(asdict(scenario)), 200
+        except LearnerProfileOrchestrationValidationException as e:
+            return jsonify({"error": str(e.inner_exception)}), 400
+        except LearnerProfileOrchestrationDependencyException as e:
+            return jsonify({"error": str(e.inner_exception)}), 500
+        except LearnerProfileOrchestrationServiceException as e:
+            return jsonify({"error": str(e.inner_exception)}), 500
 
     @session_lifecycle_blueprint.route("/start", methods=["POST"])
     def start():
+        body = request.get_json(silent=True) or {}
+        scenario_text = body.get("scenario_text")
+        # ponytail: session_length_hint is pacing-only, never persisted, so it
+        # folds straight into scenario_text here rather than threading a new
+        # parameter through Foundation/Broker -- promote it to its own
+        # param on SessionLifecycleService.start() if it ever needs to be
+        # inspected independently of the free-text scenario.
+        session_length_hint = body.get("session_length_hint")
+        if session_length_hint:
+            hint_text = f"Aim for about a {session_length_hint}-minute conversation."
+            scenario_text = f"{scenario_text} {hint_text}".strip() if scenario_text else hint_text
         try:
-            service.start()
+            service.start(scenario_text)
             return jsonify(asdict(service.get_status())), 200
         except SessionValidationException as e:
             if isinstance(e.inner_exception, AlreadyRunningSessionException):
