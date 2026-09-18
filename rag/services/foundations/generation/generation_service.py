@@ -101,9 +101,9 @@ class GenerationService(GenerationServiceExceptions, IGenerationService):
 
         return self._try_catch(action)
 
-    def judge_practice_attempt(self, flag: FlagLike, attempt_text: str) -> bool:
+    def judge_practice_attempt(self, flag: FlagLike, attempt_text: str, roleplay_setting: str | None = None) -> bool:
         def action() -> bool:
-            prompt = self._build_practice_judge_prompt(flag, attempt_text)
+            prompt = self._build_practice_judge_prompt(flag, attempt_text, roleplay_setting)
             try:
                 verdict = self._broker.generate(prompt)
             except GenerationError as e:
@@ -117,12 +117,17 @@ class GenerationService(GenerationServiceExceptions, IGenerationService):
 
         return self._try_catch(action)
 
-    def _build_practice_judge_prompt(self, flag: FlagLike, attempt_text: str) -> str:
+    def _build_practice_judge_prompt(self, flag: FlagLike, attempt_text: str, roleplay_setting: str | None) -> str:
+        # LearnerProfile Phase 4: an optional roleplay setting (resolved from a
+        # known slug by Review, api-side -- see review_service.py) frames the
+        # attempt in context instead of judging it as a bare, sceneless sentence.
+        roleplay_context = f"Roleplay setting: {roleplay_setting}\n" if roleplay_setting else ""
         return _PRACTICE_JUDGE_PROMPT.format(
             said=flag.said,
             corrected=flag.corrected,
             category=flag.category,
             attempt=attempt_text,
+            roleplay_context=roleplay_context,
         )
 
     def _is_grounded(self, explanation: str, chunk: ScoredChunk) -> bool:
