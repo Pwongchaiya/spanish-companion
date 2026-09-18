@@ -1,7 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { apiClient } from "../api/client";
 import type { ApiClientError } from "../api/client";
-import type { ServerEvent } from "../api/types";
+import type { ServerEvent, SessionScenario } from "../api/types";
 import { useSessionStore } from "../state/store";
 import { useEventSource } from "./useEventSource";
 import { useConnectionStore } from "../state/connectionStore";
@@ -16,6 +16,25 @@ export function useSessionState() {
   const setStatus = useSessionStore((s) => s.setStatus);
   const applyEvent = useSessionStore((s) => s.applyEvent);
   const { data, connectionStatus } = useEventSource<ServerEvent>("/api/events");
+
+  // Suggested scenario for the next session (LearnerProfile Phase 3) --
+  // fetched once while idle, not re-fetched while a session is running.
+  // Fetch failure is silent: the scenario picker is optional, never
+  // load-bearing for starting a conversation.
+  const [scenario, setScenario] = useState<SessionScenario | null>(null);
+  useEffect(() => {
+    if (status.running) return;
+    let cancelled = false;
+    apiClient
+      .getSessionScenario()
+      .then((s) => {
+        if (!cancelled) setScenario(s);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [status.running]);
 
   useEffect(() => {
     return runWithBackoff(() => apiClient.getStatus(), setStatus);
@@ -46,14 +65,14 @@ export function useSessionState() {
     }
   }
 
-  async function start() {
+  async function start(scenarioText?: string) {
     const previousStatus = status;
     setStatus({ running: true, ready: false, graceful: null });
     try {
-      await apiClient.startSession();
+      await apiClient.startSession(scenarioText);
     } catch (e) {
       setStatus(previousStatus);
-      handleActionError(e, start, "Couldn't start the conversation.", "Try again when you're ready.");
+      handleActionError(e, () => start(scenarioText), "Couldn't start the conversation.", "Try again when you're ready.");
     }
   }
 
@@ -65,5 +84,5 @@ export function useSessionState() {
     }
   }
 
-  return { status, transcript, turnState, connectionStatus, start, stop };
+  return { status, transcript, turnState, connectionStatus, scenario, start, stop };
 }

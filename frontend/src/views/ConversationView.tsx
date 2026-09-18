@@ -1,9 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./ConversationView.css";
 import { useSessionState } from "../hooks/useSessionState";
 import { useMicPermission } from "../hooks/useMicPermission";
 import { useConnectionStore } from "../state/connectionStore";
-import type { TurnState } from "../api/types";
+import type { SessionScenario, TurnState } from "../api/types";
 
 // How close to the bottom (px) still counts as "pinned" -- new turns
 // auto-scroll into view. Past that, the user is reading history and a
@@ -41,9 +41,32 @@ const CONNECTION_HINT: Record<"retrying" | "down", string> = {
   down: "Starting a conversation needs the server. Reading this one doesn't.",
 };
 
+// Composes the same "Speak at a {level} level. Focus this session on:
+// {topic}." shape the backend's own default-scenario fallback uses
+// (api/exposers/voice_conversation.py::_default_scenario_text), so the
+// text a user sees and edits here matches what an un-overridden session
+// would open with.
+function composeScenarioText(scenario: SessionScenario): string {
+  const parts = [`Speak at a ${scenario.proficiency_level} proficiency level.`];
+  if (scenario.suggested_topic) {
+    parts.push(`Focus this session on: ${scenario.suggested_topic}.`);
+  }
+  return parts.join(" ");
+}
+
 export function ConversationView() {
-  const { status, transcript, turnState, start, stop } = useSessionState();
+  const { status, transcript, turnState, scenario, start, stop } = useSessionState();
   const mic = useMicPermission();
+  const [scenarioText, setScenarioText] = useState("");
+  const [scenarioEdited, setScenarioEdited] = useState(false);
+
+  // Reset to the freshly-fetched suggestion whenever a new one arrives,
+  // unless the user has already started typing their own override --
+  // scenarioEdited is cleared on stop() below so the next idle period
+  // starts from the new suggestion again, not a stale hand-typed one.
+  useEffect(() => {
+    if (scenario && !scenarioEdited) setScenarioText(composeScenarioText(scenario));
+  }, [scenario, scenarioEdited]);
   const phase = useConnectionStore((s) => s.phase);
   const connectionOk = phase === "ok";
   // listening/idle share the "ready" ring state -- only thinking/speaking
@@ -61,11 +84,18 @@ export function ConversationView() {
     : status.running
       ? stateLabel(status.running, status.ready, turnState)
       : null;
+  // Once a suggestion has loaded, the editable scenario field below takes
+  // over the idle hint's spot entirely -- falls back to the old static
+  // hint if the fetch hasn't resolved yet (or failed; the picker is
+  // optional, never load-bearing for starting a conversation).
+  const showScenarioPicker = connectionOk && !status.running && !!scenario;
   const hint = !connectionOk
     ? CONNECTION_HINT[phase]
-    : transcript.length === 0
-      ? "press Start and talk"
-      : null;
+    : showScenarioPicker
+      ? null
+      : transcript.length === 0
+        ? "press Start and talk"
+        : null;
 
   const transcriptRef = useRef<HTMLDivElement>(null);
   const pinnedRef = useRef(true);
@@ -88,11 +118,30 @@ export function ConversationView() {
         <div className={`ring ${ringState}`} aria-hidden="true" />
         {label && <p className="status-label">{label}</p>}
         {hint && <p className="hint">{hint}</p>}
+        {showScenarioPicker && (
+          <textarea
+            className="scenario-input"
+            aria-label="Session scenario"
+            rows={2}
+            value={scenarioText}
+            onChange={(e) => {
+              setScenarioText(e.target.value);
+              setScenarioEdited(true);
+            }}
+          />
+        )}
         {phase !== "retrying" && (
           <button
             className="conversation-toggle"
             disabled={!connectionOk}
-            onClick={status.running ? stop : start}
+            onClick={() => {
+              if (status.running) {
+                stop();
+              } else {
+                start(scenarioText.trim() || undefined);
+                setScenarioEdited(false);
+              }
+            }}
           >
             {status.running ? "Stop" : "Start"}
           </button>

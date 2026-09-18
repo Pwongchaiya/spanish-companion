@@ -164,6 +164,26 @@
   max-width: 240px;
 }
 
+.scenario-input {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 15px;
+  color: var(--text);
+  text-align: center;
+  width: min(78%, 340px);
+  resize: none;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  padding: 4px 0;
+  transition: border-color 180ms ease;
+}
+
+.scenario-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 .conversation-toggle {
   background: none;
   border: none;

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ConversationView } from "./ConversationView";
 import { useConnectionStore } from "../state/connectionStore";
@@ -14,6 +14,7 @@ function mockSession(overrides: Partial<ReturnType<typeof useSessionState>>) {
     transcript: [],
     turnState: null,
     connectionStatus: "open",
+    scenario: null,
     start: vi.fn(),
     stop: vi.fn(),
     ...overrides,
@@ -54,6 +55,58 @@ describe("ConversationView idle state", () => {
     render(<ConversationView />);
 
     expect(screen.queryByText(/press start and talk/i)).toBeNull();
+  });
+});
+
+describe("ConversationView scenario picker", () => {
+  beforeEach(() => {
+    useConnectionStore.getState().setOk();
+  });
+
+  it("keeps the plain hint when no scenario has loaded yet", () => {
+    mockSession({ status: { running: false, ready: false, graceful: null }, scenario: null });
+    render(<ConversationView />);
+
+    expect(screen.getByText(/press start and talk/i)).toBeTruthy();
+    expect(screen.queryByLabelText("Session scenario")).toBeNull();
+  });
+
+  it("shows an editable field pre-filled from the suggestion once loaded", () => {
+    mockSession({
+      status: { running: false, ready: false, graceful: null },
+      scenario: {
+        proficiency_level: "beginner",
+        focus_category: null,
+        suggested_topic: "ordering coffee",
+        recent_mistake_categories: [],
+      },
+    });
+    render(<ConversationView />);
+
+    expect(screen.queryByText(/press start and talk/i)).toBeNull();
+    const field = screen.getByLabelText("Session scenario") as HTMLTextAreaElement;
+    expect(field.value).toBe("Speak at a beginner proficiency level. Focus this session on: ordering coffee.");
+  });
+
+  it("passes the (possibly edited) scenario text to start()", () => {
+    const startMock = vi.fn();
+    mockSession({
+      status: { running: false, ready: false, graceful: null },
+      scenario: {
+        proficiency_level: "beginner",
+        focus_category: null,
+        suggested_topic: "ordering coffee",
+        recent_mistake_categories: [],
+      },
+      start: startMock,
+    });
+    render(<ConversationView />);
+
+    const field = screen.getByLabelText("Session scenario");
+    fireEvent.change(field, { target: { value: "talk about the weather" } });
+    fireEvent.click(screen.getByRole("button", { name: "Start" }));
+
+    expect(startMock).toHaveBeenCalledWith("talk about the weather");
   });
 });
 
