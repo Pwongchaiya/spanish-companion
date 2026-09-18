@@ -14,6 +14,8 @@ export default defineConfig({
       '/session-scenario': 'http://localhost:5000',
       '/api': 'http://localhost:5000',
       '/review': 'http://localhost:5000',
+      '/progress': 'http://localhost:5000',
+      '/tts': 'http://localhost:5000',
     },
   },
 })
