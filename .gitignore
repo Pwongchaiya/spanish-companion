@@ -9,6 +9,7 @@ data/practice_log.jsonl
 data/live_transcript.jsonl
 data/session_logs/
 data/turn_state.txt
+data/stop_signal
 .claude
 .claude-toolkit
 voice/logs/
