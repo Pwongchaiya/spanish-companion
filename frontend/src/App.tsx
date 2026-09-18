@@ -2,13 +2,14 @@ import { useState } from "react";
 import "./App.css";
 import { ConversationView } from "./views/ConversationView";
 import { ReviewView } from "./views/ReviewView";
+import { ProgressView } from "./views/ProgressView";
 import { MinimalPairDrill } from "./components/MinimalPairDrill";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ToastContainer } from "./components/Toast";
 import { ConnectionBanner } from "./components/ConnectionBanner";
 import { useTheme } from "./hooks/useTheme";
 
-type Tab = "conversation" | "review" | "listening";
+type Tab = "conversation" | "review" | "listening" | "progress";
 
 // ponytail: build-time flag only (no runtime toggle needed) -- public deploy
 // has no Voice Conversation backend, so ConversationView/useSessionState must
@@ -110,6 +111,9 @@ function App() {
             <button className={tab === "listening" ? "active" : ""} onClick={() => setTab("listening")}>
               Listening
             </button>
+            <button className={tab === "progress" ? "active" : ""} onClick={() => setTab("progress")}>
+              Progress
+            </button>
           </nav>
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
         </div>
@@ -118,7 +122,15 @@ function App() {
 
       <main>
         <ErrorBoundary key={tab}>
-          {tab === "conversation" ? <ConversationView /> : tab === "review" ? <ReviewView /> : <MinimalPairDrill />}
+          {tab === "conversation" ? (
+            <ConversationView />
+          ) : tab === "review" ? (
+            <ReviewView />
+          ) : tab === "progress" ? (
+            <ProgressView />
+          ) : (
+            <MinimalPairDrill />
+          )}
         </ErrorBoundary>
       </main>
       <ToastContainer />

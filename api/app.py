@@ -40,6 +40,7 @@ from api.brokers.practice_log import JsonLinesPracticeLogBroker
 from api.brokers.topic_covered import SqlAlchemyTopicCoveredBroker
 from api.brokers.tts import AzureTtsBroker
 from api.exposers.learner_profile import LearnerProfileController
+from api.exposers.progress import make_progress_blueprint
 from api.exposers.review import make_review_blueprint
 from api.exposers.session_lifecycle import make_session_lifecycle_blueprint
 from api.exposers.tts import make_tts_blueprint
@@ -51,6 +52,7 @@ from api.services.foundations.session_lifecycle import ConversationSessionServic
 from api.services.foundations.topic_covered import TopicCoveredService
 from api.services.foundations.tts import TtsService
 from api.services.orchestrations.learner_profile import LearnerProfileOrchestrationService
+from api.services.orchestrations.progress import ProgressOrchestrationService
 from api.services.orchestrations.review import ReviewOrchestrationService
 from api.services.processings.learner_profile import LearnerProfileProcessingService
 from api.services.processings.mistake_pattern import MistakePatternProcessingService
@@ -229,6 +231,19 @@ def create_app() -> Flask:
         configuration_broker=configuration_broker,
     )
     app.register_blueprint(make_review_blueprint(review_orchestrator))
+
+    # --- Progress (roadmap Phase 2: A5 cumulative mistake dashboard, F1
+    # corpus coverage map) -- read-only, no new brokers; reuses the
+    # mistake_pattern_service/topic_covered_service/
+    # learner_profile_processing_service instances already built above ---
+    progress_orchestrator = ProgressOrchestrationService(
+        learner_profile_processing_service,
+        mistake_pattern_service,
+        topic_covered_service,
+        logging_broker=logging_broker,
+        configuration_broker=configuration_broker,
+    )
+    app.register_blueprint(make_progress_blueprint(progress_orchestrator))
 
     # --- Tts (roadmap item B6: minimal-pair listening check) -- stateless
     # single-call feature, no Orchestration layer needed ---
