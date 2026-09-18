@@ -44,6 +44,7 @@ from dataclasses import asdict
 
 from flask import Blueprint, jsonify, request
 
+from api.data.roleplay_scenarios import get_roleplay_scenario
 from api.models.foundations.flag.exceptions import NotFoundFlagException
 from api.models.orchestrations.review.exceptions import (
     ReviewOrchestrationDependencyException,
@@ -86,8 +87,11 @@ def make_review_blueprint(orchestrator: ReviewOrchestrationService) -> Blueprint
         attempt_text = body.get("attempt_text")
         if not isinstance(attempt_text, str) or not attempt_text.strip():
             return jsonify({"error": "attempt_text is required"}), 400
+        roleplay_slug = body.get("roleplay_slug")
+        if roleplay_slug is not None and get_roleplay_scenario(roleplay_slug) is None:
+            return jsonify({"error": f"Invalid roleplay_slug: {roleplay_slug!r}"}), 400
         try:
-            result = orchestrator.record_practice(flag_id, attempt_text)
+            result = orchestrator.record_practice(flag_id, attempt_text, roleplay_slug)
             body = {
                 **asdict(result.attempt),
                 "timestamp": result.attempt.timestamp.isoformat(),
