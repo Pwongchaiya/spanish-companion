@@ -4,12 +4,13 @@ import { ConversationView } from "./views/ConversationView";
 import { ReviewView } from "./views/ReviewView";
 import { ProgressView } from "./views/ProgressView";
 import { MinimalPairDrill } from "./components/MinimalPairDrill";
+import { ShadowingDrill } from "./components/ShadowingDrill";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ToastContainer } from "./components/Toast";
 import { ConnectionBanner } from "./components/ConnectionBanner";
 import { useTheme } from "./hooks/useTheme";
 
-type Tab = "conversation" | "review" | "listening" | "progress";
+type Tab = "conversation" | "review" | "listening" | "speaking" | "progress";
 
 // ponytail: build-time flag only (no runtime toggle needed) -- public deploy
 // has no Voice Conversation backend, so ConversationView/useSessionState must
@@ -111,6 +112,9 @@ function App() {
             <button className={tab === "listening" ? "active" : ""} onClick={() => setTab("listening")}>
               Listening
             </button>
+            <button className={tab === "speaking" ? "active" : ""} onClick={() => setTab("speaking")}>
+              Speaking
+            </button>
             <button className={tab === "progress" ? "active" : ""} onClick={() => setTab("progress")}>
               Progress
             </button>
@@ -126,6 +130,8 @@ function App() {
             <ConversationView />
           ) : tab === "review" ? (
             <ReviewView />
+          ) : tab === "speaking" ? (
+            <ShadowingDrill />
           ) : tab === "progress" ? (
             <ProgressView />
           ) : (
