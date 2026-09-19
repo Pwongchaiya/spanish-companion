@@ -59,6 +59,7 @@ from api.brokers.session_log import FileSessionLogBroker
 from api.brokers.session_log_entry import SqlAlchemySessionLogEntryBroker
 from api.brokers.stt import AzureSttBroker
 from api.brokers.topic_covered import SqlAlchemyTopicCoveredBroker
+from api.data.spanish_variants import get_variant
 from api.exposers.learner_profile import LearnerProfileController
 from api.models.foundations.learner_profile.exceptions import (
     LearnerProfileDependencyException,
@@ -191,7 +192,9 @@ def _read_cefr_estimate(logging_broker: LoggingBroker) -> Optional[str]:
         return None
 
 
-def _compose_system_prompt(logging_broker: LoggingBroker, pressure_prompt_block: str) -> str:
+def _compose_system_prompt(
+    logging_broker: LoggingBroker, pressure_prompt_block: str, variant_prompt_block: str = ""
+) -> str:
     base_rules = FilePromptBroker().get_system_prompt()
     override = _read_and_clear_scenario_override()
     # Loaded even when an override wins the scenario line: the A3 priming
@@ -204,7 +207,9 @@ def _compose_system_prompt(logging_broker: LoggingBroker, pressure_prompt_block:
     difficulty_block = get_difficulty_block(_read_cefr_estimate(logging_broker))
     scenario_text = override or _scenario_text(scenario, has_difficulty_block=bool(difficulty_block))
     prompt = f"{base_rules}\n\nFor this session, practice: {scenario_text}\n\n{pressure_prompt_block}"
-    for block in (difficulty_block, _priming_block(scenario, logging_broker)):
+    # D2: regional register guidance (empty for neutral, so the prompt is
+    # unchanged from before D2 in the default case).
+    for block in (variant_prompt_block, difficulty_block, _priming_block(scenario, logging_broker)):
         if block:
             prompt = f"{prompt}\n\n{block}"
     return prompt
@@ -225,6 +230,7 @@ def main() -> None:
     session_log_broker = FileSessionLogBroker()
 
     pressure = get_pressure_level(configuration_broker.get("SESSION_PRESSURE"))
+    variant = get_variant(configuration_broker.get("SESSION_VARIANT"))
 
     try:
         transport = LocalAudioTransport(
@@ -237,8 +243,10 @@ def main() -> None:
                 # Multilingual voice — speaks both the Spanish phrases and the
                 # English explanations naturally, instead of an English accent
                 # on a Spanish-only voice.
-                voice=configuration_broker.get("AZURE_TTS_VOICE", "es-ES-XimenaMultilingualNeural"),
-                language=Language.ES_ES,
+                # D2: per-variant voice, each overridable via its own env var
+                # (neutral's is the pre-D2 AZURE_TTS_VOICE, same default).
+                voice=configuration_broker.get(variant.voice_env, variant.voice),
+                language=getattr(Language, variant.language),
                 # D5 pressure dial -- SSML prosody rate, e.g. "-15%"/"+12%".
                 rate=pressure.tts_rate,
             ),
@@ -247,7 +255,7 @@ def main() -> None:
             api_key=configuration_broker.require("GEMINI_API_KEY"),
             settings=GoogleLLMService.Settings(
                 model=configuration_broker.get("GEMINI_MODEL", "gemini-flash-lite-latest"),
-                system_instruction=_compose_system_prompt(logging_broker, pressure.prompt_block),
+                system_instruction=_compose_system_prompt(logging_broker, pressure.prompt_block, variant.prompt_block),
             ),
             # A slow first chunk (network blip, API-side latency) otherwise drops
             # the turn silently with no assistant reply ever recorded — the user
