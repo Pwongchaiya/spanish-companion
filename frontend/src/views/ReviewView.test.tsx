@@ -191,7 +191,13 @@ describe("ReviewView after a practice attempt", () => {
   it("shows Mastered once the judge verdict is mastered:true", () => {
     mockFlow({
       selectedFlag,
-      attempt: { flag_id: "f1", attempt_text: "comí", timestamp: "2026-09-18T00:00:00Z", mastered: true },
+      attempt: {
+        flag_id: "f1",
+        attempt_text: "comí",
+        timestamp: "2026-09-18T00:00:00Z",
+        mastered: true,
+        grade: "good",
+      },
     });
     render(<ReviewView />);
 
@@ -202,11 +208,33 @@ describe("ReviewView after a practice attempt", () => {
   it("shows Logged, not Mastered, when the verdict is still shaky", () => {
     mockFlow({
       selectedFlag,
-      attempt: { flag_id: "f1", attempt_text: "como", timestamp: "2026-09-18T00:00:00Z", mastered: false },
+      attempt: {
+        flag_id: "f1",
+        attempt_text: "como",
+        timestamp: "2026-09-18T00:00:00Z",
+        mastered: false,
+        grade: "again",
+      },
     });
     render(<ReviewView />);
 
     expect(screen.getByText("Logged")).toBeTruthy();
     expect(screen.queryByText("Mastered")).toBeNull();
+  });
+
+  it("shows the grade word alongside the Mastered/Logged badge", () => {
+    mockFlow({
+      selectedFlag,
+      attempt: {
+        flag_id: "f1",
+        attempt_text: "como",
+        timestamp: "2026-09-18T00:00:00Z",
+        mastered: false,
+        grade: "hard",
+      },
+    });
+    render(<ReviewView />);
+
+    expect(screen.getByText("(hard)")).toBeTruthy();
   });
 });
