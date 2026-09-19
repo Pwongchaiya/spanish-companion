@@ -1,0 +1,95 @@
+/* Pronunciation heatmap -- Aliento tokens only (ring-* for bands, ember for
+   poor). Colour is never the only signal: score text + error label + dashed
+   border on error words. */
+
+.heatmap-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.heatmap-word {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+  font-family: var(--sans);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.heatmap-word.good,
+.heatmap-chip.good {
+  border-color: var(--ring-listening);
+}
+
+.heatmap-word.warn,
+.heatmap-chip.warn {
+  border-color: var(--ring-warming);
+}
+
+.heatmap-word.poor,
+.heatmap-chip.poor {
+  border-color: var(--ember);
+  color: var(--ember);
+}
+
+.heatmap-word.none {
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.heatmap-word.has-error {
+  border-style: dashed;
+  border-width: 2px;
+  text-decoration: underline wavy var(--ember);
+}
+
+.heatmap-score {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.heatmap-error {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ember);
+}
+
+.heatmap-word[aria-expanded="true"] {
+  background: var(--accent-bg);
+}
+
+.heatmap-word:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.heatmap-phonemes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.heatmap-chip {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--text-h);
+}
+
+.heatmap-empty {
+  color: var(--text);
+  font-size: 14px;
+}
