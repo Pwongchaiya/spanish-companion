@@ -54,6 +54,7 @@ from api.services.foundations.session_log_entry import SessionLogEntryService
 from api.services.foundations.topic_covered import TopicCoveredService
 from api.services.foundations.tts import TtsService
 from api.services.orchestrations.learner_profile import LearnerProfileOrchestrationService
+from api.services.aggregations.session_recap import SessionRecapAggregationService
 from api.services.orchestrations.progress import ProgressOrchestrationService
 from api.services.orchestrations.review import ReviewOrchestrationService
 from api.services.processings.learner_profile import LearnerProfileProcessingService
@@ -251,7 +252,17 @@ def create_app() -> Flask:
         logging_broker=logging_broker,
         configuration_broker=configuration_broker,
     )
-    app.register_blueprint(make_progress_blueprint(progress_orchestrator))
+    # --- Session recap (roadmap C2) -- Aggregation layer, composing
+    # Review's flag list with Progress's latest-completed-session read for
+    # the one Exposer route (GET /progress/recap) that needs both. Reuses
+    # the review_orchestrator/progress_orchestrator instances already built
+    # above -- no new brokers, no new Foundation/Processing services. ---
+    session_recap_aggregator = SessionRecapAggregationService(
+        review_orchestrator,
+        progress_orchestrator,
+        logging_broker=logging_broker,
+    )
+    app.register_blueprint(make_progress_blueprint(progress_orchestrator, session_recap_aggregator))
 
     # --- Tts (roadmap item B6: minimal-pair listening check) -- stateless
     # single-call feature, no Orchestration layer needed ---
