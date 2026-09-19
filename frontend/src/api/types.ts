@@ -35,11 +35,18 @@ export interface PracticeAttempt {
 
 export type TurnState = "listening" | "thinking" | "speaking" | "idle" | null;
 
+export interface DuePattern {
+  category: string;
+  occurrence_count: number;
+  days_overdue: number;
+}
+
 export interface SessionScenario {
   proficiency_level: string;
   focus_category: string | null;
   suggested_topic: string | null;
   recent_mistake_categories: string[];
+  due_patterns?: DuePattern[];
 }
 
 export interface MistakePatternSummary {
