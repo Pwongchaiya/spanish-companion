@@ -283,16 +283,17 @@ def create_app() -> Flask:
     # the one Exposer route (GET /progress/recap) that needs both. Reuses
     # the review_orchestrator/progress_orchestrator instances already built
     # above -- no new brokers, no new Foundation/Processing services. ---
+    tts_service = TtsService(AzureTtsBroker(), logging_broker=logging_broker)
     session_recap_aggregator = SessionRecapAggregationService(
         review_orchestrator,
         progress_orchestrator,
+        tts_service,
         logging_broker=logging_broker,
     )
     app.register_blueprint(make_progress_blueprint(progress_orchestrator, session_recap_aggregator))
 
     # --- Tts (roadmap item B6: minimal-pair listening check) -- stateless
     # single-call feature, no Orchestration layer needed ---
-    tts_service = TtsService(AzureTtsBroker(), logging_broker=logging_broker)
     app.register_blueprint(make_tts_blueprint(tts_service))
 
     # --- Pronunciation (roadmap Phase 4) -- Azure scoring + persistence, composed by one

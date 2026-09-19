@@ -330,3 +330,45 @@ class TestGetRecap:
 
         # when / then
         assert client.get("/progress/recap").status_code == 500
+
+
+class TestGetRecapSpeech:
+
+    def test_should_return_200_wav_audio(self, client, mock_recap_aggregator):
+        mock_recap_aggregator.get_latest_recap_speech.return_value = b"RIFFwav"
+
+        response = client.get("/progress/recap/speech")
+
+        assert response.status_code == 200
+        assert response.mimetype == "audio/wav"
+        assert response.data == b"RIFFwav"
+        mock_recap_aggregator.get_latest_recap_speech.assert_called_once_with()
+
+    def test_should_return_204_when_no_session_has_completed(self, client, mock_recap_aggregator):
+        mock_recap_aggregator.get_latest_recap_speech.return_value = None
+
+        response = client.get("/progress/recap/speech")
+
+        assert response.status_code == 204
+        mock_recap_aggregator.get_latest_recap_speech.assert_called_once_with()
+
+    def test_should_return_500_on_dependency_exception(self, client, mock_recap_aggregator):
+        mock_recap_aggregator.get_latest_recap_speech.side_effect = SessionRecapAggregationDependencyException(
+            inner_exception=Exception("db down")
+        )
+
+        response = client.get("/progress/recap/speech")
+
+        assert response.status_code == 500
+        assert response.get_json() == {"error": "db down"}
+        mock_recap_aggregator.get_latest_recap_speech.assert_called_once_with()
+
+    def test_should_return_500_on_service_exception(self, client, mock_recap_aggregator):
+        mock_recap_aggregator.get_latest_recap_speech.side_effect = SessionRecapAggregationServiceException(
+            inner_exception=Exception("azure down")
+        )
+
+        response = client.get("/progress/recap/speech")
+
+        assert response.status_code == 500
+        mock_recap_aggregator.get_latest_recap_speech.assert_called_once_with()

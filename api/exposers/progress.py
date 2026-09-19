@@ -32,7 +32,7 @@ would leave those as raw datetime objects, which jsonify() cannot serialize.
 
 from dataclasses import asdict
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, Response, jsonify
 
 from api.models.aggregations.session_recap.exceptions import (
     SessionRecapAggregationDependencyException,
@@ -154,6 +154,19 @@ def make_progress_blueprint(
                 "session_ended_at": recap.session_ended_at.isoformat() if recap.session_ended_at else None,
             }
             return jsonify(body), 200
+        except SessionRecapAggregationDependencyException as e:
+            return jsonify({"error": str(e.inner_exception)}), 500
+        except SessionRecapAggregationServiceException as e:
+            return jsonify({"error": str(e.inner_exception)}), 500
+
+    @progress_blueprint.route("/recap/speech", methods=["GET"])
+    def get_recap_speech():
+        # E4: Spanish WAV narration of the recap. 204 = no session yet.
+        try:
+            audio = recap_aggregator.get_latest_recap_speech()
+            if audio is None:
+                return "", 204
+            return Response(audio, mimetype="audio/wav")
         except SessionRecapAggregationDependencyException as e:
             return jsonify({"error": str(e.inner_exception)}), 500
         except SessionRecapAggregationServiceException as e:
