@@ -186,7 +186,7 @@ describe("useSessionState", () => {
       await result.current.start("practice ordering coffee");
     });
 
-    expect(apiClient.startSession).toHaveBeenCalledWith("practice ordering coffee", undefined, undefined, undefined);
+    expect(apiClient.startSession).toHaveBeenCalledWith("practice ordering coffee", undefined, undefined, undefined, undefined);
   });
 
   it("start should pass an optional session-length hint through to the API client", async () => {
@@ -198,7 +198,7 @@ describe("useSessionState", () => {
       await result.current.start("practice ordering coffee", "5");
     });
 
-    expect(apiClient.startSession).toHaveBeenCalledWith("practice ordering coffee", "5", undefined, undefined);
+    expect(apiClient.startSession).toHaveBeenCalledWith("practice ordering coffee", "5", undefined, undefined, undefined);
   });
 
   it("start should pass an optional pressure level through to the API client", async () => {
@@ -210,7 +210,7 @@ describe("useSessionState", () => {
       await result.current.start("practice ordering coffee", "5", "push", undefined);
     });
 
-    expect(apiClient.startSession).toHaveBeenCalledWith("practice ordering coffee", "5", "push", undefined);
+    expect(apiClient.startSession).toHaveBeenCalledWith("practice ordering coffee", "5", "push", undefined, undefined);
   });
 
   it("start should pass an optional regional variant through to the API client", async () => {
@@ -222,7 +222,25 @@ describe("useSessionState", () => {
       await result.current.start(undefined, undefined, "normal", "mexican");
     });
 
-    expect(apiClient.startSession).toHaveBeenCalledWith(undefined, undefined, "normal", "mexican");
+    expect(apiClient.startSession).toHaveBeenCalledWith(undefined, undefined, "normal", "mexican", undefined);
+  });
+
+  it("start should pass an optional scenario slug through to the API client", async () => {
+    (apiClient.startSession as any).mockResolvedValueOnce({});
+
+    const { result } = renderHook(() => useSessionState());
+
+    await act(async () => {
+      await result.current.start(undefined, undefined, "normal", "neutral", "ordering_coffee");
+    });
+
+    expect(apiClient.startSession).toHaveBeenCalledWith(
+      undefined,
+      undefined,
+      "normal",
+      "neutral",
+      "ordering_coffee",
+    );
   });
 
   it("start should optimistically set running=true", async () => {

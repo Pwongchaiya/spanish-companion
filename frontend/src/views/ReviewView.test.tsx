@@ -24,6 +24,7 @@ function mockFlow(overrides: Partial<ReturnType<typeof useReviewFlow>>) {
     explanation: null,
     attempt: null,
     error: null,
+    taskOutcome: null,
     selectFlag: vi.fn(),
     submitPractice: vi.fn(),
     backToList: vi.fn(),
@@ -236,5 +237,41 @@ describe("ReviewView after a practice attempt", () => {
     render(<ReviewView />);
 
     expect(screen.getByText("(hard)")).toBeTruthy();
+  });
+});
+
+describe("ReviewView task-outcome badge (D4)", () => {
+  beforeEach(() => {
+    useConnectionStore.getState().setOk();
+  });
+
+  const base = { scenario_slug: "ordering_coffee", label: "Ordering coffee", success_condition: "orders both" };
+
+  it("shows nothing when the last session had no task scenario", () => {
+    mockFlow({ taskOutcome: null });
+    render(<ReviewView />);
+
+    expect(screen.queryByText(/Task complete|Task not completed|Not judged yet/)).toBeNull();
+  });
+
+  it("shows a success badge", () => {
+    mockFlow({ taskOutcome: { ...base, outcome: "success" } });
+    render(<ReviewView />);
+
+    expect(screen.getByText("Ordering coffee: Task complete")).toBeTruthy();
+  });
+
+  it("shows a fail badge", () => {
+    mockFlow({ taskOutcome: { ...base, outcome: "fail" } });
+    render(<ReviewView />);
+
+    expect(screen.getByText("Ordering coffee: Task not completed")).toBeTruthy();
+  });
+
+  it("shows a pending badge when the outcome is not judged yet", () => {
+    mockFlow({ taskOutcome: { ...base, outcome: null } });
+    render(<ReviewView />);
+
+    expect(screen.getByText("Ordering coffee: Not judged yet")).toBeTruthy();
   });
 });

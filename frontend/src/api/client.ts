@@ -38,6 +38,7 @@ export const apiClient = {
     sessionLengthHint?: string,
     pressureLevel?: string,
     variant?: string,
+    scenarioSlug?: string,
   ): Promise<SessionStatus> =>
     fetch("/start", {
       method: "POST",
@@ -47,6 +48,7 @@ export const apiClient = {
         session_length_hint: sessionLengthHint,
         pressure_level: pressureLevel,
         variant,
+        scenario_slug: scenarioSlug,
       }),
     }).then(json<SessionStatus>),
   stopSession: (): Promise<SessionStatus> => fetch("/stop", { method: "POST" }).then(json<SessionStatus>),
@@ -60,6 +62,7 @@ export const apiClient = {
   getSessionRecap: (): Promise<SessionRecap | null> => fetch("/progress/recap").then(json<SessionRecap | null>),
   getPronunciationTrend: (): Promise<PronunciationTrendPoint[]> =>
     fetch("/progress/pronunciation").then(json<PronunciationTrendPoint[]>),
+  getTaskOutcome: (): Promise<TaskOutcome | null> => fetch("/review/task-outcome").then(json<TaskOutcome | null>),
   explainFlag: (flagId: string): Promise<Explanation> => fetch(`/review/flags/${flagId}/explain`).then(json<Explanation>),
   submitPractice: (flagId: string, attemptText: string, roleplaySlug?: string): Promise<PracticeAttempt> =>
     fetch(`/review/flags/${flagId}/practice`, {
