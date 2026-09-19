@@ -20,6 +20,7 @@ from api.models.foundations.live_transcript.exceptions import LiveTranscriptServ
 from api.services.foundations.flag import IFlagService
 from api.services.foundations.live_transcript import ILiveTranscriptService
 from api.services.foundations.session_log import ISessionLogService
+from api.services.foundations.session_log_entry import ISessionLogEntryService
 from api.services.orchestrations.voice_conversation import ConversationOrchestrationService
 from pipecat.services.azure.tts import AzureTTSService
 from pipecat.services.google.llm import GoogleLLMService
@@ -36,6 +37,7 @@ def _make_orchestrator(**overrides):
         "live_transcript_service": Mock(spec=ILiveTranscriptService),
         "flag_service": Mock(spec=IFlagService),
         "session_log_broker": Mock(spec=SessionLogBroker),
+        "session_log_entry_service": Mock(spec=ISessionLogEntryService),
         "logging_broker": Mock(spec=LoggingBroker),
         "configuration_broker": Mock(spec=ConfigurationBroker),
     }

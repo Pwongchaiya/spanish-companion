@@ -5,12 +5,18 @@ first and unguarded in that block, so an OSError from it aborted the rest
 and lost both the session log and the flags. This is the check that fails
 if that ordering/guarding regresses.
 
+Also covers the roadmap C1/C3 `session_log` row this method opens before
+the pipeline runs and completes in the same finally block -- including that
+neither write can take down a live conversation, which is the only reason
+they live here rather than behind /start and /stop.
+
 Per CLAUDE.md's Phase 2 test strategy: every broker/service dependency is
 Mock(spec=...), no live I/O, no pipecat pipeline -- _setup is stubbed out
 so only run()'s cleanup path is exercised.
 """
 
 import asyncio
+from datetime import datetime
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -23,9 +29,12 @@ from api.brokers.logging import LoggingBroker
 from api.brokers.session_log import SessionLogBroker
 from api.brokers.stt import SttBroker
 from api.models.foundations.session_log.exceptions import SessionLogDependencyException
+from api.models.foundations.session_log_entry.exceptions import SessionLogEntryDependencyException
+from api.models.foundations.session_log_entry.session_log_entry import SessionLogEntry
 from api.services.foundations.flag import IFlagService
 from api.services.foundations.live_transcript import ILiveTranscriptService
 from api.services.foundations.session_log import ISessionLogService
+from api.services.foundations.session_log_entry import ISessionLogEntryService
 from api.services.orchestrations.voice_conversation import ConversationOrchestrationService
 
 
@@ -40,6 +49,7 @@ def mocks():
         "live_transcript_service": Mock(spec=ILiveTranscriptService),
         "flag_service": Mock(spec=IFlagService),
         "session_log_broker": Mock(spec=SessionLogBroker),
+        "session_log_entry_service": Mock(spec=ISessionLogEntryService),
         "logging_broker": Mock(spec=LoggingBroker),
         "configuration_broker": Mock(spec=ConfigurationBroker),
     }
@@ -89,6 +99,77 @@ class TestRunCleanup:
 
         asyncio.run(orchestrator.run())
 
+        assert mocks["flag_service"].save_flags.call_count == 1
+        assert mocks["session_log_broker"].write_turn_state.call_count == 1
+        assert mocks["logging_broker"].log_error.call_count == 1
+
+
+class TestSessionLogEntry:
+    """Roadmap C1/C3: the session_log row opened before the pipeline runs
+    and completed in run()'s finally block."""
+
+    def test_opens_row_before_pipeline_and_completes_it_with_flag_count(self, orchestrator, mocks):
+        entry = SessionLogEntry(id=42, started_at=datetime(2026, 1, 2, 10, 0), ended_at=None, flag_count=0)
+        mocks["session_log_entry_service"].create_session_log_entry.return_value = entry
+        # Two flags captured during the session -- _setup's stub returns the
+        # list run() hands to cleanup, so seed it there.
+        flags = [Mock(), Mock()]
+        runner = Mock()
+        runner.run = AsyncMock()
+        context = Mock()
+        context.messages = []
+
+        async def _setup():
+            return runner, context, flags
+
+        orchestrator._setup = _setup
+
+        asyncio.run(orchestrator.run())
+
+        assert mocks["session_log_entry_service"].create_session_log_entry.call_count == 1
+        assert mocks["session_log_entry_service"].complete_session_log_entry.call_count == 1
+        entry_id, _ended_at, flag_count = mocks[
+            "session_log_entry_service"
+        ].complete_session_log_entry.call_args.args
+        assert entry_id == 42
+        assert flag_count == 2, "flag_count must be the in-memory session_flags length, not a re-read of flags.json"
+
+    def test_records_zero_flag_count_for_a_clean_session(self, orchestrator, mocks):
+        # C3's entire premise: a zero-flag session must be written as 0, not
+        # skipped as falsy.
+        mocks["session_log_entry_service"].create_session_log_entry.return_value = SessionLogEntry(
+            id=1, started_at=datetime(2026, 1, 2, 10, 0), ended_at=None, flag_count=0
+        )
+
+        asyncio.run(orchestrator.run())
+
+        assert mocks["session_log_entry_service"].complete_session_log_entry.call_args.args[2] == 0
+
+    def test_conversation_survives_a_failed_row_open(self, orchestrator, mocks):
+        mocks["session_log_entry_service"].create_session_log_entry.side_effect = (
+            SessionLogEntryDependencyException(OSError("db down"))
+        )
+
+        asyncio.run(orchestrator.run())
+
+        # No id to complete against, so completion is skipped entirely --
+        # but the session's own data still got saved.
+        assert mocks["session_log_entry_service"].complete_session_log_entry.call_count == 0
+        assert mocks["session_log_service"].save.call_count == 1
+        assert mocks["flag_service"].save_flags.call_count == 1
+        assert mocks["logging_broker"].log_error.call_count == 1
+
+    def test_cleanup_survives_a_failed_row_completion(self, orchestrator, mocks):
+        mocks["session_log_entry_service"].create_session_log_entry.return_value = SessionLogEntry(
+            id=1, started_at=datetime(2026, 1, 2, 10, 0), ended_at=None, flag_count=0
+        )
+        mocks["session_log_entry_service"].complete_session_log_entry.side_effect = (
+            SessionLogEntryDependencyException(OSError("db down"))
+        )
+
+        asyncio.run(orchestrator.run())
+
+        assert mocks["session_log_service"].save.call_count == 1
         assert mocks["flag_service"].save_flags.call_count == 1
         assert mocks["session_log_broker"].write_turn_state.call_count == 1
         assert mocks["logging_broker"].log_error.call_count == 1
