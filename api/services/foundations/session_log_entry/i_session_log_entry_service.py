@@ -15,7 +15,7 @@ naming rationale.
 """
 
 from datetime import datetime
-from typing import Protocol
+from typing import Optional, Protocol
 
 from api.models.foundations.session_log_entry.session_log_entry import SessionLogEntry
 
@@ -30,8 +30,9 @@ class ISessionLogEntryService(Protocol):
     create/list/complete, but the entity name is not dropped.
     """
 
-    def create_session_log_entry(self, started_at: datetime) -> SessionLogEntry:
-        """Insert an in-flight row (ended_at NULL, flag_count 0).
+    def create_session_log_entry(self, started_at: datetime, scenario_slug: Optional[str] = None) -> SessionLogEntry:
+        """Insert an in-flight row (ended_at NULL, flag_count 0), recording
+        the roleplay `scenario_slug` if any (D4).
 
         Raises SessionLogEntryValidationException (wrapping
         InvalidSessionLogEntryException) if started_at is not a datetime.
@@ -68,5 +69,17 @@ class ISessionLogEntryService(Protocol):
         call fails.
         Raises SessionLogEntryServiceException for any other unexpected
         failure.
+        """
+        ...
+
+    def set_task_outcome(self, entry_id: int, task_outcome: str) -> SessionLogEntry:
+        """D4: record the judged outcome of a task scenario.
+
+        Raises SessionLogEntryValidationException (wrapping
+        InvalidSessionLogEntryException) if entry_id is not a positive int or
+        task_outcome is not 'success'/'fail'; or (wrapping
+        NotFoundSessionLogEntryException) if entry_id does not exist.
+        Raises SessionLogEntryDependencyException for storage failures and
+        SessionLogEntryServiceException for anything else unexpected.
         """
         ...

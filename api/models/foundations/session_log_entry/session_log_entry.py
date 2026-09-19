@@ -27,7 +27,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, Integer, func
+from sqlalchemy import DateTime, Integer, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from api.models.base import Base
@@ -42,6 +42,10 @@ class SessionLogEntryRecord(Base):
     started_at: Mapped[datetime] = mapped_column(DateTime(), server_default=func.now(), nullable=False)
     ended_at: Mapped[Optional[datetime]] = mapped_column(DateTime(), nullable=True)
     flag_count: Mapped[int] = mapped_column(Integer(), server_default="0", nullable=False)
+    # D4 (migration 0007): NULL scenario_slug = no roleplay scenario; NULL
+    # task_outcome = not a task scenario or not yet judged ('success'|'fail').
+    scenario_slug: Mapped[Optional[str]] = mapped_column(Text(), nullable=True)
+    task_outcome: Mapped[Optional[str]] = mapped_column(Text(), nullable=True)
 
 
 @dataclass
@@ -52,3 +56,5 @@ class SessionLogEntry:
     started_at: datetime
     ended_at: Optional[datetime]
     flag_count: int
+    scenario_slug: Optional[str] = None
+    task_outcome: Optional[str] = None

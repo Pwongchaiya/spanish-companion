@@ -26,6 +26,8 @@ def _to_dataclass(record: SessionLogEntryRecord) -> SessionLogEntry:
         started_at=record.started_at,
         ended_at=record.ended_at,
         flag_count=record.flag_count,
+        scenario_slug=record.scenario_slug,
+        task_outcome=record.task_outcome,
     )
 
 
@@ -40,8 +42,8 @@ class SqlAlchemySessionLogEntryBroker:
             connection_string = connection_string.replace("postgresql://", "postgresql+pg8000://", 1)
         self._engine = create_engine(connection_string)
 
-    def insert_session_log_entry(self, started_at: datetime) -> SessionLogEntry:
-        record = SessionLogEntryRecord(started_at=started_at, ended_at=None, flag_count=0)
+    def insert_session_log_entry(self, started_at: datetime, scenario_slug: Optional[str] = None) -> SessionLogEntry:
+        record = SessionLogEntryRecord(started_at=started_at, ended_at=None, flag_count=0, scenario_slug=scenario_slug)
         with Session(self._engine) as session:
             session.add(record)
             session.commit()
@@ -66,6 +68,16 @@ class SqlAlchemySessionLogEntryBroker:
                 return None
             record.ended_at = ended_at
             record.flag_count = flag_count
+            session.commit()
+            session.refresh(record)
+            return _to_dataclass(record)
+
+    def update_session_log_entry_task_outcome(self, entry_id: int, task_outcome: str) -> Optional[SessionLogEntry]:
+        with Session(self._engine) as session:
+            record = session.get(SessionLogEntryRecord, entry_id)
+            if record is None:
+                return None
+            record.task_outcome = task_outcome
             session.commit()
             session.refresh(record)
             return _to_dataclass(record)
@@ -95,5 +107,11 @@ if __name__ == "__main__":
     assert completed is not None
     assert completed.ended_at == datetime(2026, 1, 2, 10, 30, 0) and completed.flag_count == 3, completed
     assert broker.update_session_log_entry(9999, datetime(2026, 1, 2, 11, 0, 0), 0) is None
+
+    tasked = broker.insert_session_log_entry(datetime(2026, 1, 3, 10, 0, 0), "ordering_coffee")
+    assert tasked.scenario_slug == "ordering_coffee" and tasked.task_outcome is None, tasked
+    judged = broker.update_session_log_entry_task_outcome(tasked.id, "success")
+    assert judged is not None and judged.task_outcome == "success" and judged.scenario_slug == "ordering_coffee"
+    assert broker.update_session_log_entry_task_outcome(9999, "fail") is None
 
     print("session_log_entry_broker self-check passed")

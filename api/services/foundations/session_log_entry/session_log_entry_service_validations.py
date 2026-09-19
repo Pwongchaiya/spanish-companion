@@ -17,6 +17,8 @@ from datetime import datetime
 
 from api.models.foundations.session_log_entry.exceptions import InvalidSessionLogEntryException
 
+TASK_OUTCOMES = ("success", "fail")
+
 
 class SessionLogEntryServiceValidations:
     """Mixin: raises the leaf exception (with every failing field attached)
@@ -37,6 +39,12 @@ class SessionLogEntryServiceValidations:
             (self._is_invalid_id(entry_id), "entry_id", "Entry id is required"),
             (self._is_invalid_datetime(ended_at), "ended_at", "Ended at is required"),
             (self._is_invalid_count(flag_count), "flag_count", "Flag count must be zero or more"),
+        )
+
+    def _validate_session_log_entry_on_set_task_outcome(self, entry_id: int | None, task_outcome: str | None) -> None:
+        self._validate(
+            (self._is_invalid_id(entry_id), "entry_id", "Entry id is required"),
+            (task_outcome not in TASK_OUTCOMES, "task_outcome", "Task outcome must be 'success' or 'fail'"),
         )
 
     @staticmethod
