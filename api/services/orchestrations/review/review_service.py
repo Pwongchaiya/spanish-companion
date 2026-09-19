@@ -218,6 +218,18 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
             else:
                 self._mistake_pattern_processing_service.record_occurrence(profile.id, flag.category)
 
+            # A1 (half-life scheduler): advance the review schedule for the
+            # judged attempt. Runs after resolve/record_occurrence so a
+            # first-ever occurrence exists to schedule; a mastered attempt
+            # with no pattern has nothing to schedule -- same not-found
+            # handling as the resolve branch above.
+            try:
+                self._mistake_pattern_processing_service.record_review(profile.id, flag.category, grade)
+            except NotFoundMistakePatternException:
+                self._logging_broker.log_info(
+                    "no mistake_pattern to schedule for category=%s", flag.category
+                )
+
             return PracticeResult(attempt=attempt, mastered=mastered, grade=grade)
 
         return self._try_catch(action)
