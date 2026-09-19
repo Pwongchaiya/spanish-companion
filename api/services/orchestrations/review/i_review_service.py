@@ -18,6 +18,7 @@ class is `ConversationSessionService`. Here the Protocol is
 from typing import List, Optional, Protocol
 
 from api.models.foundations.flag import Flag
+from api.models.orchestrations.review.dictation import DictationExercise, DictationResult
 from api.models.orchestrations.review.practice_result import PracticeResult
 from api.models.orchestrations.review.task_outcome import TaskOutcome
 from rag.models.foundations.generation import Explanation
@@ -94,6 +95,29 @@ class ReviewService(Protocol):
 
         The flag lookup runs first, so an unknown flag_id is reported even
         when attempt_text is also blank.
+        """
+        ...
+
+    def get_dictation_exercise(self, exclude_flag_id: Optional[str] = None) -> Optional[DictationExercise]:
+        """Pick a dictation target from the learner's existing flags (no LLM call).
+
+        Eligible: any flag with non-blank `corrected` text; the target is that
+        text. Deterministic pick: highest occurrence_count, then newest
+        timestamp, then id. `exclude_flag_id` skips one flag so the UI can ask
+        for "another". Returns None when nothing is eligible (including when
+        the only eligible flag is the excluded one). Raises
+        ReviewOrchestrationServiceException for any broker failure.
+        """
+        ...
+
+    def check_dictation(self, flag_id: str, typed_text: str) -> DictationResult:
+        """Compare typed_text to the flag's `corrected` text (pure, no LLM).
+
+        Orthography (accent/spelling) differences are reported per word.
+        Nothing is persisted. Raises ReviewOrchestrationValidationException
+        wrapping FlagValidationException (unknown flag_id) or
+        ReviewOrchestrationServiceException for anything else -- including a
+        blank typed_text, which the Exposer rejects with a 400 first.
         """
         ...
 
