@@ -84,6 +84,31 @@ class TestListMistakes:
         ]
         mock_orchestrator.list_mistake_summary.assert_called_once_with()
 
+    def test_should_omit_scheduler_fields_when_pattern_is_scheduled(self, client, mock_orchestrator):
+        # given
+        mock_orchestrator.list_mistake_summary.return_value = [
+            MistakePattern(
+                id=1,
+                profile_id=1,
+                category="ser_estar",
+                occurrence_count=3,
+                last_seen_at=datetime(2026, 9, 1, 12, 0, 0),
+                status="active",
+                interval_days=4.0,
+                next_due_at=datetime(2026, 9, 5, 12, 0, 0),
+            )
+        ]
+
+        # when
+        response = client.get("/progress/mistakes")
+
+        # then
+        assert response.status_code == 200
+        (body,) = response.get_json()
+        assert "interval_days" not in body
+        assert "next_due_at" not in body
+        mock_orchestrator.list_mistake_summary.assert_called_once_with()
+
     def test_should_return_200_with_empty_list_when_no_patterns(self, client, mock_orchestrator):
         # given
         mock_orchestrator.list_mistake_summary.return_value = []
