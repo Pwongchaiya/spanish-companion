@@ -34,10 +34,12 @@ from api.brokers.session_log_entry import SqlAlchemySessionLogEntryBroker
 from api.exposers.progress import make_progress_blueprint
 from api.models.base import Base
 from api.models.foundations.session_log_entry.session_log_entry import SessionLogEntryRecord
+from api.services.aggregations.session_recap import SessionRecapAggregationService
 from api.services.foundations.mistake_pattern import IMistakePatternService
 from api.services.foundations.session_log_entry import SessionLogEntryService
 from api.services.foundations.topic_covered import ITopicCoveredService
 from api.services.orchestrations.progress import ProgressOrchestrationService
+from api.services.orchestrations.review import ReviewService
 from api.services.processings.learner_profile import ILearnerProfileProcessingService
 
 SESSION_START = datetime(2026, 9, 1, 18, 0, 0)
@@ -59,8 +61,13 @@ def client(session_log_entry_service):
         session_log_entry_service,
         logging_broker=StdlibLoggingBroker(),
     )
+    recap_aggregator = SessionRecapAggregationService(
+        Mock(spec=ReviewService),
+        orchestrator,
+        logging_broker=StdlibLoggingBroker(),
+    )
     app = Flask(__name__)
-    app.register_blueprint(make_progress_blueprint(orchestrator))
+    app.register_blueprint(make_progress_blueprint(orchestrator, recap_aggregator))
     return app.test_client()
 
 

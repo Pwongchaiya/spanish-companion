@@ -178,3 +178,36 @@ class TestGetLongestUnflaggedStreak:
 
         assert actual.longest == 2
         assert actual.current == 0
+
+
+class TestGetLatestCompletedSession:
+    """get_latest_completed_session() (roadmap C2) -- the same completed-only,
+    started_at-ordered fold as C1/C3, returning the last row instead of an
+    aggregate over all of them."""
+
+    def test_should_return_none_when_no_sessions_logged(self, service, mock_session_log_entry_service):
+        mock_session_log_entry_service.list_session_log_entries.return_value = []
+
+        assert service.get_latest_completed_session() is None
+
+    def test_should_return_the_most_recently_started_completed_session(
+        self, service, mock_session_log_entry_service, make_session
+    ):
+        first = make_session(entry_id=1, started_at=FIXED_NOW, minutes=30, flag_count=2)
+        second = make_session(entry_id=2, started_at=FIXED_NOW + timedelta(days=1), minutes=10, flag_count=0)
+        mock_session_log_entry_service.list_session_log_entries.return_value = [first, second]
+
+        actual = service.get_latest_completed_session()
+
+        assert actual is second
+
+    def test_should_skip_a_trailing_in_flight_session(
+        self, service, mock_session_log_entry_service, make_session
+    ):
+        completed = make_session(entry_id=1, started_at=FIXED_NOW, minutes=30, flag_count=1)
+        still_running = make_session(entry_id=2, started_at=FIXED_NOW + timedelta(days=1), minutes=None)
+        mock_session_log_entry_service.list_session_log_entries.return_value = [completed, still_running]
+
+        actual = service.get_latest_completed_session()
+
+        assert actual is completed, "an unfinished trailing session must not be reported as the latest recap"

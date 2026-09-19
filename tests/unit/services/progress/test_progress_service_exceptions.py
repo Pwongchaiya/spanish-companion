@@ -187,3 +187,33 @@ class TestProgressServiceExceptions:
 
         # then
         mock_logging_broker.log_error.assert_called_once()
+
+
+class TestGetLatestCompletedSessionExceptions:
+    """get_latest_completed_session() (roadmap C2) shares _try_catch with
+    every other Progress method -- one representative case per tier is
+    enough, same call test_progress_service_exceptions.py already makes."""
+
+    def test_should_raise_orchestration_dependency_exception_when_session_log_entry_service_raises_dependency(
+        self, service, mock_session_log_entry_service, mock_logging_broker
+    ):
+        from api.models.foundations.session_log_entry.exceptions import SessionLogEntryDependencyException
+
+        leaf = SessionLogEntryDependencyException(inner_exception=RuntimeError("storage down"))
+        mock_session_log_entry_service.list_session_log_entries.side_effect = leaf
+
+        with pytest.raises(ProgressOrchestrationDependencyException) as exc_info:
+            service.get_latest_completed_session()
+
+        assert exc_info.value.inner_exception is leaf
+        mock_logging_broker.log_error.assert_called_once()
+
+    def test_should_raise_orchestration_service_exception_when_unexpected_error_occurs(
+        self, service, mock_session_log_entry_service, mock_logging_broker
+    ):
+        mock_session_log_entry_service.list_session_log_entries.side_effect = ValueError("boom")
+
+        with pytest.raises(ProgressOrchestrationServiceException):
+            service.get_latest_completed_session()
+
+        mock_logging_broker.log_error.assert_called_once()
