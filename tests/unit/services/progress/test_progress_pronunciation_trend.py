@@ -103,3 +103,28 @@ class TestListPronunciationTrend:
         # then
         assert exc_info.value.inner_exception is wrapper
         mock_logging_broker.log_error.assert_called_once()
+
+    @pytest.mark.parametrize("raw,expected", [("abc", 30), ("", 30), ("0", 0), ("-3", 0)])
+    def test_should_fall_back_or_return_empty_for_bad_limit_config(
+        self, raw, expected, mock_learner_profile_processing_service, mock_mistake_pattern_service,
+        mock_topic_covered_service, mock_session_log_entry_service, mock_pronunciation_result_service,
+        mock_logging_broker
+    ):
+        # given
+        svc = ProgressOrchestrationService(
+            mock_learner_profile_processing_service,
+            mock_mistake_pattern_service,
+            mock_topic_covered_service,
+            mock_session_log_entry_service,
+            mock_pronunciation_result_service,
+            logging_broker=mock_logging_broker,
+            configuration_broker=FakeConfigurationBroker({"PRONUNCIATION_TREND_LIMIT": raw}),
+        )
+        mock_pronunciation_result_service.list_pronunciation_results.return_value = [_result(i) for i in range(40)]
+
+        # when
+        trend = svc.list_pronunciation_trend()
+
+        # then
+        assert len(trend) == expected
+        mock_pronunciation_result_service.list_pronunciation_results.assert_called_once_with()
