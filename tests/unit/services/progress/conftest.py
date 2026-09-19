@@ -16,6 +16,7 @@ from api.models.foundations.mistake_pattern.mistake_pattern import MistakePatter
 from api.models.foundations.session_log_entry.session_log_entry import SessionLogEntry
 from api.models.foundations.topic_covered.topic_covered import TopicCovered
 from api.services.foundations.mistake_pattern import IMistakePatternService
+from api.services.foundations.pronunciation_result import IPronunciationResultService
 from api.services.foundations.session_log_entry import ISessionLogEntryService
 from api.services.foundations.topic_covered import ITopicCoveredService
 from api.services.orchestrations.progress.progress_service import ProgressOrchestrationService
@@ -59,6 +60,11 @@ def mock_session_log_entry_service():
 
 
 @pytest.fixture
+def mock_pronunciation_result_service():
+    return Mock(spec=IPronunciationResultService)
+
+
+@pytest.fixture
 def configuration_broker():
     return FakeConfigurationBroker({"DEFAULT_PROFICIENCY_LEVEL": "beginner"})
 
@@ -69,6 +75,7 @@ def service(
     mock_mistake_pattern_service,
     mock_topic_covered_service,
     mock_session_log_entry_service,
+    mock_pronunciation_result_service,
     configuration_broker,
     mock_logging_broker,
 ):
@@ -77,6 +84,7 @@ def service(
         mock_mistake_pattern_service,
         mock_topic_covered_service,
         mock_session_log_entry_service,
+        mock_pronunciation_result_service,
         logging_broker=mock_logging_broker,
         configuration_broker=configuration_broker,
     )
