@@ -55,6 +55,10 @@ class JsonLinesPracticeLogBroker:
                     flag_id=raw["flag_id"],
                     attempt_text=raw["attempt_text"],
                     timestamp=datetime.fromisoformat(raw["timestamp"]),
+                    # A2: additive field -- a row written before the graded
+                    # verdict shipped has no "grade" key. Default to "again",
+                    # the same conservative fallback the judge itself uses.
+                    grade=raw.get("grade", "again"),
                 )
             except (json.JSONDecodeError, KeyError, TypeError, ValueError):
                 continue

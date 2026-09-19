@@ -5,6 +5,12 @@ record_practice() now judges the attempt against the flag's correction, so
 the caller needs both the durable attempt record and the verdict -- not just
 the attempt. No SQLAlchemy mapping: composed on demand by
 ReviewOrchestrationService.record_practice(), never persisted itself.
+
+A2 (graded practice-attempt verdict): `grade` is the raw "again" | "hard" |
+"good" | "easy" verdict from GenerationService.judge_practice_attempt();
+`mastered` stays a plain bool (`grade in ("good", "easy")`, derived by
+ReviewOrchestrationService.record_practice()) so every existing
+`mastered`-based consumer is unaffected.
 """
 
 from dataclasses import dataclass
@@ -18,3 +24,4 @@ class PracticeResult:
 
     attempt: PracticeAttempt
     mastered: bool
+    grade: str

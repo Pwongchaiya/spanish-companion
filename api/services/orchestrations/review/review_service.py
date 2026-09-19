@@ -170,16 +170,6 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
             # blank-text check is exercised at PracticeLogService's own tier.
             flag = self._flag_service.get_flag(flag_id)
 
-            attempt = PracticeAttempt(flag_id=flag.id, attempt_text=attempt_text, timestamp=self._clock())
-            self._practice_log_service.record_attempt(attempt)
-            self._logging_broker.log_info("recorded practice attempt for flag_id=%s", flag.id)
-
-            # LearnerProfile Phase 2: judge the attempt, then write the
-            # verdict to mistake_pattern. Single-user app -- default_level
-            # matches LearnerProfileOrchestrationService's own config key, so
-            # a profile created here or there converges on the same default.
-            default_level = self._configuration_broker.get("DEFAULT_PROFICIENCY_LEVEL", "beginner")
-            profile = self._learner_profile_processing_service.ensure_profile(default_level)
             # LearnerProfile Phase 4: a known slug resolves to its setting text
             # here, api-side, before crossing into rag -- rag must never import
             # api/data (one-directional dependency). An unrecognized slug (the
@@ -188,9 +178,30 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
             # silently treated as no roleplay context, same "optional, never
             # load-bearing" shape as the scenario picker elsewhere.
             roleplay = get_roleplay_scenario(roleplay_slug) if roleplay_slug else None
-            mastered = self._generation_service.judge_practice_attempt(
+            # A2 (graded practice-attempt verdict): judged BEFORE the attempt
+            # is persisted (moved up from after -- see decision note below),
+            # so `grade` can be written into the durable PracticeAttempt
+            # record itself rather than a separate, un-attachable field --
+            # the JSONL log is append-only, there is no update path.
+            # `mastered: bool` is derived here, not inside GenerationService,
+            # so every existing mastered-based consumer is unaffected.
+            grade = self._generation_service.judge_practice_attempt(
                 flag, attempt_text, roleplay.setting if roleplay else None
             )
+            mastered = grade in ("good", "easy")
+
+            attempt = PracticeAttempt(
+                flag_id=flag.id, attempt_text=attempt_text, timestamp=self._clock(), grade=grade
+            )
+            self._practice_log_service.record_attempt(attempt)
+            self._logging_broker.log_info("recorded practice attempt for flag_id=%s, grade=%s", flag.id, grade)
+
+            # LearnerProfile Phase 2: write the verdict to mistake_pattern.
+            # Single-user app -- default_level matches
+            # LearnerProfileOrchestrationService's own config key, so a
+            # profile created here or there converges on the same default.
+            default_level = self._configuration_broker.get("DEFAULT_PROFICIENCY_LEVEL", "beginner")
+            profile = self._learner_profile_processing_service.ensure_profile(default_level)
             if mastered:
                 try:
                     self._mistake_pattern_processing_service.resolve(profile.id, flag.category)
@@ -207,6 +218,6 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
             else:
                 self._mistake_pattern_processing_service.record_occurrence(profile.id, flag.category)
 
-            return PracticeResult(attempt=attempt, mastered=mastered)
+            return PracticeResult(attempt=attempt, mastered=mastered, grade=grade)
 
         return self._try_catch(action)
