@@ -98,11 +98,16 @@ class LearnerProfileService(
 
         return self._try_catch(action)
 
-    def update_learner_profile(self, profile_id: int, proficiency_level: str) -> LearnerProfile:
+    def update_learner_profile(
+        self,
+        profile_id: int,
+        proficiency_level: str | None = None,
+        cefr_estimate: str | None = None,
+    ) -> LearnerProfile:
         def action() -> LearnerProfile:
-            self._validate_learner_profile_on_update(profile_id, proficiency_level)
+            self._validate_learner_profile_on_update(profile_id, proficiency_level, cefr_estimate)
             maybe_learner_profile = self._learner_profile_broker.update_learner_profile(
-                profile_id, proficiency_level
+                profile_id, proficiency_level, cefr_estimate
             )
             if maybe_learner_profile is None:
                 raise NotFoundLearnerProfileException()

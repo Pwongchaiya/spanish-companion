@@ -52,13 +52,21 @@ class ILearnerProfileService(Protocol):
         """
         ...
 
-    def update_learner_profile(self, profile_id: int, proficiency_level: str) -> LearnerProfile:
-        """Update the given profile row's proficiency_level.
+    def update_learner_profile(
+        self,
+        profile_id: int,
+        proficiency_level: str | None = None,
+        cefr_estimate: str | None = None,
+    ) -> LearnerProfile:
+        """Update the given profile row. Partial update: proficiency_level
+        and cefr_estimate are each only written when given (not None) --
+        roadmap A6's CEFR-only write from Voice Conversation's teardown path
+        must not clobber the existing proficiency_level.
 
         Raises LearnerProfileValidationException (wrapping
-        InvalidLearnerProfileException if profile_id/proficiency_level fail
-        input checks, or NotFoundLearnerProfileException if profile_id
-        doesn't exist).
+        InvalidLearnerProfileException if profile_id fails its check, or
+        either given field is blank, or NotFoundLearnerProfileException if
+        profile_id doesn't exist).
         Raises LearnerProfileDependencyException (wrapping
         FailedLearnerProfileStorageException) if the underlying broker call
         fails.

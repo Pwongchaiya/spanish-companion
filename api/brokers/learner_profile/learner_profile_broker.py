@@ -21,7 +21,12 @@ from api.models.foundations.learner_profile.learner_profile import LearnerProfil
 
 
 def _to_dataclass(record: LearnerProfileRecord) -> LearnerProfile:
-    return LearnerProfile(id=record.id, proficiency_level=record.proficiency_level, updated_at=record.updated_at)
+    return LearnerProfile(
+        id=record.id,
+        proficiency_level=record.proficiency_level,
+        updated_at=record.updated_at,
+        cefr_estimate=record.cefr_estimate,
+    )
 
 
 class SqlAlchemyLearnerProfileBroker:
@@ -49,12 +54,23 @@ class SqlAlchemyLearnerProfileBroker:
             session.refresh(record)
             return _to_dataclass(record)
 
-    def update_learner_profile(self, profile_id: int, proficiency_level: str | None) -> Optional[LearnerProfile]:
+    def update_learner_profile(
+        self,
+        profile_id: int,
+        proficiency_level: str | None = None,
+        cefr_estimate: str | None = None,
+    ) -> Optional[LearnerProfile]:
         with Session(self._engine) as session:
             record = session.get(LearnerProfileRecord, profile_id)
             if record is None:
                 return None
-            record.proficiency_level = proficiency_level
+            # Partial update -- only touch a field whose argument was
+            # actually given, so a CEFR-only call (roadmap A6) never
+            # overwrites proficiency_level with None, and vice versa.
+            if proficiency_level is not None:
+                record.proficiency_level = proficiency_level
+            if cefr_estimate is not None:
+                record.cefr_estimate = cefr_estimate
             session.commit()
             session.refresh(record)
             return _to_dataclass(record)

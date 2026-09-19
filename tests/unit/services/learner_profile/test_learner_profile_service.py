@@ -81,7 +81,28 @@ def test_learner_profile_service():
     broker.update_learner_profile.return_value = LearnerProfile(id=1, proficiency_level="B1", updated_at=None)
     updated = service.update_learner_profile(1, "B1")
     assert updated.proficiency_level == "B1"
-    broker.update_learner_profile.assert_called_with(1, "B1")
+    broker.update_learner_profile.assert_called_with(1, "B1", None)
+
+    # roadmap A6: passing only cefr_estimate must not clobber
+    # proficiency_level -- proficiency_level reaches the broker as None,
+    # which the broker treats as "leave this field alone" (partial update).
+    broker.update_learner_profile.return_value = LearnerProfile(
+        id=1, proficiency_level="B1", updated_at=None, cefr_estimate="B2"
+    )
+    updated = service.update_learner_profile(1, cefr_estimate="B2")
+    assert updated.proficiency_level == "B1"
+    assert updated.cefr_estimate == "B2"
+    broker.update_learner_profile.assert_called_with(1, None, "B2")
+
+    # a given-but-blank cefr_estimate is still rejected -- omitting the
+    # field (None) is fine, passing "" is not.
+    broker.update_learner_profile.reset_mock()
+    try:
+        service.update_learner_profile(1, cefr_estimate="")
+        raise AssertionError("expected rejection for blank cefr_estimate")
+    except LearnerProfileValidationException as e:
+        assert "cefr_estimate" in e.inner_exception.errors
+    assert broker.update_learner_profile.call_count == 0
 
     # any raw SQLAlchemy failure (e.g. connection refused) -> a dependency
     # failure, not the catch-all service exception -- the broker does no

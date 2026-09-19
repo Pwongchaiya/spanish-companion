@@ -24,10 +24,27 @@ class LearnerProfileServiceValidations:
             (self._is_invalid_string(proficiency_level), "proficiency_level", "Proficiency level is required"),
         )
 
-    def _validate_learner_profile_on_update(self, profile_id: int | None, proficiency_level: str | None) -> None:
+    def _validate_learner_profile_on_update(
+        self,
+        profile_id: int | None,
+        proficiency_level: str | None,
+        cefr_estimate: str | None = None,
+    ) -> None:
+        # proficiency_level/cefr_estimate are each optional (roadmap A6's
+        # partial update) -- only reject one that was actually given but is
+        # blank; a field the caller left out (None) is not an error.
         self._validate(
             (self._is_invalid_id(profile_id), "profile_id", "Profile id is required"),
-            (self._is_invalid_string(proficiency_level), "proficiency_level", "Proficiency level is required"),
+            (
+                proficiency_level is not None and self._is_invalid_string(proficiency_level),
+                "proficiency_level",
+                "Proficiency level must not be blank",
+            ),
+            (
+                cefr_estimate is not None and self._is_invalid_string(cefr_estimate),
+                "cefr_estimate",
+                "Cefr estimate must not be blank",
+            ),
         )
 
     @staticmethod

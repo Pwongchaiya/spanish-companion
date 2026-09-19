@@ -32,9 +32,15 @@ class ILearnerProfileBroker(Protocol):
         only ever calling this when select_learner_profile() returned None."""
         ...
 
-    def update_learner_profile(self, profile_id: int, proficiency_level: str | None) -> Optional[LearnerProfile]:
-        """Update the given profile row's proficiency_level. Returns None if
-        profile_id doesn't exist — Foundation maps that to
-        NotFoundLearnerProfileException, same convention as
-        IMistakePatternBroker.update_mistake_pattern()."""
+    def update_learner_profile(
+        self,
+        profile_id: int,
+        proficiency_level: str | None = None,
+        cefr_estimate: str | None = None,
+    ) -> Optional[LearnerProfile]:
+        """Partial update: a field is only written when its argument is not
+        None, so roadmap A6's CEFR-only write can't clobber proficiency_level
+        (or vice versa). Returns None if profile_id doesn't exist —
+        Foundation maps that to NotFoundLearnerProfileException, same
+        convention as IMistakePatternBroker.update_mistake_pattern()."""
         ...
