@@ -29,6 +29,7 @@ from api.services.orchestrations.learner_profile.learner_profile_orchestration_s
     LearnerProfileOrchestrationService,
 )
 from api.services.processings.learner_profile import ILearnerProfileProcessingService
+from api.services.processings.mistake_pattern import IMistakePatternProcessingService
 from tests.unit.services._api_logging_fixture import mock_logging_broker  # noqa: F401
 
 FIXED_NOW = datetime(2026, 1, 2, 3, 4, 5)
@@ -63,6 +64,13 @@ def mock_topic_covered_service():
 
 
 @pytest.fixture
+def mock_mistake_pattern_processing_service():
+    mock = Mock(spec=IMistakePatternProcessingService)
+    mock.list_due.return_value = []
+    return mock
+
+
+@pytest.fixture
 def mock_flag_service():
     return Mock(spec=IFlagService)
 
@@ -78,6 +86,7 @@ def service(
     mock_mistake_pattern_service,
     mock_topic_covered_service,
     mock_flag_service,
+    mock_mistake_pattern_processing_service,
     configuration_broker,
     mock_logging_broker,
 ):
@@ -87,7 +96,9 @@ def service(
         mock_topic_covered_service,
         mock_flag_service,
         logging_broker=mock_logging_broker,
+        mistake_pattern_processing_service=mock_mistake_pattern_processing_service,
         configuration_broker=configuration_broker,
+        clock=lambda: FIXED_NOW,
     )
 
 

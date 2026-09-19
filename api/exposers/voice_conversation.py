@@ -70,6 +70,7 @@ from api.models.orchestrations.learner_profile.exceptions import (
     LearnerProfileOrchestrationServiceException,
     LearnerProfileOrchestrationValidationException,
 )
+from api.models.orchestrations.learner_profile.session_scenario import SessionScenario
 from api.services.foundations.flag import FlagService
 from api.services.foundations.learner_profile import LearnerProfileService
 from api.services.foundations.live_transcript import LiveTranscriptService
@@ -81,7 +82,9 @@ from api.services.orchestrations.learner_profile import LearnerProfileOrchestrat
 from api.services.orchestrations.voice_conversation import ConversationOrchestrationService
 from api.services.orchestrations.voice_conversation._difficulty import get_difficulty_block
 from api.services.orchestrations.voice_conversation._pressure import get_pressure_level
+from api.services.orchestrations.voice_conversation._priming import format_priming_brief
 from api.services.processings.learner_profile import LearnerProfileProcessingService
+from api.services.processings.mistake_pattern import MistakePatternProcessingService
 from rag.brokers.generation import GeminiGenerationBroker
 from rag.services.foundations.generation import GenerationService
 
@@ -104,13 +107,16 @@ def _read_and_clear_scenario_override(path: Path = SCENARIO_OVERRIDE_FILE_PATH) 
     return text
 
 
-def _default_scenario_text(logging_broker: LoggingBroker) -> str:
+_GENERIC_SCENARIO_TEXT = "Have a free-flowing conversation at a beginner level."
+
+
+def _load_scenario(logging_broker: LoggingBroker) -> Optional[SessionScenario]:
     """Build LearnerProfile's full dependency chain (same composition shape
     api/app.py uses for Review's rag dependencies) and ask
-    LearnerProfileController for the default suggestion. Falls back to a
-    generic line if the DB or any LearnerProfile dependency is unavailable
-    -- this subprocess must still be able to start a conversation even when
-    learner-memory data isn't reachable."""
+    LearnerProfileController for the default suggestion. Returns None if the
+    DB or any LearnerProfile dependency is unavailable -- this subprocess
+    must still be able to start a conversation even when learner-memory
+    data isn't reachable."""
     try:
         connection_string = EnvConfigurationBroker().require("DATABASE_URL")
         learner_profile_service = LearnerProfileService(
@@ -129,8 +135,9 @@ def _default_scenario_text(logging_broker: LoggingBroker) -> str:
             topic_covered_service,
             flag_service,
             logging_broker=logging_broker,
+            mistake_pattern_processing_service=MistakePatternProcessingService(mistake_pattern_service),
         )
-        scenario = LearnerProfileController(orchestrator).suggest_session_scenario()
+        return LearnerProfileController(orchestrator).suggest_session_scenario()
     except (
         KeyError,
         LearnerProfileOrchestrationValidationException,
@@ -138,17 +145,30 @@ def _default_scenario_text(logging_broker: LoggingBroker) -> str:
         LearnerProfileOrchestrationServiceException,
     ) as e:
         logging_broker.log_warning("Falling back to a generic session scenario: %s", e)
-        return "Have a free-flowing conversation at a beginner level."
+        return None
 
+
+def _scenario_text(scenario: Optional[SessionScenario]) -> str:
+    if scenario is None:
+        return _GENERIC_SCENARIO_TEXT
     parts = [f"Speak at a {scenario.proficiency_level} proficiency level."]
     if scenario.suggested_topic:
         parts.append(f"Focus this session on: {scenario.suggested_topic}.")
     return " ".join(parts)
 
 
+def _priming_block(scenario: Optional[SessionScenario], logging_broker: LoggingBroker) -> str:
+    """A3: never crashes -- any failure just means no priming brief."""
+    try:
+        return format_priming_brief(scenario.due_patterns) if scenario else ""
+    except Exception as e:  # noqa: BLE001 -- degrade, don't crash (same stance as D6)
+        logging_broker.log_warning("Skipping priming brief: %s", e)
+        return ""
+
+
 def _read_cefr_estimate(logging_broker: LoggingBroker) -> Optional[str]:
     """D6: the learner's stored CEFR estimate, or None if unavailable. Same
-    degrade-don't-crash stance as _default_scenario_text -- any profile-read
+    degrade-don't-crash stance as _load_scenario -- any profile-read
     failure just means no difficulty block."""
     try:
         learner_profile_service = LearnerProfileService(
@@ -168,10 +188,20 @@ def _read_cefr_estimate(logging_broker: LoggingBroker) -> Optional[str]:
 
 def _compose_system_prompt(logging_broker: LoggingBroker, pressure_prompt_block: str) -> str:
     base_rules = FilePromptBroker().get_system_prompt()
-    scenario_text = _read_and_clear_scenario_override() or _default_scenario_text(logging_broker)
+    override = _read_and_clear_scenario_override()
+    # Loaded even when an override wins the scenario line: the A3 priming
+    # brief is not user-editable scene text and is appended either way.
+    try:
+        scenario = _load_scenario(logging_broker)
+    except Exception as e:  # noqa: BLE001 -- degrade, don't crash
+        logging_broker.log_warning("Scenario load failed: %s", e)
+        scenario = None
+    scenario_text = override or _scenario_text(scenario)
     prompt = f"{base_rules}\n\nFor this session, practice: {scenario_text}\n\n{pressure_prompt_block}"
-    difficulty_block = get_difficulty_block(_read_cefr_estimate(logging_broker))
-    return f"{prompt}\n\n{difficulty_block}" if difficulty_block else prompt
+    for block in (get_difficulty_block(_read_cefr_estimate(logging_broker)), _priming_block(scenario, logging_broker)):
+        if block:
+            prompt = f"{prompt}\n\n{block}"
+    return prompt
 
 
 def main() -> None:
@@ -226,7 +256,7 @@ def main() -> None:
 
     # Roadmap A6. Same DATABASE_URL already required just below for
     # session_log_entry_service -- one connection string, reused rather than
-    # re-reading the env var, for the same reason _default_scenario_text's
+    # re-reading the env var, for the same reason _load_scenario's
     # own LearnerProfile chain reuses it above.
     database_url = configuration_broker.require("DATABASE_URL")
     learner_profile_service = LearnerProfileService(
@@ -246,7 +276,7 @@ def main() -> None:
         # required var (CLAUDE.md's env table) and api/app.py -- the only
         # thing that launches this subprocess -- reads it at import, so it
         # is always set by the time we get here. `require()` rather than
-        # the soft fallback _default_scenario_text uses: an unset var is a
+        # the soft fallback _load_scenario uses: an unset var is a
         # misconfiguration worth failing loudly on, whereas an unreachable
         # DB is handled downstream (the two write calls in
         # ConversationOrchestrationService are individually guarded, so a
@@ -273,7 +303,7 @@ if __name__ == "__main__":
 
     if "--selftest" in sys.argv:
         # ponytail: assert-based self-check for the file-driven override
-        # logic only -- _default_scenario_text/_compose_system_prompt need
+        # logic only -- _load_scenario/_compose_system_prompt need
         # a real DB and are covered by LearnerProfileOrchestrationService's
         # own unit suite plus this feature's manual hardware-verify gate
         # (CLAUDE.md: Voice Conversation, no agent, any layer).
