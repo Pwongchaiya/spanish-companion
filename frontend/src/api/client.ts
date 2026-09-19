@@ -73,6 +73,18 @@ export const apiClient = {
 
   // Raw WAV bytes, not JSON -- can't go through json<T>() above, which
   // assumes a JSON body on both success and error paths.
+  // 204 (no completed session yet) -> null.
+  getRecapSpeech: async (): Promise<Blob | null> => {
+    const res = await fetch("/progress/recap/speech");
+    if (res.status === 204) return null;
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      const message = (body as { error?: string }).error ?? `Request failed: ${res.status}`;
+      throw createApiClientError(message, res.status);
+    }
+    return res.blob();
+  },
+
   synthesizeSpeech: async (text: string): Promise<Blob> => {
     const res = await fetch("/tts/synthesize", {
       method: "POST",
