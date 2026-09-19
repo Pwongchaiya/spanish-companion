@@ -1,4 +1,4 @@
-﻿"""Unit tests for the session_lifecycle Flask blueprint -- HTTP mapping only.
+"""Unit tests for the session_lifecycle Flask blueprint -- HTTP mapping only.
 
 ConversationSessionService is mocked (Mock(spec=ConversationSessionService)):
 no real broker, no real start/stop/graceful-escalation logic. These tests

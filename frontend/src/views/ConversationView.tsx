@@ -215,6 +215,20 @@ export function ConversationView() {
               ))}
             </div>
 
+            {scenario?.boss_fight_text && (
+              <button
+                type="button"
+                className="boss-fight"
+                onClick={() => {
+                  setSceneText(scenario.boss_fight_text ?? "");
+                  setSceneEdited(true);
+                  setPressure("push");
+                }}
+              >
+                Boss fight
+              </button>
+            )}
+
             {!panelOpen && (
               <button type="button" className="reveal-more" onClick={() => setPanelOpen(true)}>
                 + More to adjust
@@ -247,19 +261,6 @@ export function ConversationView() {
                     setSceneEdited(true);
                   }}
                 />
-                {scenario?.boss_fight_text && (
-                  <button
-                    type="button"
-                    className="boss-fight"
-                    onClick={() => {
-                      setSceneText(scenario.boss_fight_text ?? "");
-                      setSceneEdited(true);
-                      setPressure("push");
-                    }}
-                  >
-                    Boss fight
-                  </button>
-                )}
                 <label className="field-label" htmlFor="roleplay-select">
                   Or pick a roleplay
                 </label>
