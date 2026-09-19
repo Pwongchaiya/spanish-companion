@@ -88,11 +88,15 @@ class ConversationSessionService(
         self._last_stop_graceful: Optional[bool] = None
 
     def start(
-        self, scenario_text: Optional[str] = None, pressure_level: Optional[str] = None, variant: Optional[str] = None
+        self,
+        scenario_text: Optional[str] = None,
+        pressure_level: Optional[str] = None,
+        variant: Optional[str] = None,
+        scenario_slug: Optional[str] = None,
     ) -> None:
         def action() -> None:
             self._validate_not_already_running()
-            self._broker.start(scenario_text, pressure_level, variant)
+            self._broker.start(scenario_text, pressure_level, variant, scenario_slug)
             self._started_at = self._time_source()
 
         self._try_catch(action)

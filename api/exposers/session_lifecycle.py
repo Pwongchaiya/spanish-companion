@@ -52,6 +52,7 @@ from api.models.orchestrations.learner_profile.exceptions import (
     LearnerProfileOrchestrationServiceException,
     LearnerProfileOrchestrationValidationException,
 )
+from api.data.roleplay_scenarios import get_roleplay_scenario
 from api.data.spanish_variants import VARIANT_KEYS
 from api.exposers.learner_profile import LearnerProfileController
 from api.services.foundations.session_lifecycle import SessionLifecycleService
@@ -100,8 +101,11 @@ def make_session_lifecycle_blueprint(
         variant = body.get("variant")
         if variant is not None and variant not in VARIANT_KEYS:
             return jsonify({"error": f"Invalid variant: {variant!r}"}), 400
+        scenario_slug = body.get("scenario_slug")
+        if scenario_slug is not None and get_roleplay_scenario(scenario_slug) is None:
+            return jsonify({"error": f"Invalid scenario_slug: {scenario_slug!r}"}), 400
         try:
-            service.start(scenario_text, pressure_level, variant)
+            service.start(scenario_text, pressure_level, variant, scenario_slug)
             return jsonify(asdict(service.get_status())), 200
         except SessionValidationException as e:
             if isinstance(e.inner_exception, AlreadyRunningSessionException):

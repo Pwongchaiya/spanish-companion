@@ -40,7 +40,11 @@ class SubprocessBotProcessBroker:
         self._last_return_code: Optional[int] = None
 
     def start(
-        self, scenario_text: Optional[str] = None, pressure_level: Optional[str] = None, variant: Optional[str] = None
+        self,
+        scenario_text: Optional[str] = None,
+        pressure_level: Optional[str] = None,
+        variant: Optional[str] = None,
+        scenario_slug: Optional[str] = None,
     ) -> None:
         if scenario_text is not None:
             self._scenario_override_path.parent.mkdir(parents=True, exist_ok=True)
@@ -55,7 +59,7 @@ class SubprocessBotProcessBroker:
         # D2 regional variant travels the same way (SESSION_VARIANT).
         injected = {
             name: value
-            for name, value in (("SESSION_PRESSURE", pressure_level), ("SESSION_VARIANT", variant))
+            for name, value in (("SESSION_PRESSURE", pressure_level), ("SESSION_VARIANT", variant), ("SESSION_SCENARIO_SLUG", scenario_slug))
             if value is not None
         }
         env = {**os.environ, **injected} if injected else None
@@ -112,4 +116,7 @@ if __name__ == "__main__":
 
             broker.start(variant="mexican")
             assert mock_popen.call_args.kwargs["env"]["SESSION_VARIANT"] == "mexican"
+
+            broker.start(scenario_slug="ordering_coffee")
+            assert mock_popen.call_args.kwargs["env"]["SESSION_SCENARIO_SLUG"] == "ordering_coffee"
     print("OK")

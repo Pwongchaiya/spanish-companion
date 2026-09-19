@@ -114,6 +114,26 @@ class TestSessionLogEntry:
     """Roadmap C1/C3: the session_log row opened before the pipeline runs
     and completed in run()'s finally block."""
 
+    def test_records_scenario_slug_from_config_on_the_opened_row(self, orchestrator, mocks):
+        # D4: the bot subprocess learns its scenario via SESSION_SCENARIO_SLUG.
+        mocks["configuration_broker"].get.return_value = "ordering_coffee"
+        mocks["session_log_entry_service"].create_session_log_entry.return_value = None
+        runner = Mock()
+        runner.run = AsyncMock()
+        context = Mock()
+        context.messages = []
+
+        async def _setup():
+            return runner, context, []
+
+        orchestrator._setup = _setup
+
+        asyncio.run(orchestrator.run())
+
+        assert mocks["configuration_broker"].get.call_args_list[0].args == ("SESSION_SCENARIO_SLUG",)
+        assert mocks["session_log_entry_service"].create_session_log_entry.call_count == 1
+        assert mocks["session_log_entry_service"].create_session_log_entry.call_args.args[1] == "ordering_coffee"
+
     def test_opens_row_before_pipeline_and_completes_it_with_flag_count(self, orchestrator, mocks):
         entry = SessionLogEntry(id=42, started_at=datetime(2026, 1, 2, 10, 0), ended_at=None, flag_count=0)
         mocks["session_log_entry_service"].create_session_log_entry.return_value = entry
