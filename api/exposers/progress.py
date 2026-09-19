@@ -56,7 +56,16 @@ def make_progress_blueprint(
     def list_mistakes():
         try:
             patterns = orchestrator.list_mistake_summary()
-            return jsonify([{**asdict(p), "last_seen_at": p.last_seen_at.isoformat()} for p in patterns]), 200
+            # A1's interval_days/next_due_at are scheduler-internal: dropped here so
+            # the /mistakes wire contract (and the frontend) stay unchanged.
+            payload = [
+                {
+                    **{k: v for k, v in asdict(p).items() if k not in ("interval_days", "next_due_at")},
+                    "last_seen_at": p.last_seen_at.isoformat(),
+                }
+                for p in patterns
+            ]
+            return jsonify(payload), 200
         except ProgressOrchestrationDependencyException as e:
             return jsonify({"error": str(e.inner_exception)}), 500
         except ProgressOrchestrationServiceException as e:
