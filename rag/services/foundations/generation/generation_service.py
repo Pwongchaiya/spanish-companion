@@ -63,6 +63,13 @@ _EXPLANATION_PROMPT = (_PROMPTS_DIR / "explanation.txt").read_text(encoding="utf
 _GROUNDING_JUDGE_PROMPT = (_PROMPTS_DIR / "grounding_judge.txt").read_text(encoding="utf-8")
 _PRACTICE_JUDGE_PROMPT = (_PROMPTS_DIR / "practice_judge.txt").read_text(encoding="utf-8")
 
+# A2: Anki-style 4-level grade, replacing the old binary YES/NO verdict.
+# "again" is the conservative fallback for a broker failure or an unparseable
+# verdict -- same "can't verify, so don't credit it" precedent the old
+# YES/NO judge used.
+_PRACTICE_GRADES = ("again", "hard", "good", "easy")
+_FALLBACK_GRADE = "again"
+
 
 class GenerationService(GenerationServiceExceptions, IGenerationService):
     """Owns explain()'s prompt-building + broker call + fallback logic.
@@ -101,21 +108,32 @@ class GenerationService(GenerationServiceExceptions, IGenerationService):
 
         return self._try_catch(action)
 
-    def judge_practice_attempt(self, flag: FlagLike, attempt_text: str, roleplay_setting: str | None = None) -> bool:
-        def action() -> bool:
+    def judge_practice_attempt(self, flag: FlagLike, attempt_text: str, roleplay_setting: str | None = None) -> str:
+        def action() -> str:
             prompt = self._build_practice_judge_prompt(flag, attempt_text, roleplay_setting)
             try:
                 verdict = self._broker.generate(prompt)
             except GenerationError as e:
-                self._logging_broker.log_info("practice judge call failed, treating as not mastered: %s", e)
-                return False
-            mastered = verdict.strip().upper().startswith("YES")
-            self._logging_broker.log_info(
-                "practice judge verdict for category=%s: %s", flag.category, verdict.strip()
-            )
-            return mastered
+                self._logging_broker.log_info("practice judge call failed, falling back to %r: %s", _FALLBACK_GRADE, e)
+                return _FALLBACK_GRADE
+            grade = self._parse_practice_grade(verdict)
+            self._logging_broker.log_info("practice judge verdict for category=%s: %s", flag.category, grade)
+            return grade
 
         return self._try_catch(action)
+
+    def _parse_practice_grade(self, verdict: str) -> str:
+        """First whitespace-separated word of `verdict`, lowercased and
+        stripped of trailing punctuation, if it's one of the four known
+        grades -- otherwise `_FALLBACK_GRADE` (can't parse it, so don't
+        credit it, same precedent as a broker failure).
+        """
+        first_word = verdict.strip().split(maxsplit=1)[0] if verdict.strip() else ""
+        grade = first_word.strip(".,!:;\"'").lower()
+        if grade not in _PRACTICE_GRADES:
+            self._logging_broker.log_info("practice judge verdict unparseable, falling back to %r: %r", _FALLBACK_GRADE, verdict)
+            return _FALLBACK_GRADE
+        return grade
 
     def _build_practice_judge_prompt(self, flag: FlagLike, attempt_text: str, roleplay_setting: str | None) -> str:
         # LearnerProfile Phase 4: an optional roleplay setting (resolved from a
