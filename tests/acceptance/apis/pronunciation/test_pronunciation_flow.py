@@ -85,7 +85,7 @@ def client(assessment_broker, result_service):
         result_service,
         logging_broker=logging_broker,
     )
-    recap = SessionRecapAggregationService(Mock(spec=ReviewService), progress, logging_broker=logging_broker)
+    recap = SessionRecapAggregationService(Mock(spec=ReviewService), progress, Mock(), logging_broker=logging_broker)
     app = Flask(__name__)
     _register_upload_limit(app)
     app.register_blueprint(make_pronunciation_blueprint(orchestrator))
