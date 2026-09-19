@@ -39,7 +39,8 @@ class AzureTtsBroker:
             subscription=os.environ["AZURE_SPEECH_KEY"],
             region=os.environ["AZURE_SPEECH_REGION"],
         )
-        speech_config.speech_synthesis_voice_name = DEFAULT_VOICE_NAME
+        # AZURE_TTS_VOICE is the same knob the live voice pipeline reads (.env.example).
+        speech_config.speech_synthesis_voice_name = os.environ.get("AZURE_TTS_VOICE") or DEFAULT_VOICE_NAME
         # Explicit WAV format -- this is also the SDK default, but pinning
         # it keeps the Content-Type: audio/wav the Exposer sends correct
         # even if the SDK's own default ever changes.

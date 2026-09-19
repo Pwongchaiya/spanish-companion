@@ -13,6 +13,7 @@ import pytest
 from api.services.aggregations.session_recap.session_recap_aggregation_service import (
     SessionRecapAggregationService,
 )
+from api.services.foundations.tts.i_tts_service import ITtsService
 from api.services.orchestrations.progress.i_progress_service import ProgressService
 from api.services.orchestrations.review.i_review_service import ReviewService
 from tests.unit.services._api_logging_fixture import mock_logging_broker  # noqa: F401
@@ -31,10 +32,16 @@ def mock_progress_service():
 
 
 @pytest.fixture
-def service(mock_review_service, mock_progress_service, mock_logging_broker):
+def mock_tts_service():
+    return Mock(spec=ITtsService)
+
+
+@pytest.fixture
+def service(mock_review_service, mock_progress_service, mock_tts_service, mock_logging_broker):
     return SessionRecapAggregationService(
         mock_review_service,
         mock_progress_service,
+        mock_tts_service,
         logging_broker=mock_logging_broker,
     )
 

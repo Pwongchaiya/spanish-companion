@@ -42,5 +42,15 @@ class SessionRecapAggregationService(Protocol):
         """
         ...
 
+    def get_latest_recap_speech(self) -> Optional[bytes]:
+        """Spanish WAV narration of get_latest_recap() (roadmap E4), or None
+        if no session has ever completed. Review Mode only -- never called
+        from the live Conversation path.
+
+        Same exception contract as get_latest_recap(); a TTS failure surfaces
+        as SessionRecapAggregationServiceException.
+        """
+        ...
+
 
 __all__ = ["SessionRecapAggregationService"]
