@@ -1,4 +1,6 @@
 import type {
+  DictationExercise,
+  DictationResult,
   Explanation,
   Flag,
   MistakePatternSummary,
@@ -70,6 +72,16 @@ export const apiClient = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ attempt_text: attemptText, roleplay_slug: roleplaySlug }),
     }).then(json<PracticeAttempt>),
+  getDictationExercise: (excludeFlagId?: string): Promise<DictationExercise> =>
+    fetch(`/review/dictation${excludeFlagId ? `?exclude=${encodeURIComponent(excludeFlagId)}` : ""}`).then(
+      json<DictationExercise>,
+    ),
+  checkDictation: (flagId: string, typedText: string): Promise<DictationResult> =>
+    fetch(`/review/dictation/${flagId}/check`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ typed_text: typedText }),
+    }).then(json<DictationResult>),
 
   // Multipart: no Content-Type header -- the browser must set it itself so the
   // boundary is included.
