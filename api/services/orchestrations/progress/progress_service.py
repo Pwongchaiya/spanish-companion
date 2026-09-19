@@ -2,10 +2,10 @@
 mistake dashboard, F1 corpus coverage map, C1 speaking-hours meter, C3
 longest unflagged stretch).
 
-Composes four service dependencies -- LearnerProfileProcessingService
-(Processing) plus IMistakePatternService, ITopicCoveredService and
-ISessionLogEntryService (Foundation) -- into four independent read-only
-reports.
+Composes five service dependencies -- LearnerProfileProcessingService
+(Processing) plus IMistakePatternService, ITopicCoveredService,
+ISessionLogEntryService and IPronunciationResultService (Foundation) -- into
+five independent read-only reports (ORC-001 waived, per CLAUDE.md).
 
 A5/F1 needed no new brokers. C1/C3 did, and that is exactly why they were
 parked when the rest of Phase 2 shipped: neither per-session duration nor
@@ -48,6 +48,8 @@ from api.models.orchestrations.progress.speaking_total import SpeakingTotal
 from api.models.orchestrations.progress.topic_coverage_entry import TopicCoverageEntry
 from api.models.orchestrations.progress.unflagged_streak import UnflaggedStreak
 from api.services.foundations.mistake_pattern import IMistakePatternService
+from api.models.orchestrations.progress.pronunciation_trend_point import PronunciationTrendPoint
+from api.services.foundations.pronunciation_result import IPronunciationResultService
 from api.services.foundations.session_log_entry import ISessionLogEntryService
 from api.services.foundations.topic_covered import ITopicCoveredService
 from api.services.orchestrations.progress.i_progress_service import ProgressService
@@ -65,6 +67,7 @@ class ProgressOrchestrationService(ProgressOrchestrationServiceExceptions, Progr
         mistake_pattern_service: IMistakePatternService,
         topic_covered_service: ITopicCoveredService,
         session_log_entry_service: ISessionLogEntryService,
+        pronunciation_result_service: IPronunciationResultService,
         *,
         logging_broker: LoggingBroker,
         configuration_broker: ConfigurationBroker = EnvConfigurationBroker(),
@@ -77,6 +80,7 @@ class ProgressOrchestrationService(ProgressOrchestrationServiceExceptions, Progr
         self._mistake_pattern_service = mistake_pattern_service
         self._topic_covered_service = topic_covered_service
         self._session_log_entry_service = session_log_entry_service
+        self._pronunciation_result_service = pronunciation_result_service
         self._logging_broker = logging_broker
         self._configuration_broker = configuration_broker
 
@@ -149,6 +153,26 @@ class ProgressOrchestrationService(ProgressOrchestrationServiceExceptions, Progr
 
         return self._try_catch(action)
 
+    def list_pronunciation_trend(self, limit: Optional[int] = None) -> List[PronunciationTrendPoint]:
+        def action() -> List[PronunciationTrendPoint]:
+            n = limit if limit is not None else int(self._configuration_broker.get("PRONUNCIATION_TREND_LIMIT", "30"))
+            results = self._pronunciation_result_service.list_pronunciation_results()
+            # Service returns oldest-first; the last n are the most recent, still oldest->newest.
+            recent = results[-n:] if n > 0 else []
+            trend = [
+                PronunciationTrendPoint(
+                    created_at=r.created_at,
+                    accuracy=r.accuracy_score,
+                    fluency=r.fluency_score,
+                    overall=r.pronunciation_score,
+                )
+                for r in recent
+            ]
+            self._logging_broker.log_info("built pronunciation trend: %d point(s)", len(trend))
+            return trend
+
+        return self._try_catch(action)
+
 
 def _completed_sessions(entries: List[SessionLogEntry]) -> List[SessionLogEntry]:
     """The `session_log` rows both C1 and C3 are allowed to count.
@@ -200,6 +224,7 @@ if __name__ == "__main__":
             )
         ),
         session_log_entry_service=Mock(),
+        pronunciation_result_service=Mock(),
         logging_broker=Mock(),
     )
     entries = svc.list_topic_coverage()

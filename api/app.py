@@ -37,11 +37,14 @@ from api.brokers.learner_profile import SqlAlchemyLearnerProfileBroker
 from api.brokers.logging import StdlibLoggingBroker
 from api.brokers.mistake_pattern.mistake_pattern_broker import SqlAlchemyMistakePatternBroker
 from api.brokers.practice_log import JsonLinesPracticeLogBroker
+from api.brokers.pronunciation_assessment import AzurePronunciationAssessmentBroker
+from api.brokers.pronunciation_result import SqlAlchemyPronunciationResultBroker
 from api.brokers.session_log_entry import SqlAlchemySessionLogEntryBroker
 from api.brokers.topic_covered import SqlAlchemyTopicCoveredBroker
 from api.brokers.tts import AzureTtsBroker
 from api.exposers.learner_profile import LearnerProfileController
 from api.exposers.progress import make_progress_blueprint
+from api.exposers.pronunciation import make_pronunciation_blueprint
 from api.exposers.review import make_review_blueprint
 from api.exposers.session_lifecycle import make_session_lifecycle_blueprint
 from api.exposers.tts import make_tts_blueprint
@@ -49,6 +52,8 @@ from api.services.foundations.flag import FlagService
 from api.services.foundations.learner_profile import LearnerProfileService
 from api.services.foundations.mistake_pattern import MistakePatternService
 from api.services.foundations.practice_log import PracticeLogService
+from api.services.foundations.pronunciation_assessment import PronunciationAssessmentService
+from api.services.foundations.pronunciation_result import PronunciationResultService
 from api.services.foundations.session_lifecycle import ConversationSessionService
 from api.services.foundations.session_log_entry import SessionLogEntryService
 from api.services.foundations.topic_covered import TopicCoveredService
@@ -56,6 +61,7 @@ from api.services.foundations.tts import TtsService
 from api.services.orchestrations.learner_profile import LearnerProfileOrchestrationService
 from api.services.aggregations.session_recap import SessionRecapAggregationService
 from api.services.orchestrations.progress import ProgressOrchestrationService
+from api.services.orchestrations.pronunciation import PronunciationOrchestrationService
 from api.services.orchestrations.review import ReviewOrchestrationService
 from api.services.processings.learner_profile import LearnerProfileProcessingService
 from api.services.processings.mistake_pattern import MistakePatternProcessingService
@@ -106,6 +112,20 @@ TRANSCRIPT_FILE_PATH = Path(os.getenv("TRANSCRIPT_FILE_PATH", str(REPO_ROOT / "d
 TURN_STATE_FILE_PATH = Path(os.getenv("TURN_STATE_FILE_PATH", str(REPO_ROOT / "data" / "turn_state.txt")))
 SSE_POLL_INTERVAL_SECONDS = float(os.getenv("SSE_POLL_INTERVAL_SECONDS", "1"))
 
+# Cap on any request body -- sized for POST /pronunciation/assess's WAV upload
+# (the Foundation service itself rejects WAVs over 1 MiB with a 400, so 2 MiB
+# leaves room for multipart framing).
+MAX_UPLOAD_BYTES = 2 * 1024 * 1024
+
+
+def _register_upload_limit(app: Flask) -> None:
+    """Cap request bodies and answer an oversize one with JSON, not Flask's HTML 413 page."""
+    app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_BYTES
+
+    @app.errorhandler(413)
+    def request_too_large(_error):
+        return jsonify({"error": f"request body exceeds {MAX_UPLOAD_BYTES} bytes"}), 413
+
 
 def _read_transcript() -> list:
     if not TRANSCRIPT_FILE_PATH.exists():
@@ -136,6 +156,7 @@ def _is_allowed_origin(header: str, allowed_origins: FrozenSet[str]) -> bool:
 
 def create_app() -> Flask:
     app = Flask(__name__, static_folder=str(FRONTEND_DIST), static_url_path="")
+    _register_upload_limit(app)
 
     @app.before_request
     def check_origin() -> Optional[tuple]:
@@ -245,11 +266,15 @@ def create_app() -> Flask:
     # corpus coverage map) -- read-only, no new brokers; reuses the
     # mistake_pattern_service/topic_covered_service/
     # learner_profile_processing_service instances already built above ---
+    pronunciation_result_service = PronunciationResultService(
+        SqlAlchemyPronunciationResultBroker(database_url), logging_broker=logging_broker
+    )
     progress_orchestrator = ProgressOrchestrationService(
         learner_profile_processing_service,
         mistake_pattern_service,
         topic_covered_service,
         session_log_entry_service,
+        pronunciation_result_service,
         logging_broker=logging_broker,
         configuration_broker=configuration_broker,
     )
@@ -269,6 +294,18 @@ def create_app() -> Flask:
     # single-call feature, no Orchestration layer needed ---
     tts_service = TtsService(AzureTtsBroker(), logging_broker=logging_broker)
     app.register_blueprint(make_tts_blueprint(tts_service))
+
+    # --- Pronunciation (roadmap Phase 4) -- Azure scoring + persistence, composed by one
+    # Orchestration service; the result service is shared with Progress's trend read above ---
+    pronunciation_assessment_service = PronunciationAssessmentService(
+        AzurePronunciationAssessmentBroker(), logging_broker=logging_broker
+    )
+    pronunciation_orchestrator = PronunciationOrchestrationService(
+        pronunciation_assessment_service,
+        pronunciation_result_service,
+        logging_broker=logging_broker,
+    )
+    app.register_blueprint(make_pronunciation_blueprint(pronunciation_orchestrator))
 
     # --- /api/events SSE — status/transcript/flags/turn_state, per the
     # architecture decision record's "Resolved: /api/events SSE event

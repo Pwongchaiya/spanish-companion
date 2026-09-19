@@ -36,6 +36,7 @@ from api.models.base import Base
 from api.models.foundations.session_log_entry.session_log_entry import SessionLogEntryRecord
 from api.services.aggregations.session_recap import SessionRecapAggregationService
 from api.services.foundations.mistake_pattern import IMistakePatternService
+from api.services.foundations.pronunciation_result import IPronunciationResultService
 from api.services.foundations.session_log_entry import SessionLogEntryService
 from api.services.foundations.topic_covered import ITopicCoveredService
 from api.services.orchestrations.progress import ProgressOrchestrationService
@@ -59,6 +60,7 @@ def client(session_log_entry_service):
         Mock(spec=IMistakePatternService),
         Mock(spec=ITopicCoveredService),
         session_log_entry_service,
+        Mock(spec=IPronunciationResultService),
         logging_broker=StdlibLoggingBroker(),
     )
     recap_aggregator = SessionRecapAggregationService(
