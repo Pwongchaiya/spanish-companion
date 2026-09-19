@@ -1,4 +1,4 @@
-"""AzureAssessmentBroker -- Azure Speech-backed PronunciationAssessmentBroker.
+"""AzurePronunciationAssessmentBroker -- Azure Speech-backed PronunciationAssessmentBroker.
 
 Same env vars and raw azure-cognitiveservices-speech approach as api/brokers/tts/tts_broker.py
 (AZURE_SPEECH_KEY / AZURE_SPEECH_REGION, KeyError if missing; no pipecat, no new dependency).
@@ -73,7 +73,7 @@ def parse_assessment(result: Any) -> PronunciationAssessment:
     return PronunciationAssessment(**scores, prosody_score=getattr(result, "prosody_score", None), words=words)
 
 
-class AzureAssessmentBroker:
+class AzurePronunciationAssessmentBroker:
     """PronunciationAssessmentBroker backed by Azure Speech."""
 
     def assess(self, wav_bytes: bytes, reference_text: str) -> PronunciationAssessment:
