@@ -37,6 +37,7 @@ from api.brokers.learner_profile import SqlAlchemyLearnerProfileBroker
 from api.brokers.logging import StdlibLoggingBroker
 from api.brokers.mistake_pattern.mistake_pattern_broker import SqlAlchemyMistakePatternBroker
 from api.brokers.practice_log import JsonLinesPracticeLogBroker
+from api.brokers.session_log_entry import SqlAlchemySessionLogEntryBroker
 from api.brokers.topic_covered import SqlAlchemyTopicCoveredBroker
 from api.brokers.tts import AzureTtsBroker
 from api.exposers.learner_profile import LearnerProfileController
@@ -49,6 +50,7 @@ from api.services.foundations.learner_profile import LearnerProfileService
 from api.services.foundations.mistake_pattern import MistakePatternService
 from api.services.foundations.practice_log import PracticeLogService
 from api.services.foundations.session_lifecycle import ConversationSessionService
+from api.services.foundations.session_log_entry import SessionLogEntryService
 from api.services.foundations.topic_covered import TopicCoveredService
 from api.services.foundations.tts import TtsService
 from api.services.orchestrations.learner_profile import LearnerProfileOrchestrationService
@@ -173,6 +175,11 @@ def create_app() -> Flask:
     topic_covered_service = TopicCoveredService(
         SqlAlchemyTopicCoveredBroker(database_url), logging_broker=logging_broker
     )
+    # Roadmap C1/C3 -- the only new broker Progress needed; A5/F1
+    # reuse the services already built above.
+    session_log_entry_service = SessionLogEntryService(
+        SqlAlchemySessionLogEntryBroker(database_url), logging_broker=logging_broker
+    )
     # Shared with Review below (LearnerProfile Phase 2) -- both stateless,
     # one instance each is enough.
     learner_profile_processing_service = LearnerProfileProcessingService(learner_profile_service)
@@ -240,6 +247,7 @@ def create_app() -> Flask:
         learner_profile_processing_service,
         mistake_pattern_service,
         topic_covered_service,
+        session_log_entry_service,
         logging_broker=logging_broker,
         configuration_broker=configuration_broker,
     )
