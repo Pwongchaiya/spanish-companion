@@ -17,7 +17,11 @@ class SessionLifecycleService(Protocol):
     """External-facing contract for Session Lifecycle's Foundation service."""
 
     def start(
-        self, scenario_text: Optional[str] = None, pressure_level: Optional[str] = None, variant: Optional[str] = None
+        self,
+        scenario_text: Optional[str] = None,
+        pressure_level: Optional[str] = None,
+        variant: Optional[str] = None,
+        scenario_slug: Optional[str] = None,
     ) -> None:
         """Start the voice-conversation subprocess.
 
@@ -29,6 +33,9 @@ class SessionLifecycleService(Protocol):
 
         `variant` (D2, a key of api/data/spanish_variants.py), if given,
         selects the regional Spanish variety (voice, register, flag guard).
+
+        `scenario_slug` (D4), if given, is recorded on the session's
+        session_log row so Review Mode can judge a task scenario's outcome.
 
         Raises SessionValidationException (wrapping AlreadyRunningSessionException)
         if a session is already running.

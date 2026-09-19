@@ -45,7 +45,11 @@ class BotProcessBroker(Protocol):
     """
 
     def start(
-        self, scenario_text: Optional[str] = None, pressure_level: Optional[str] = None, variant: Optional[str] = None
+        self,
+        scenario_text: Optional[str] = None,
+        pressure_level: Optional[str] = None,
+        variant: Optional[str] = None,
+        scenario_slug: Optional[str] = None,
     ) -> None:
         """Launch the subprocess. Non-blocking.
 
@@ -62,6 +66,10 @@ class BotProcessBroker(Protocol):
         `variant` (D2, a key of api/data/spanish_variants.py), if given, is
         injected the same way as SESSION_VARIANT. If None, the child falls
         back to "neutral".
+
+        `scenario_slug` (D4, a slug of api/data/roleplay_scenarios.py), if
+        given, is injected as SESSION_SCENARIO_SLUG so the child can record
+        it on its session_log row.
         """
         ...
 

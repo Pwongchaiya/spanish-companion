@@ -385,7 +385,9 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
         user a conversation. `_end_session_log_entry` no-ops on None.
         """
         try:
-            return self._session_log_entry_service.create_session_log_entry(datetime.now())
+            return self._session_log_entry_service.create_session_log_entry(
+                datetime.now(), self._configuration_broker.get("SESSION_SCENARIO_SLUG")
+            )
         except (
             SessionLogEntryValidationException,
             SessionLogEntryDependencyException,
