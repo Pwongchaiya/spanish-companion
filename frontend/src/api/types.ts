@@ -83,6 +83,36 @@ export interface SessionRecap {
   session_ended_at: string | null;
 }
 
+export interface PhonemeScore {
+  phoneme: string;
+  accuracy: number;
+}
+
+export interface WordScore {
+  word: string;
+  accuracy: number | null;
+  error_type: string; // 'None' | 'Omission' | 'Insertion' | 'Mispronunciation'
+  phonemes: PhonemeScore[];
+}
+
+export interface PronunciationResult {
+  reference_text: string;
+  accuracy: number;
+  fluency: number;
+  completeness: number;
+  prosody: number | null;
+  overall: number;
+  words: WordScore[];
+  created_at: string;
+}
+
+export interface PronunciationTrendPoint {
+  created_at: string;
+  accuracy: number;
+  fluency: number;
+  overall: number;
+}
+
 export type ServerEvent =
   | { type: "status"; status: SessionStatus }
   | { type: "transcript"; turns: TranscriptTurn[] }
