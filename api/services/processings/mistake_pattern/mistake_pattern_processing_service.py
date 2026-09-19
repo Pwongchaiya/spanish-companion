@@ -29,6 +29,9 @@ from api.services.foundations.mistake_pattern.i_mistake_pattern_service import I
 # Grade -> interval multiplier. None = reset to 1.0 day ("again").
 _INTERVAL_MULTIPLIERS: dict[str, float | None] = {"again": None, "hard": 1.2, "good": 2.0, "easy": 3.5}
 
+# A resolved row whose interval has grown to this many days is "retired" (derived, no column).
+_RETIRE_INTERVAL_DAYS = 30.0
+
 
 class MistakePatternProcessingService:
     """Find-by-category over Foundation's list_mistake_patterns_by_profile(),
@@ -66,13 +69,25 @@ class MistakePatternProcessingService:
 
     def list_due(self, profile_id: int, now: datetime) -> list[MistakePattern]:
         rows = self._mistake_pattern_service.list_mistake_patterns_by_profile(profile_id)
-        due = [row for row in rows if row.next_due_at is not None and row.next_due_at <= now]
+        due = [
+            row
+            for row in rows
+            if row.next_due_at is not None and row.next_due_at <= now and not self._is_retired(row)
+        ]
         return sorted(due, key=lambda row: row.next_due_at)
 
     def record_occurrence(self, profile_id: int, category: str) -> MistakePattern:
         existing = self._find_by_category(profile_id, category)
         if existing is None:
             return self._mistake_pattern_service.create_mistake_pattern(profile_id, category)
+        if self._is_retired(existing):  # resurface: due immediately, no longer retired
+            return self._mistake_pattern_service.update_mistake_pattern(
+                existing.id,
+                occurrence_count=existing.occurrence_count + 1,
+                status="active",
+                interval_days=1.0,
+                next_due_at=self._clock(),
+            )
         return self._mistake_pattern_service.update_mistake_pattern(
             existing.id, occurrence_count=existing.occurrence_count + 1, status="active"
         )
@@ -88,3 +103,7 @@ class MistakePatternProcessingService:
     def _find_by_category(self, profile_id: int, category: str) -> MistakePattern | None:
         rows = self._mistake_pattern_service.list_mistake_patterns_by_profile(profile_id)
         return next((row for row in rows if row.category == category), None)
+
+    @staticmethod
+    def _is_retired(row: MistakePattern) -> bool:
+        return row.status == "resolved" and row.interval_days >= _RETIRE_INTERVAL_DAYS

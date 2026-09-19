@@ -22,7 +22,11 @@ class IMistakePatternProcessingService(Protocol):
         matching category in Python. If found, calls update() with
         occurrence_count + 1 and status="active" (reactivating a previously
         resolved pattern). If not found, calls create(profile_id, category).
-        Any exception from Foundation propagates unchanged.
+        If the existing row is retired (status "resolved" and
+        interval_days >= 30.0) the update also passes interval_days=1.0 and
+        next_due_at=clock(): the pattern resurfaces, due immediately. Other
+        rows' interval is untouched. Any exception from Foundation
+        propagates unchanged.
         """
         ...
 
@@ -51,7 +55,8 @@ class IMistakePatternProcessingService(Protocol):
 
     def list_due(self, profile_id: int, now: datetime) -> list[MistakePattern]:
         """Rows for the profile with next_due_at not None and <= now,
-        ordered by next_due_at ascending. Foundation exceptions propagate
-        unchanged.
+        ordered by next_due_at ascending. Retired rows (status "resolved"
+        and interval_days >= 30.0) are excluded. Foundation exceptions
+        propagate unchanged.
         """
         ...
