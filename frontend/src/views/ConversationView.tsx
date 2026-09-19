@@ -7,6 +7,7 @@ import { apiClient } from "../api/client";
 import type { SessionRecap, SessionScenario, TurnState } from "../api/types";
 import { ROLEPLAY_SCENARIOS, groupScenariosByTier } from "../data/roleplayScenarios";
 import { DueBrief } from "../components/DueBrief";
+import { RecapSpeechButton } from "../components/RecapSpeechButton";
 
 // C2 post-session recap card. Plain summary, not a celebratory screen --
 // this is a personal single-user app (see CLAUDE.md's "deprioritize social/
@@ -27,6 +28,7 @@ function SessionRecapCard({ recap, onDismiss }: { recap: SessionRecap; onDismiss
       {recap.categories_flagged.length > 0 && (
         <p className="recap-categories">{recap.categories_flagged.join(", ")}</p>
       )}
+      <RecapSpeechButton />
     </div>
   );
 }
