@@ -55,6 +55,17 @@ class TestSuggestSessionScenarioDuePatterns:
         configuration_broker._values["DUE_BRIEF_LIMIT"] = "1"
         assert [d.category for d in service.suggest_session_scenario().due_patterns] == ["c0"]
 
+    @pytest.mark.parametrize("bad", ["abc", "-1", ""])
+    def test_should_fall_back_to_default_limit_on_bad_config(
+        self, service, mock_mistake_pattern_processing_service, make_pattern, configuration_broker, bad
+    ):
+        mock_mistake_pattern_processing_service.list_due.return_value = [
+            _due(make_pattern, i, f"c{i}", 5 - i) for i in range(5)
+        ]
+        configuration_broker._values["DUE_BRIEF_LIMIT"] = bad
+
+        assert len(service.suggest_session_scenario().due_patterns) == 3
+
     def test_should_return_empty_due_patterns_when_nothing_due(self, service, mock_mistake_pattern_processing_service):
         mock_mistake_pattern_processing_service.list_due.return_value = []
 
