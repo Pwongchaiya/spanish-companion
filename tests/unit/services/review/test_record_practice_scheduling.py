@@ -30,6 +30,30 @@ class TestReviewOrchestratorRecordPracticeScheduling:
         profile = mock_learner_profile_processing_service.ensure_profile.return_value
         mock_mistake_pattern_processing_service.record_review.assert_called_once_with(profile.id, "ser_estar", grade)
 
+    @pytest.mark.parametrize(
+        "grade,before", [("good", "resolve"), ("easy", "resolve"), ("again", "record_occurrence"), ("hard", "record_occurrence")]
+    )
+    def test_should_schedule_review_after_resolve_or_record_occurrence(
+        self,
+        service,
+        mock_flag_service,
+        mock_generation_service,
+        mock_mistake_pattern_processing_service,
+        make_flag,
+        grade,
+        before,
+    ):
+        # given
+        mock_flag_service.get_flag.return_value = make_flag("flag-1", category="ser_estar")
+        mock_generation_service.judge_practice_attempt.return_value = grade
+
+        # when
+        service.record_practice("flag-1", "estoy cansado")
+
+        # then
+        names = [call[0] for call in mock_mistake_pattern_processing_service.mock_calls]
+        assert names == [before, "record_review"]
+
     def test_should_not_raise_when_no_mistake_pattern_exists_to_schedule(
         self,
         service,
