@@ -45,7 +45,7 @@ private method with its own local try/except -- same convention as Review.
 """
 
 from datetime import datetime
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Tuple
 
 from api.brokers.configuration import ConfigurationBroker, EnvConfigurationBroker
 from api.brokers.logging import LoggingBroker
@@ -125,8 +125,7 @@ class LearnerProfileOrchestrationService(LearnerProfileOrchestrationServiceExcep
             boss = self._pick_boss_patterns(
                 patterns, now, int(self._configuration_broker.get("BOSS_MIN_OCCURRENCES", "3"))
             )
-            boss_text = self._boss_fight_text([p.category for p in boss])
-            boss_categories = [p.category for p in boss][: boss_text.count(", ") + 1] if boss_text else []
+            boss_text, boss_categories = self._boss_fight_text([p.category for p in boss])
 
             self._logging_broker.log_info(
                 "suggested session scenario: level=%s focus=%r topic=%r due=%d",
@@ -173,14 +172,16 @@ class LearnerProfileOrchestrationService(LearnerProfileOrchestrationServiceExcep
         return sorted(eligible, key=lambda p: p.occurrence_count, reverse=True)[:3]
 
     @staticmethod
-    def _boss_fight_text(categories: List[str]) -> str:
+    def _boss_fight_text(categories: List[str]) -> Tuple[str, List[str]]:
         """One line for the scene input (maxLength 80); drops trailing
-        categories that don't fit. Empty string if none fit."""
+        categories that don't fit. Returns (text, kept categories); ("", []) if none fit."""
         prefix = "Boss fight: quiz me on "
-        labels = [c.replace("_", " ") for c in categories]
-        while labels and len(prefix + ", ".join(labels)) > 80:
-            labels.pop()
-        return prefix + ", ".join(labels) if labels else ""
+        kept = list(categories)
+        while kept and len(prefix + ", ".join(c.replace("_", " ") for c in kept)) > 80:
+            kept.pop()
+        if not kept:
+            return "", []
+        return prefix + ", ".join(c.replace("_", " ") for c in kept), kept
 
     @staticmethod
     def _pick_due_topic(topics: List[TopicCovered]) -> Optional[str]:
@@ -212,8 +213,9 @@ if __name__ == "__main__":
     boss_ok = MistakePattern(id=3, profile_id=1, category="ser_estar", occurrence_count=4, last_seen_at=now, status="active", next_due_at=now, interval_days=1.0)
     assert svc._pick_boss_patterns([boss_ok], now, 3) == [boss_ok]
     assert svc._pick_boss_patterns([boss_ok], now, 5) == []
-    assert svc._boss_fight_text(["a"] * 40) != "" and len(svc._boss_fight_text(["a"] * 40)) <= 80
-    assert svc._boss_fight_text([]) == ""
+    _t, _k = svc._boss_fight_text(["a"] * 40)
+    assert _t != "" and len(_t) <= 80 and _k == ["a"] * len(_k)
+    assert svc._boss_fight_text([]) == ("", [])
 
     assert svc._pick_due_topic([]) is None
     topics = [
