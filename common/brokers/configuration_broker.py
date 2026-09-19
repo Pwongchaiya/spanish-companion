@@ -1,8 +1,10 @@
-"""EnvConfigurationBroker — `os.environ`-backed ConfigurationBroker for rag.
+"""EnvConfigurationBroker — `os.environ`-backed ConfigurationBroker.
 
-Byte-for-byte the behavior of api/brokers/configuration/configuration_broker.py's
-EnvConfigurationBroker — reimplemented rather than imported, because rag
-cannot import api.
+Shared by api/brokers/configuration and rag/brokers/configuration: same
+concrete implementation, same env source, one copy instead of two
+byte-for-byte twins. Each package's own `ConfigurationBroker` Protocol stays
+local (api -> rag is the only allowed dependency direction; this common
+module depends on neither).
 """
 
 import os
