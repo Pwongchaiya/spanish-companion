@@ -28,6 +28,10 @@ class LearnerProfileRecord(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     proficiency_level: Mapped[str | None]
+    # Roadmap A6: async, best-effort CEFR estimate from the voice-conversation
+    # transcript, distinct from proficiency_level (self-reported/onboarding
+    # value) -- same nullable-String shape, set independently.
+    cefr_estimate: Mapped[str | None]
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(), server_default=func.now(), onupdate=func.now(), nullable=False
     )
@@ -40,3 +44,4 @@ class LearnerProfile:
     id: int
     proficiency_level: str | None
     updated_at: datetime
+    cefr_estimate: str | None = None
