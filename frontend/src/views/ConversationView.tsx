@@ -5,7 +5,7 @@ import { useMicPermission } from "../hooks/useMicPermission";
 import { useConnectionStore } from "../state/connectionStore";
 import { apiClient } from "../api/client";
 import type { SessionRecap, SessionScenario, TurnState } from "../api/types";
-import { ROLEPLAY_SCENARIOS } from "../data/roleplayScenarios";
+import { ROLEPLAY_SCENARIOS, groupScenariosByTier } from "../data/roleplayScenarios";
 import { DueBrief } from "../components/DueBrief";
 
 // C2 post-session recap card. Plain summary, not a celebratory screen --
@@ -279,10 +279,14 @@ export function ConversationView() {
                   <option value="" disabled>
                     Choose a scenario…
                   </option>
-                  {ROLEPLAY_SCENARIOS.map((s) => (
-                    <option key={s.slug} value={s.slug}>
-                      {s.label}
-                    </option>
+                  {groupScenariosByTier().map((g) => (
+                    <optgroup key={g.tier} label={g.label}>
+                      {g.scenarios.map((s) => (
+                        <option key={s.slug} value={s.slug}>
+                          {s.label}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
                 <span className="field-label">Session length</span>

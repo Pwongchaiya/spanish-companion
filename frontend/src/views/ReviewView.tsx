@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useReviewFlow } from "../hooks/useReviewFlow";
 import { useConnectionStore } from "../state/connectionStore";
-import { ROLEPLAY_SCENARIOS } from "../data/roleplayScenarios";
+import { groupScenariosByTier } from "../data/roleplayScenarios";
 import "./ReviewView.css";
 
 export function ReviewView() {
@@ -114,10 +114,14 @@ export function ReviewView() {
                 onChange={(e) => setRoleplaySlug(e.target.value)}
               >
                 <option value="">Just the sentence</option>
-                {ROLEPLAY_SCENARIOS.map((s) => (
-                  <option key={s.slug} value={s.slug}>
-                    {s.label}
-                  </option>
+                {groupScenariosByTier().map((g) => (
+                  <optgroup key={g.tier} label={g.label}>
+                    {g.scenarios.map((s) => (
+                      <option key={s.slug} value={s.slug}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
               <button className="primary" type="submit" disabled={!attemptText.trim()}>
