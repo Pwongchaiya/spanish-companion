@@ -111,6 +111,30 @@ def make_progress_blueprint(
         except ProgressOrchestrationServiceException as e:
             return jsonify({"error": str(e.inner_exception)}), 500
 
+    @progress_blueprint.route("/pronunciation", methods=["GET"])
+    def get_pronunciation_trend():
+        # [] (nothing scored yet) is a normal state, not an error.
+        try:
+            trend = orchestrator.list_pronunciation_trend()
+            return (
+                jsonify(
+                    [
+                        {
+                            "created_at": p.created_at.isoformat(),
+                            "accuracy": p.accuracy,
+                            "fluency": p.fluency,
+                            "overall": p.overall,
+                        }
+                        for p in trend
+                    ]
+                ),
+                200,
+            )
+        except ProgressOrchestrationDependencyException as e:
+            return jsonify({"error": str(e.inner_exception)}), 500
+        except ProgressOrchestrationServiceException as e:
+            return jsonify({"error": str(e.inner_exception)}), 500
+
     @progress_blueprint.route("/recap", methods=["GET"])
     def get_recap():
         # No session ever having completed is a normal state, not an error
