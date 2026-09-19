@@ -85,7 +85,13 @@ def mock_retrieval_service():
 
 @pytest.fixture
 def mock_generation_service():
-    return Mock(spec=GenerationService)
+    mock = Mock(spec=GenerationService)
+    # A2: grade is now written into the persisted PracticeAttempt itself, so
+    # it has to be a real JSON-serializable string -- a bare Mock() (the
+    # unittest.mock default) fails json.dumps() once record_practice() tries
+    # to write it to the real practice_log_broker below.
+    mock.judge_practice_attempt.return_value = "good"
+    return mock
 
 
 # ponytail: pre-existing gap, not F3 -- this fixture predates commit 62af299

@@ -23,7 +23,7 @@ class TestReviewOrchestratorRecordPracticeMistakePattern:
     ):
         # given
         mock_flag_service.get_flag.return_value = make_flag("flag-1", category="ser_estar")
-        mock_generation_service.judge_practice_attempt.return_value = True
+        mock_generation_service.judge_practice_attempt.return_value = "good"
 
         # when
         result = service.record_practice("flag-1", "estoy cansado")
@@ -45,7 +45,7 @@ class TestReviewOrchestratorRecordPracticeMistakePattern:
     ):
         # given
         mock_flag_service.get_flag.return_value = make_flag("flag-1", category="ser_estar")
-        mock_generation_service.judge_practice_attempt.return_value = False
+        mock_generation_service.judge_practice_attempt.return_value = "again"
 
         # when
         result = service.record_practice("flag-1", "soy cansado")
@@ -67,7 +67,7 @@ class TestReviewOrchestratorRecordPracticeMistakePattern:
         # given -- first-ever practice attempt for a category, mastered on
         # the first try: nothing to resolve, and that's not a failure.
         mock_flag_service.get_flag.return_value = make_flag("flag-1", category="gender")
-        mock_generation_service.judge_practice_attempt.return_value = True
+        mock_generation_service.judge_practice_attempt.return_value = "good"
         mock_mistake_pattern_processing_service.resolve.side_effect = NotFoundMistakePatternException()
 
         # when
@@ -86,7 +86,7 @@ class TestReviewOrchestratorRecordPracticeMistakePattern:
         # given
         flag = make_flag("flag-1", category="gender")
         mock_flag_service.get_flag.return_value = flag
-        mock_generation_service.judge_practice_attempt.return_value = True
+        mock_generation_service.judge_practice_attempt.return_value = "good"
 
         # when
         service.record_practice("flag-1", "la mesa")
@@ -104,7 +104,7 @@ class TestReviewOrchestratorRecordPracticeMistakePattern:
         # given
         flag = make_flag("flag-1", category="gender")
         mock_flag_service.get_flag.return_value = flag
-        mock_generation_service.judge_practice_attempt.return_value = True
+        mock_generation_service.judge_practice_attempt.return_value = "good"
 
         # when
         service.record_practice("flag-1", "la mesa", "ordering_coffee")
@@ -126,7 +126,7 @@ class TestReviewOrchestratorRecordPracticeMistakePattern:
         # already rejects an unknown slug with a 400 before this is called.
         flag = make_flag("flag-1", category="gender")
         mock_flag_service.get_flag.return_value = flag
-        mock_generation_service.judge_practice_attempt.return_value = True
+        mock_generation_service.judge_practice_attempt.return_value = "good"
 
         # when
         service.record_practice("flag-1", "la mesa", "not_a_real_scenario")

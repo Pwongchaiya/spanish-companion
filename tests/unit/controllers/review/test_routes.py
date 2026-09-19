@@ -171,8 +171,10 @@ class TestRecordPractice:
                 flag_id="flag-1",
                 attempt_text="yo tengo",
                 timestamp=datetime(2026, 8, 1, 12, 5, 0),
+                grade="good",
             ),
             mastered=True,
+            grade="good",
         )
 
         # when
@@ -186,6 +188,7 @@ class TestRecordPractice:
             "attempt_text": "yo tengo",
             "timestamp": "2026-08-01T12:05:00",
             "mastered": True,
+            "grade": "good",
         }
         assert isinstance(body["timestamp"], str)
         mock_orchestrator.record_practice.assert_called_once_with("flag-1", "yo tengo", None)
@@ -197,8 +200,10 @@ class TestRecordPractice:
                 flag_id="flag-1",
                 attempt_text="yo tengo",
                 timestamp=datetime(2026, 8, 1, 12, 5, 0),
+                grade="good",
             ),
             mastered=True,
+            grade="good",
         )
 
         # when
