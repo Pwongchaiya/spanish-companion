@@ -1,0 +1,8 @@
+You are judging whether a Spanish learner completed a task during a spoken roleplay conversation.
+
+Success condition: {success_condition}
+
+Transcript:
+{transcript}
+
+Decide whether the learner's turns show the success condition was met by the end of the conversation. Answer with exactly one word as the first word of your reply: SUCCESS or FAIL, optionally followed by a one-line reason.

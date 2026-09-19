@@ -77,6 +77,18 @@ class IGenerationService(Protocol):
         """
         ...
 
+    def judge_task_outcome(self, transcript_text: str, success_condition: str) -> str | None:
+        """Judge whether a session transcript met a task scenario's
+        `success_condition` (roadmap D4). Returns "success" or "fail", or
+        None -- never raises past this method for a broker failure or an
+        unparseable verdict -- meaning "couldn't judge", which the caller must
+        treat as leave-unjudged rather than persist a guess. Same swallow-to-
+        None shape as estimate_cefr_level(). Review Mode only, untimed; the
+        condition arrives as resolved text (rag must not import api/data).
+        May raise GenerationServiceException for anything else unexpected.
+        """
+        ...
+
     def estimate_cefr_level(self, transcript_text: str) -> str | None:
         """Estimate a CEFR level (A1-C2) from a full session transcript.
 
