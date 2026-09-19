@@ -5,7 +5,9 @@ import type {
   PracticeAttempt,
   SessionScenario,
   SessionStatus,
+  SpeakingTotal,
   TopicCoverageEntry,
+  UnflaggedStreak,
 } from "./types";
 
 export type ApiClientError = Error & { status?: number };
@@ -44,6 +46,8 @@ export const apiClient = {
   listMistakeSummary: (): Promise<MistakePatternSummary[]> =>
     fetch("/progress/mistakes").then(json<MistakePatternSummary[]>),
   listTopicCoverage: (): Promise<TopicCoverageEntry[]> => fetch("/progress/topics").then(json<TopicCoverageEntry[]>),
+  getSpeakingTotal: (): Promise<SpeakingTotal> => fetch("/progress/speaking").then(json<SpeakingTotal>),
+  getUnflaggedStreak: (): Promise<UnflaggedStreak> => fetch("/progress/streak").then(json<UnflaggedStreak>),
   explainFlag: (flagId: string): Promise<Explanation> => fetch(`/review/flags/${flagId}/explain`).then(json<Explanation>),
   submitPractice: (flagId: string, attemptText: string, roleplaySlug?: string): Promise<PracticeAttempt> =>
     fetch(`/review/flags/${flagId}/practice`, {

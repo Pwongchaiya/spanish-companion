@@ -5,13 +5,49 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
+// C1's "with milestones". A presentation ladder, so it lives here rather
+// than in ProgressOrchestrationService -- the service returns raw seconds.
+const MILESTONE_HOURS = [1, 5, 10, 25, 50, 100];
+
+export function formatSpoken(totalSeconds: number): string {
+  if (totalSeconds < 3600) return `${Math.floor(totalSeconds / 60)} min`;
+  return `${(totalSeconds / 3600).toFixed(1)} h`;
+}
+
+export function nextMilestone(totalSeconds: number): number | null {
+  const hours = totalSeconds / 3600;
+  return MILESTONE_HOURS.find((m) => m > hours) ?? null;
+}
+
 export function ProgressView() {
-  const { mistakes, topics, hasLoaded } = useProgress();
+  const { mistakes, topics, speaking, streak, hasLoaded } = useProgress();
   const activeMistakes = mistakes.filter((m) => m.status === "active");
   const coveredCount = topics.filter((t) => t.covered).length;
+  const upcomingMilestone = speaking ? nextMilestone(speaking.total_seconds) : null;
 
   return (
     <div className="view progress-view">
+      <section className="meters">
+        <div className="meter">
+          <p className="kicker">Time spoken</p>
+          <p className="meter-value">{speaking ? formatSpoken(speaking.total_seconds) : "—"}</p>
+          <p className="meter-sub">
+            {speaking
+              ? `${speaking.session_count} session${speaking.session_count === 1 ? "" : "s"}` +
+                (upcomingMilestone ? ` · next ${upcomingMilestone} h` : "")
+              : "Loading…"}
+          </p>
+        </div>
+
+        <div className="meter">
+          <p className="kicker">Clean streak</p>
+          <p className="meter-value">{streak ? streak.current : "—"}</p>
+          <p className="meter-sub">
+            {streak ? `sessions with no flags · best ${streak.longest}` : "Loading…"}
+          </p>
+        </div>
+      </section>
+
       <section>
         <p className="kicker">Recurring mistakes</p>
         {mistakes.length === 0 && (
