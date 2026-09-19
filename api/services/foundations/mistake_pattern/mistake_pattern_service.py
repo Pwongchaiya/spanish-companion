@@ -36,6 +36,9 @@ it's a business check on a normal return value, the same shape as
 `SelectUserProfileByIdAsync`'s result.
 """
 
+from datetime import datetime
+from typing import Optional
+
 from api.brokers.logging import LoggingBroker
 from api.brokers.mistake_pattern.i_mistake_pattern_broker import IMistakePatternBroker
 from api.models.foundations.mistake_pattern.exceptions import NotFoundMistakePatternException
@@ -81,11 +84,18 @@ class MistakePatternService(
 
         return self._try_catch(action)
 
-    def update_mistake_pattern(self, pattern_id: int, occurrence_count: int, status: str) -> MistakePattern:
+    def update_mistake_pattern(
+        self,
+        pattern_id: int,
+        occurrence_count: int,
+        status: str,
+        interval_days: Optional[float] = None,
+        next_due_at: Optional[datetime] = None,
+    ) -> MistakePattern:
         def action() -> MistakePattern:
-            self._validate_mistake_pattern_on_update(pattern_id, occurrence_count, status)
+            self._validate_mistake_pattern_on_update(pattern_id, occurrence_count, status, interval_days)
             maybe_mistake_pattern = self._mistake_pattern_broker.update_mistake_pattern(
-                pattern_id, occurrence_count, status
+                pattern_id, occurrence_count, status, interval_days, next_due_at
             )
             if maybe_mistake_pattern is None:
                 raise NotFoundMistakePatternException()
