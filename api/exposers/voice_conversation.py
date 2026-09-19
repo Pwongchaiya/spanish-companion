@@ -148,10 +148,12 @@ def _load_scenario(logging_broker: LoggingBroker) -> Optional[SessionScenario]:
         return None
 
 
-def _scenario_text(scenario: Optional[SessionScenario]) -> str:
+def _scenario_text(scenario: Optional[SessionScenario], has_difficulty_block: bool = False) -> str:
+    """has_difficulty_block: the D6 CEFR block is already in the prompt and is
+    the single source for the level, so the proficiency line is dropped."""
     if scenario is None:
         return _GENERIC_SCENARIO_TEXT
-    parts = [f"Speak at a {scenario.proficiency_level} proficiency level."]
+    parts = [] if has_difficulty_block else [f"Speak at a {scenario.proficiency_level} proficiency level."]
     if scenario.suggested_topic:
         parts.append(f"Focus this session on: {scenario.suggested_topic}.")
     return " ".join(parts)
@@ -171,6 +173,9 @@ def _read_cefr_estimate(logging_broker: LoggingBroker) -> Optional[str]:
     degrade-don't-crash stance as _load_scenario -- any profile-read
     failure just means no difficulty block."""
     try:
+        # ponytail: builds a second engine beside _load_scenario's (each broker owns its own
+        # create_engine); sharing one needs the whole chain built once in _compose_system_prompt
+        # and threaded into both helpers -- do that if startup cost/pool count ever matters.
         learner_profile_service = LearnerProfileService(
             SqlAlchemyLearnerProfileBroker(EnvConfigurationBroker().require("DATABASE_URL")),
             logging_broker=logging_broker,
@@ -196,9 +201,10 @@ def _compose_system_prompt(logging_broker: LoggingBroker, pressure_prompt_block:
     except Exception as e:  # noqa: BLE001 -- degrade, don't crash
         logging_broker.log_warning("Scenario load failed: %s", e)
         scenario = None
-    scenario_text = override or _scenario_text(scenario)
+    difficulty_block = get_difficulty_block(_read_cefr_estimate(logging_broker))
+    scenario_text = override or _scenario_text(scenario, has_difficulty_block=bool(difficulty_block))
     prompt = f"{base_rules}\n\nFor this session, practice: {scenario_text}\n\n{pressure_prompt_block}"
-    for block in (get_difficulty_block(_read_cefr_estimate(logging_broker)), _priming_block(scenario, logging_broker)):
+    for block in (difficulty_block, _priming_block(scenario, logging_broker)):
         if block:
             prompt = f"{prompt}\n\n{block}"
     return prompt
