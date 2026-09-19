@@ -1,4 +1,4 @@
-"""Unit tests for the session_lifecycle Flask blueprint -- HTTP mapping only.
+﻿"""Unit tests for the session_lifecycle Flask blueprint -- HTTP mapping only.
 
 ConversationSessionService is mocked (Mock(spec=ConversationSessionService)):
 no real broker, no real start/stop/graceful-escalation logic. These tests
@@ -152,6 +152,8 @@ class TestSessionLifecycleRoutesSessionScenario:
             "suggested_topic": "gender_agreement",
             "recent_mistake_categories": ["gender_agreement"],
             "due_patterns": [],
+            "boss_fight_text": None,
+            "boss_fight_categories": [],
         }
         mock_learner_profile_controller.suggest_session_scenario.assert_called_once_with()
 
