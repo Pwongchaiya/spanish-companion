@@ -115,7 +115,7 @@ describe("ConversationView scenario picker", () => {
     fireEvent.click(screen.getByRole("button", { name: "Push" }));
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
 
-    expect(startMock).toHaveBeenCalledWith("talk about the weather", undefined, "push", "neutral");
+    expect(startMock).toHaveBeenCalledWith("talk about the weather", undefined, "push", "neutral", undefined);
   });
 
   it("passes the selected session length as a hint, and Done/Start both collapse the panel", () => {
@@ -131,7 +131,7 @@ describe("ConversationView scenario picker", () => {
     expect(screen.getByRole("button", { name: "+ More to adjust" })).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
-    expect(startMock).toHaveBeenCalledWith(expect.any(String), "5", "normal", "neutral");
+    expect(startMock).toHaveBeenCalledWith(expect.any(String), "5", "normal", "neutral", undefined);
   });
 
   it("passes the selected Spanish variety to start(), defaulting to neutral", () => {
@@ -144,7 +144,7 @@ describe("ConversationView scenario picker", () => {
     fireEvent.click(screen.getByRole("button", { name: "Rioplatense" }));
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
 
-    expect(startMock).toHaveBeenCalledWith(expect.any(String), undefined, "normal", "rioplatense");
+    expect(startMock).toHaveBeenCalledWith(expect.any(String), undefined, "normal", "rioplatense", undefined);
   });
 });
 
@@ -177,7 +177,7 @@ describe("ConversationView boss fight (C4)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Boss fight" }));
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
 
-    expect(start).toHaveBeenCalledWith("Boss fight: quiz me on ser estar", undefined, "push", "neutral");
+    expect(start).toHaveBeenCalledWith("Boss fight: quiz me on ser estar", undefined, "push", "neutral", undefined);
   });
 });
 
@@ -360,7 +360,21 @@ describe("ConversationView roleplay picker (Phase 4)", () => {
       undefined,
       "normal",
       "neutral",
+      "job_interview",
     );
+  });
+
+  it("drops the picked slug when the scene text is hand-edited afterwards", () => {
+    const start = vi.fn();
+    mockSession({ status: { running: false, ready: false, graceful: null }, scenario: loadedScenario, start });
+    render(<ConversationView />);
+    fireEvent.click(screen.getByRole("button", { name: "+ More to adjust" }));
+
+    fireEvent.change(screen.getByLabelText("Or pick a roleplay"), { target: { value: "job_interview" } });
+    fireEvent.change(screen.getByLabelText("Set the scene — who should I be?"), { target: { value: "my own scene" } });
+    fireEvent.click(screen.getByRole("button", { name: "Start" }));
+
+    expect(start).toHaveBeenCalledWith("my own scene", undefined, "normal", "neutral", undefined);
   });
 });
 

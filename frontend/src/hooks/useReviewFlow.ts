@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiClient } from "../api/client";
 import type { ApiClientError } from "../api/client";
-import type { Explanation, Flag, PracticeAttempt } from "../api/types";
+import type { Explanation, Flag, PracticeAttempt, TaskOutcome } from "../api/types";
 import { useToastStore } from "../state/toastStore";
 import { useConnectionStore } from "../state/connectionStore";
 import { classifyError } from "../api/errorClassification";
@@ -18,6 +18,7 @@ export function useReviewFlow() {
   const [explanation, setExplanation] = useState<Explanation | null>(null);
   const [attempt, setAttempt] = useState<PracticeAttempt | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [taskOutcome, setTaskOutcome] = useState<TaskOutcome | null>(null);
   const addToast = useToastStore((s) => s.addToast);
 
   useEffect(() => {
@@ -30,6 +31,20 @@ export function useReviewFlow() {
       "Having trouble reaching the server.",
       "These are the flags from last time, held locally.",
     );
+  }, []);
+
+  // D4 badge: best-effort, never toasts -- a missing badge is not worth an error.
+  useEffect(() => {
+    let cancelled = false;
+    apiClient
+      .getTaskOutcome()
+      .then((result) => {
+        if (!cancelled) setTaskOutcome(result);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function handleCaughtError(e: unknown, retry: () => void, friendlyMessage: string, friendlySubMessage: string) {
@@ -87,5 +102,16 @@ export function useReviewFlow() {
 
   const selectedFlag = flags.find((f) => f.id === selectedFlagId) ?? null;
 
-  return { flags, hasLoaded, selectedFlag, explanation, attempt, error, selectFlag, submitPractice, backToList };
+  return {
+    flags,
+    hasLoaded,
+    selectedFlag,
+    explanation,
+    attempt,
+    error,
+    taskOutcome,
+    selectFlag,
+    submitPractice,
+    backToList,
+  };
 }

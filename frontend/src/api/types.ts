@@ -33,6 +33,15 @@ export interface PracticeAttempt {
   grade: PracticeGrade;
 }
 
+// D4 task scenario result for the latest completed session; outcome null =
+// not judged yet (no transcript, or the judge couldn't decide).
+export interface TaskOutcome {
+  scenario_slug: string;
+  label: string;
+  success_condition: string;
+  outcome: "success" | "fail" | null;
+}
+
 export type TurnState = "listening" | "thinking" | "speaking" | "idle" | null;
 
 export interface DuePattern {

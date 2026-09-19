@@ -130,6 +130,8 @@ export function ConversationView() {
   const [variant, setVariant] = useState<(typeof VARIANTS)[number]["key"]>("neutral");
   const [sceneText, setSceneText] = useState("");
   const [sceneEdited, setSceneEdited] = useState(false);
+  // D4: slug of the picked roleplay; dropped as soon as the scene text is hand-edited.
+  const [scenarioSlug, setScenarioSlug] = useState<string | undefined>(undefined);
   const [panelOpen, setPanelOpen] = useState(false);
   const [sessionLength, setSessionLength] = useState<(typeof SESSION_LENGTHS)[number] | null>(null);
 
@@ -270,6 +272,7 @@ export function ConversationView() {
                   onChange={(e) => {
                     setSceneText(e.target.value);
                     setSceneEdited(true);
+                    setScenarioSlug(undefined);
                   }}
                 />
                 <label className="field-label" htmlFor="roleplay-select">
@@ -284,6 +287,7 @@ export function ConversationView() {
                     if (picked) {
                       setSceneText(picked.setting);
                       setSceneEdited(true);
+                      setScenarioSlug(picked.slug);
                     }
                   }}
                 >
@@ -359,7 +363,7 @@ export function ConversationView() {
               } else {
                 setPanelOpen(false);
                 setRecap(null);
-                start(scenarioText || undefined, sessionLength ?? undefined, pressure, variant);
+                start(scenarioText || undefined, sessionLength ?? undefined, pressure, variant, scenarioSlug);
                 setSceneEdited(false);
               }
             }}

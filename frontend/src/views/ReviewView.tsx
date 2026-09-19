@@ -5,8 +5,18 @@ import { groupScenariosByTier } from "../data/roleplayScenarios";
 import "./ReviewView.css";
 
 export function ReviewView() {
-  const { flags, hasLoaded, selectedFlag, explanation, attempt, error, selectFlag, submitPractice, backToList } =
-    useReviewFlow();
+  const {
+    flags,
+    hasLoaded,
+    selectedFlag,
+    explanation,
+    attempt,
+    error,
+    taskOutcome,
+    selectFlag,
+    submitPractice,
+    backToList,
+  } = useReviewFlow();
   const [attemptText, setAttemptText] = useState("");
   const [roleplaySlug, setRoleplaySlug] = useState("");
   // Explaining a flag needs retrieval, and retrieval needs the server -- so
@@ -28,6 +38,16 @@ export function ReviewView() {
               <i />
             </div>
             <div className="st">Flagged</div>
+            {taskOutcome && (
+              <p className={`task-badge task-${taskOutcome.outcome ?? "pending"}`} title={taskOutcome.success_condition}>
+                {taskOutcome.label}:{" "}
+                {taskOutcome.outcome === "success"
+                  ? "Task complete"
+                  : taskOutcome.outcome === "fail"
+                    ? "Task not completed"
+                    : "Not judged yet"}
+              </p>
+            )}
             {!connectionOk && hasCachedList && (
               <p className="hint">You can read the list. Explanations come from the server, so those wait.</p>
             )}

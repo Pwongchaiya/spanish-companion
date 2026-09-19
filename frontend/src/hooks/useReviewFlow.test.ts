@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("../api/client", () => ({
   apiClient: {
     listFlags: vi.fn(),
+    getTaskOutcome: vi.fn(() => Promise.resolve(null)),
     explainFlag: vi.fn(),
     submitPractice: vi.fn(),
   },
