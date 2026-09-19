@@ -66,6 +66,7 @@ def client(session_log_entry_service):
     recap_aggregator = SessionRecapAggregationService(
         Mock(spec=ReviewService),
         orchestrator,
+        Mock(),
         logging_broker=StdlibLoggingBroker(),
     )
     app = Flask(__name__)
