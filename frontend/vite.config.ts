@@ -15,6 +15,7 @@ export default defineConfig({
       '/api': 'http://localhost:5000',
       '/review': 'http://localhost:5000',
       '/progress': 'http://localhost:5000',
+      '/pronunciation': 'http://localhost:5000',
       '/tts': 'http://localhost:5000',
     },
   },
