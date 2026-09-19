@@ -111,7 +111,14 @@ from api.models.foundations.live_transcript.exceptions import (
     LiveTranscriptServiceException,
 )
 from api.models.orchestrations.voice_conversation.exceptions import VoiceConversationPipelineError
+from api.models.foundations.session_log_entry.exceptions import (
+    SessionLogEntryDependencyException,
+    SessionLogEntryServiceException,
+    SessionLogEntryValidationException,
+)
+from api.models.foundations.session_log_entry.session_log_entry import SessionLogEntry
 from api.services.foundations.flag import IFlagService
+from api.services.foundations.session_log_entry import ISessionLogEntryService
 from api.services.foundations.live_transcript import ILiveTranscriptService
 from api.services.foundations.session_log import ISessionLogService
 from api.services.orchestrations.voice_conversation._mic_gate import _MicGate
@@ -230,8 +237,18 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
     service already takes LoggingBroker/ConfigurationBroker directly, so a
     direct broker dependency is the established shape. SessionLogBroker (for
     the turn-state signal only) is injected directly for the same reason.
-    FlagService, SessionLogService, and LiveTranscriptService are the
-    Foundation-tier dependencies.
+    FlagService, SessionLogService, LiveTranscriptService, and
+    SessionLogEntryService are the Foundation-tier dependencies.
+
+    SessionLogEntryService (roadmap C1/C3) is written here rather than from
+    Session Lifecycle's /start and /stop because this is the only component
+    that knows both ends of the real conversation: /start returns as soon as
+    the subprocess spawns, ~16s before the pipeline is warm, and the exact
+    per-session flag count only exists in this service's `session_flags`
+    list. Reading it back out of flags.json from the Flask process would
+    race the subprocess's own final flush. Both writes are guarded the same
+    way the three cleanup writes below are -- a session_log failure must
+    never take down a live conversation.
 
     run() delegates its setup phase to a private _setup() method through
     _try_catch (defined in the Exceptions mixin), mirroring Session
@@ -249,6 +266,7 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
         live_transcript_service: ILiveTranscriptService,
         flag_service: IFlagService,
         session_log_broker: SessionLogBroker,
+        session_log_entry_service: ISessionLogEntryService,
         *,
         logging_broker: LoggingBroker,
         configuration_broker: ConfigurationBroker = EnvConfigurationBroker(),
@@ -261,6 +279,7 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
         self._live_transcript_service = live_transcript_service
         self._flag_service = flag_service
         self._session_log_broker = session_log_broker
+        self._session_log_entry_service = session_log_entry_service
         # Mirrors the LoggingBroker constructor parameter on
         # ConversationSessionService/_ReviewOrchestrationServiceBase -- _create_and_log_*
         # methods (Exceptions mixin) log through it before raising.
@@ -284,13 +303,20 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
         # run()'s setup in try/finally too, which risks touching already-verified
         # code for a startup race a real user is unlikely to hit.
         self._logging_broker.log_info("Voice loop starting — talk into your mic. Ctrl+C to stop.")
+        # Roadmap C1/C3. Opened here, not at /start: the subprocess spawns
+        # ~16s before the pipeline is warm (see ConversationSessionService's
+        # SESSION_READY_WARMUP_SECONDS), and a speaking-hours meter that
+        # counts warm-up is wrong. Guarded like every other persistence
+        # write in this method -- a session_log failure logs and the
+        # conversation continues, it just won't appear in the meter.
+        session_log_entry = self._begin_session_log_entry()
         try:
             await runner.run()
         finally:
             live_transcript_task.cancel()
             stop_watch_task.cancel()
             turns = self._extract_turns(context)
-            # Each of the three cleanup writes below is guarded separately:
+            # Each of the four cleanup writes below is guarded separately:
             # they are independent, and before W3 a failure in an earlier one
             # aborted the whole block and lost the later ones' data.
             try:
@@ -312,6 +338,7 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
                 self._session_log_broker.write_turn_state("idle")
             except OSError as e:
                 self._logging_broker.log_error(e)
+            self._end_session_log_entry(session_log_entry, len(session_flags))
 
         if self._setup_timed_out:
             raise VoiceConversationPipelineError(
@@ -320,6 +347,48 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
                 "connection, or Windows AV scanning fresh native DLLs on a cold "
                 "start). No conversation started."
             )
+
+    def _begin_session_log_entry(self) -> Optional[SessionLogEntry]:
+        """Open the `session_log` row for this session (roadmap C1/C3).
+
+        Returns None -- and logs -- if the write fails, so a DB that's down
+        costs the speaking-hours meter one session rather than costing the
+        user a conversation. `_end_session_log_entry` no-ops on None.
+        """
+        try:
+            return self._session_log_entry_service.create_session_log_entry(datetime.now())
+        except (
+            SessionLogEntryValidationException,
+            SessionLogEntryDependencyException,
+            SessionLogEntryServiceException,
+        ) as e:
+            self._logging_broker.log_error(e)
+            return None
+
+    def _end_session_log_entry(self, entry: Optional[SessionLogEntry], flag_count: int) -> None:
+        """Close the `session_log` row with its end time and flag count.
+
+        `flag_count` is `len(session_flags)` -- the in-memory list this
+        service built as the conversation ran. Deliberately not re-read from
+        flags.json: that file is rewritten by this same cleanup block, so
+        reading it back would race our own write.
+
+        ponytail: a SIGKILLed subprocess never reaches here, leaving
+        ended_at NULL. Both Progress aggregates skip those rows rather than
+        guess -- see ProgressOrchestrationService. Upgrade path if that ever
+        loses too much data: have the periodic flag-persistence loop
+        heartbeat ended_at too.
+        """
+        if entry is None:
+            return
+        try:
+            self._session_log_entry_service.complete_session_log_entry(entry.id, datetime.now(), flag_count)
+        except (
+            SessionLogEntryValidationException,
+            SessionLogEntryDependencyException,
+            SessionLogEntryServiceException,
+        ) as e:
+            self._logging_broker.log_error(e)
 
     async def _setup(self) -> Tuple[WorkerRunner, LLMContext, List[Flag]]:
         """Construct the pipeline and start it running. Returns (runner,

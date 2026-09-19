@@ -56,6 +56,7 @@ from api.brokers.logging import LoggingBroker, StdlibLoggingBroker
 from api.brokers.mistake_pattern.mistake_pattern_broker import SqlAlchemyMistakePatternBroker
 from api.brokers.prompt import FilePromptBroker
 from api.brokers.session_log import FileSessionLogBroker
+from api.brokers.session_log_entry import SqlAlchemySessionLogEntryBroker
 from api.brokers.stt import AzureSttBroker
 from api.brokers.topic_covered import SqlAlchemyTopicCoveredBroker
 from api.exposers.learner_profile import LearnerProfileController
@@ -69,6 +70,7 @@ from api.services.foundations.learner_profile import LearnerProfileService
 from api.services.foundations.live_transcript import LiveTranscriptService
 from api.services.foundations.mistake_pattern import MistakePatternService
 from api.services.foundations.session_log import SessionLogService
+from api.services.foundations.session_log_entry import SessionLogEntryService
 from api.services.foundations.topic_covered import TopicCoveredService
 from api.services.orchestrations.learner_profile import LearnerProfileOrchestrationService
 from api.services.orchestrations.voice_conversation import ConversationOrchestrationService
@@ -201,6 +203,19 @@ def main() -> None:
         live_transcript_service=LiveTranscriptService(session_log_broker, logging_broker=logging_broker),
         flag_service=FlagService(JsonFileFlagBroker(), logging_broker=logging_broker),
         session_log_broker=session_log_broker,
+        # Roadmap C1/C3. No new configuration: DATABASE_URL is already a
+        # required var (CLAUDE.md's env table) and api/app.py -- the only
+        # thing that launches this subprocess -- reads it at import, so it
+        # is always set by the time we get here. `require()` rather than
+        # the soft fallback _default_scenario_text uses: an unset var is a
+        # misconfiguration worth failing loudly on, whereas an unreachable
+        # DB is handled downstream (the two write calls in
+        # ConversationOrchestrationService are individually guarded, so a
+        # dead DB costs the meter one session, not the conversation).
+        session_log_entry_service=SessionLogEntryService(
+            SqlAlchemySessionLogEntryBroker(configuration_broker.require("DATABASE_URL")),
+            logging_broker=logging_broker,
+        ),
         logging_broker=logging_broker,
         configuration_broker=configuration_broker,
     )
