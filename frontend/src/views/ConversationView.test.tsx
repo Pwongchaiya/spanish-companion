@@ -1,12 +1,15 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ConversationView } from "./ConversationView";
 import { useConnectionStore } from "../state/connectionStore";
 import { useSessionState } from "../hooks/useSessionState";
+import { apiClient } from "../api/client";
 
 vi.mock("../hooks/useSessionState");
+vi.mock("../api/client");
 
 const mockUseSessionState = vi.mocked(useSessionState);
+const mockGetSessionRecap = vi.mocked(apiClient.getSessionRecap);
 
 function mockSession(overrides: Partial<ReturnType<typeof useSessionState>>) {
   mockUseSessionState.mockReturnValue({
@@ -115,6 +118,94 @@ describe("ConversationView scenario picker", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
     expect(startMock).toHaveBeenCalledWith(expect.any(String), "5", "normal");
+  });
+});
+
+describe("ConversationView post-session recap (C2)", () => {
+  beforeEach(() => {
+    useConnectionStore.getState().setOk();
+    mockGetSessionRecap.mockReset();
+  });
+
+  it("fetches and shows the recap once a running session stops", async () => {
+    mockGetSessionRecap.mockResolvedValue({
+      flag_count: 2,
+      categories_flagged: ["gender-agreement", "ser-vs-estar"],
+      session_started_at: "2026-09-18T18:00:00",
+      session_ended_at: "2026-09-18T18:20:00",
+    });
+    mockSession({ status: { running: true, ready: true, graceful: null } });
+    const { rerender } = render(<ConversationView />);
+
+    expect(mockGetSessionRecap).not.toHaveBeenCalled();
+
+    mockSession({ status: { running: false, ready: false, graceful: null } });
+    rerender(<ConversationView />);
+
+    await waitFor(() => expect(mockGetSessionRecap).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText("2 flags this session")).toBeTruthy();
+    expect(screen.getByText("gender-agreement, ser-vs-estar")).toBeTruthy();
+  });
+
+  it("does not fetch a recap while idle from the start (no prior running session)", () => {
+    mockSession({ status: { running: false, ready: false, graceful: null } });
+    render(<ConversationView />);
+
+    expect(mockGetSessionRecap).not.toHaveBeenCalled();
+  });
+
+  it("shows a no-flags message when the session was clean", async () => {
+    mockGetSessionRecap.mockResolvedValue({
+      flag_count: 0,
+      categories_flagged: [],
+      session_started_at: "2026-09-18T18:00:00",
+      session_ended_at: "2026-09-18T18:10:00",
+    });
+    mockSession({ status: { running: true, ready: true, graceful: null } });
+    const { rerender } = render(<ConversationView />);
+
+    mockSession({ status: { running: false, ready: false, graceful: null } });
+    rerender(<ConversationView />);
+
+    expect(await screen.findByText("No flags this session.")).toBeTruthy();
+  });
+
+  it("dismisses the card on click", async () => {
+    mockGetSessionRecap.mockResolvedValue({
+      flag_count: 1,
+      categories_flagged: ["ser-vs-estar"],
+      session_started_at: "2026-09-18T18:00:00",
+      session_ended_at: "2026-09-18T18:05:00",
+    });
+    mockSession({ status: { running: true, ready: true, graceful: null } });
+    const { rerender } = render(<ConversationView />);
+
+    mockSession({ status: { running: false, ready: false, graceful: null } });
+    rerender(<ConversationView />);
+
+    await screen.findByText("1 flag this session");
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+
+    expect(screen.queryByText("1 flag this session")).toBeNull();
+  });
+
+  it("clears any showing recap once a new session starts", async () => {
+    mockGetSessionRecap.mockResolvedValue({
+      flag_count: 1,
+      categories_flagged: ["ser-vs-estar"],
+      session_started_at: "2026-09-18T18:00:00",
+      session_ended_at: "2026-09-18T18:05:00",
+    });
+    mockSession({ status: { running: true, ready: true, graceful: null } });
+    const { rerender } = render(<ConversationView />);
+
+    mockSession({ status: { running: false, ready: false, graceful: null } });
+    rerender(<ConversationView />);
+    await screen.findByText("1 flag this session");
+
+    fireEvent.click(screen.getByRole("button", { name: "Start" }));
+
+    expect(screen.queryByText("1 flag this session")).toBeNull();
   });
 });
 

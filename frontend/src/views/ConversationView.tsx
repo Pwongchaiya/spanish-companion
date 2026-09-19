@@ -3,8 +3,32 @@ import "./ConversationView.css";
 import { useSessionState } from "../hooks/useSessionState";
 import { useMicPermission } from "../hooks/useMicPermission";
 import { useConnectionStore } from "../state/connectionStore";
-import type { SessionScenario, TurnState } from "../api/types";
+import { apiClient } from "../api/client";
+import type { SessionRecap, SessionScenario, TurnState } from "../api/types";
 import { ROLEPLAY_SCENARIOS } from "../data/roleplayScenarios";
+
+// C2 post-session recap card. Plain summary, not a celebratory screen --
+// this is a personal single-user app (see CLAUDE.md's "deprioritize social/
+// gamification framing" memory note). Dismissible so it doesn't sit in the
+// way of starting the next session.
+function SessionRecapCard({ recap, onDismiss }: { recap: SessionRecap; onDismiss: () => void }) {
+  return (
+    <div className="recap-card">
+      <button type="button" className="recap-dismiss" onClick={onDismiss} aria-label="Dismiss">
+        ×
+      </button>
+      <p className="kicker">Session recap</p>
+      <p className="recap-flags">
+        {recap.flag_count === 0
+          ? "No flags this session."
+          : `${recap.flag_count} flag${recap.flag_count === 1 ? "" : "s"} this session`}
+      </p>
+      {recap.categories_flagged.length > 0 && (
+        <p className="recap-categories">{recap.categories_flagged.join(", ")}</p>
+      )}
+    </div>
+  );
+}
 
 // How close to the bottom (px) still counts as "pinned" -- new turns
 // auto-scroll into view. Past that, the user is reading history and a
@@ -135,6 +159,22 @@ export function ConversationView() {
       : transcript.length === 0
         ? "press Start and talk"
         : null;
+
+  // Fetch the recap once per stop, not on every render while stopped --
+  // wasRunningRef tracks the previous status.running so the effect only
+  // fires on the running -> stopped transition, mirroring the "fetch once
+  // while idle" shape useSessionState already uses for the scenario picker.
+  const [recap, setRecap] = useState<SessionRecap | null>(null);
+  const wasRunningRef = useRef(status.running);
+  useEffect(() => {
+    if (wasRunningRef.current && !status.running) {
+      apiClient
+        .getSessionRecap()
+        .then(setRecap)
+        .catch(() => {}); // optional, never load-bearing for starting the next session
+    }
+    wasRunningRef.current = status.running;
+  }, [status.running]);
 
   const transcriptRef = useRef<HTMLDivElement>(null);
   const pinnedRef = useRef(true);
@@ -273,6 +313,7 @@ export function ConversationView() {
                 stop();
               } else {
                 setPanelOpen(false);
+                setRecap(null);
                 start(scenarioText || undefined, sessionLength ?? undefined, pressure);
                 setSceneEdited(false);
               }
@@ -282,6 +323,8 @@ export function ConversationView() {
           </button>
         )}
       </div>
+
+      {recap && <SessionRecapCard recap={recap} onDismiss={() => setRecap(null)} />}
 
       <div className="transcript" ref={transcriptRef} onScroll={handleScroll}>
         {transcript.map((turn, i) => (

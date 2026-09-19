@@ -67,6 +67,13 @@ export interface TopicCoverageEntry {
   first_covered_at: string | null;
 }
 
+export interface SessionRecap {
+  flag_count: number;
+  categories_flagged: string[];
+  session_started_at: string;
+  session_ended_at: string | null;
+}
+
 export type ServerEvent =
   | { type: "status"; status: SessionStatus }
   | { type: "transcript"; turns: TranscriptTurn[] }

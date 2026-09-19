@@ -3,6 +3,7 @@ import type {
   Flag,
   MistakePatternSummary,
   PracticeAttempt,
+  SessionRecap,
   SessionScenario,
   SessionStatus,
   SpeakingTotal,
@@ -48,6 +49,7 @@ export const apiClient = {
   listTopicCoverage: (): Promise<TopicCoverageEntry[]> => fetch("/progress/topics").then(json<TopicCoverageEntry[]>),
   getSpeakingTotal: (): Promise<SpeakingTotal> => fetch("/progress/speaking").then(json<SpeakingTotal>),
   getUnflaggedStreak: (): Promise<UnflaggedStreak> => fetch("/progress/streak").then(json<UnflaggedStreak>),
+  getSessionRecap: (): Promise<SessionRecap | null> => fetch("/progress/recap").then(json<SessionRecap | null>),
   explainFlag: (flagId: string): Promise<Explanation> => fetch(`/review/flags/${flagId}/explain`).then(json<Explanation>),
   submitPractice: (flagId: string, attemptText: string, roleplaySlug?: string): Promise<PracticeAttempt> =>
     fetch(`/review/flags/${flagId}/practice`, {
