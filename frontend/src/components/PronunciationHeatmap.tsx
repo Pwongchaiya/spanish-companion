@@ -17,6 +17,8 @@ function label(w: WordScore): string {
 export function PronunciationHeatmap({ words }: { words: WordScore[] }) {
   const [open, setOpen] = useState<number | null>(null);
   const expanded = open === null ? null : words[open];
+  // es-ES Azure returns blank phoneme names (scores just repeat the word's), so those carry no detail.
+  const namedPhonemes = expanded ? expanded.phonemes.filter((p) => p.phoneme !== "") : [];
 
   return (
     <div className="heatmap">
@@ -39,10 +41,10 @@ export function PronunciationHeatmap({ words }: { words: WordScore[] }) {
 
       {expanded && (
         <ul className="heatmap-phonemes" aria-label={`Phonemes for ${expanded.word}`}>
-          {expanded.phonemes.length === 0 ? (
+          {namedPhonemes.length === 0 ? (
             <li className="heatmap-empty">No phoneme detail</li>
           ) : (
-            expanded.phonemes.map((p, j) => (
+            namedPhonemes.map((p, j) => (
               <li key={j} className={`heatmap-chip ${band(p.accuracy)}`}>
                 {p.phoneme} <span className="heatmap-score">{Math.round(p.accuracy)}</span>
               </li>

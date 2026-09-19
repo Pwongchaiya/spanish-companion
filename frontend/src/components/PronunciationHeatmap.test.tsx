@@ -59,6 +59,13 @@ describe("PronunciationHeatmap", () => {
     expect(screen.queryByRole("list")).toBeNull();
   });
 
+  it("treats blank phoneme names (es-ES Azure output) as no detail", () => {
+    const blank = [{ word: "corre", accuracy: 76, error_type: "None", phonemes: [{ phoneme: "", accuracy: 76 }] }];
+    render(<PronunciationHeatmap words={blank} />);
+    fireEvent.click(screen.getByRole("button", { name: "corre, 76" }));
+    expect(screen.getByText("No phoneme detail")).toBeTruthy();
+  });
+
   it("shows a fallback for a word with empty phonemes", () => {
     render(<PronunciationHeatmap words={WORDS} />);
     fireEvent.click(screen.getByRole("button", { name: "rápido, 65" }));
