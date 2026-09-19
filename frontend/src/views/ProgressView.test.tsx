@@ -13,6 +13,8 @@ function mockProgress(overrides: Partial<ReturnType<typeof useProgress>>) {
     topics: [],
     speaking: null,
     streak: null,
+    trend: [],
+    trendLoaded: true,
     hasLoaded: true,
     ...overrides,
   });
@@ -118,5 +120,28 @@ describe("ProgressView meters", () => {
     render(<ProgressView />);
 
     expect(screen.getAllByText("—")).toHaveLength(2);
+  });
+});
+
+describe("ProgressView pronunciation", () => {
+  it("shows the empty state when there are no attempts", () => {
+    mockProgress({ trend: [], trendLoaded: true });
+
+    render(<ProgressView />);
+
+    expect(screen.getByText("No shadowing attempts yet")).toBeTruthy();
+  });
+
+  it("renders first and last accuracy once attempts exist", () => {
+    mockProgress({
+      trend: [
+        { created_at: "2026-01-01T00:00:00", accuracy: 60, fluency: 50, overall: 55 },
+        { created_at: "2026-01-02T00:00:00", accuracy: 80, fluency: 70, overall: 75 },
+      ],
+    });
+
+    render(<ProgressView />);
+
+    expect(screen.getByText("60 → 80")).toBeTruthy();
   });
 });

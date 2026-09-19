@@ -1,4 +1,5 @@
 import { useProgress } from "../hooks/useProgress";
+import { PronunciationTrend } from "../components/PronunciationTrend";
 import "./ProgressView.css";
 
 function formatDate(iso: string): string {
@@ -20,7 +21,7 @@ export function nextMilestone(totalSeconds: number): number | null {
 }
 
 export function ProgressView() {
-  const { mistakes, topics, speaking, streak, hasLoaded } = useProgress();
+  const { mistakes, topics, speaking, streak, trend, trendLoaded, hasLoaded } = useProgress();
   const activeMistakes = mistakes.filter((m) => m.status === "active");
   const coveredCount = topics.filter((t) => t.covered).length;
   const upcomingMilestone = speaking ? nextMilestone(speaking.total_seconds) : null;
@@ -90,6 +91,11 @@ export function ProgressView() {
             ))}
           </div>
         )}
+      </section>
+
+      <section>
+        <p className="kicker">Pronunciation</p>
+        <PronunciationTrend trend={trend} hasLoaded={trendLoaded} />
       </section>
     </div>
   );
