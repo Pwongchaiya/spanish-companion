@@ -54,8 +54,11 @@ from api.brokers.practice_log import PracticeAttempt
 from api.models.foundations.flag import Flag
 from api.models.foundations.mistake_pattern.exceptions import NotFoundMistakePatternException
 from api.models.orchestrations.review.practice_result import PracticeResult
+from api.models.orchestrations.review.task_outcome import TaskOutcome
 from api.services.foundations.flag import IFlagService
+from api.services.foundations.live_transcript import ILiveTranscriptService
 from api.services.foundations.practice_log import IPracticeLogService
+from api.services.foundations.session_log_entry import ISessionLogEntryService
 from api.services.orchestrations.review.i_review_service import ReviewService
 from api.services.orchestrations.review.review_service_exceptions import ReviewOrchestrationServiceExceptions
 from api.services.processings.learner_profile import ILearnerProfileProcessingService
@@ -76,6 +79,8 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
         generation_service: GenerationService,
         learner_profile_processing_service: ILearnerProfileProcessingService,
         mistake_pattern_processing_service: IMistakePatternProcessingService,
+        session_log_entry_service: ISessionLogEntryService,
+        live_transcript_service: ILiveTranscriptService,
         clock: Callable[[], datetime] = datetime.now,
         *,
         logging_broker: LoggingBroker,
@@ -91,6 +96,10 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
         # already established (ORC-001 dep-count waiver already covers Review).
         self._learner_profile_processing_service = learner_profile_processing_service
         self._mistake_pattern_processing_service = mistake_pattern_processing_service
+        # D4: get_task_outcome() reads the latest session_log row + its
+        # transcript and writes the judged outcome back.
+        self._session_log_entry_service = session_log_entry_service
+        self._live_transcript_service = live_transcript_service
         # Injected for the same reason session_lifecycle injects time_source:
         # CLAUDE.md's unit-test rule forbids live datetime.now().
         self._clock = clock
@@ -151,6 +160,43 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
 
             # retrieve() returns best-first, so [0] is the top-ranked chunk.
             return self._generation_service.explain(flag, chunks[0])
+
+        return self._try_catch(action)
+
+    def get_task_outcome(self) -> Optional[TaskOutcome]:
+        def action() -> Optional[TaskOutcome]:
+            # Latest *completed* session: an in-flight row has no finished
+            # transcript to judge (same skip rule as the Progress aggregates).
+            completed = [e for e in self._session_log_entry_service.list_session_log_entries() if e.ended_at]
+            if not completed:
+                return None
+            entry = completed[-1]
+            scenario = get_roleplay_scenario(entry.scenario_slug) if entry.scenario_slug else None
+            if scenario is None or not scenario.success_condition:
+                return None
+
+            outcome = entry.task_outcome
+            if outcome is None:
+                # Judged here, in Review Mode, on first view -- never live.
+                transcript_text = self._live_transcript_service.read_full_text()
+                if transcript_text:
+                    outcome = self._generation_service.judge_task_outcome(
+                        transcript_text, scenario.success_condition
+                    )
+                    if outcome is not None:
+                        self._session_log_entry_service.set_task_outcome(entry.id, outcome)
+                        self._logging_broker.log_info(
+                            "judged task outcome for session_log id=%s scenario=%s: %s",
+                            entry.id,
+                            scenario.slug,
+                            outcome,
+                        )
+            return TaskOutcome(
+                scenario_slug=scenario.slug,
+                label=scenario.label,
+                success_condition=scenario.success_condition,
+                outcome=outcome,
+            )
 
         return self._try_catch(action)
 

@@ -30,6 +30,8 @@ from api.models.foundations.flag import Flag
 from api.models.foundations.flag.exceptions import FlagValidationException, NotFoundFlagException
 from api.models.orchestrations.review.exceptions import ReviewOrchestrationValidationException
 from api.services.foundations.flag import FlagService
+from api.services.foundations.live_transcript import ILiveTranscriptService
+from api.services.foundations.session_log_entry import ISessionLogEntryService
 from api.services.foundations.practice_log import PracticeLogService
 from api.services.orchestrations.review import ReviewOrchestrationService
 from api.services.processings.learner_profile import ILearnerProfileProcessingService
@@ -126,6 +128,8 @@ def service(
         generation_service=mock_generation_service,
         learner_profile_processing_service=mock_learner_profile_processing_service,
         mistake_pattern_processing_service=mock_mistake_pattern_processing_service,
+        session_log_entry_service=Mock(spec=ISessionLogEntryService),
+        live_transcript_service=Mock(spec=ILiveTranscriptService),
         clock=lambda: FIXED_NOW,
         logging_broker=StdlibLoggingBroker(),
         configuration_broker=FakeConfigurationBroker({"RETRIEVAL_TOP_K": str(RETRIEVAL_TOP_K)}),

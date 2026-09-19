@@ -23,13 +23,17 @@ from api.brokers.learner_profile import SqlAlchemyLearnerProfileBroker
 from api.brokers.logging import StdlibLoggingBroker
 from api.brokers.mistake_pattern.mistake_pattern_broker import SqlAlchemyMistakePatternBroker
 from api.brokers.practice_log import JsonLinesPracticeLogBroker
+from api.brokers.session_log import FileSessionLogBroker
+from api.brokers.session_log_entry import SqlAlchemySessionLogEntryBroker
 from api.brokers.tts import AzureTtsBroker
 from api.exposers.review import make_review_blueprint
 from api.exposers.tts import make_tts_blueprint
 from api.services.foundations.flag import FlagService
 from api.services.foundations.learner_profile import LearnerProfileService
+from api.services.foundations.live_transcript import LiveTranscriptService
 from api.services.foundations.mistake_pattern import MistakePatternService
 from api.services.foundations.practice_log import PracticeLogService
+from api.services.foundations.session_log_entry import SessionLogEntryService
 from api.services.foundations.tts import TtsService
 from api.services.orchestrations.review import ReviewOrchestrationService
 from api.services.processings.learner_profile import LearnerProfileProcessingService
@@ -102,6 +106,10 @@ def create_public_app() -> Flask:
         generation_service=generation_service,
         learner_profile_processing_service=learner_profile_processing_service,
         mistake_pattern_processing_service=mistake_pattern_processing_service,
+        session_log_entry_service=SessionLogEntryService(
+            SqlAlchemySessionLogEntryBroker(database_url), logging_broker=logging_broker
+        ),
+        live_transcript_service=LiveTranscriptService(FileSessionLogBroker(), logging_broker=logging_broker),
         logging_broker=logging_broker,
     )
     app.register_blueprint(make_review_blueprint(review_orchestrator))

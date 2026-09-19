@@ -67,6 +67,16 @@ def make_review_blueprint(orchestrator: ReviewOrchestrationService) -> Blueprint
         except ReviewOrchestrationServiceException as e:
             return jsonify({"error": str(e.inner_exception)}), 500
 
+    @review_blueprint.route("/task-outcome", methods=["GET"])
+    def task_outcome():
+        try:
+            result = orchestrator.get_task_outcome()
+            return jsonify(asdict(result) if result else None), 200
+        except ReviewOrchestrationDependencyException as e:
+            return jsonify({"error": str(e.inner_exception)}), 500
+        except ReviewOrchestrationServiceException as e:
+            return jsonify({"error": str(e.inner_exception)}), 500
+
     @review_blueprint.route("/flags/<flag_id>/explain", methods=["GET"])
     def explain_flag(flag_id: str):
         try:
