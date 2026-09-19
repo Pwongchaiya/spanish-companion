@@ -1,0 +1,55 @@
+/* Pronunciation trend -- hairline rows like ProgressView's pattern list; the
+   two series differ by stroke style as well as colour. */
+
+.trend {
+  display: flex;
+  flex-direction: column;
+}
+
+.trend-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-top: 1px solid var(--border);
+  padding: 10px 2px;
+}
+
+.trend .trend-row:last-child {
+  border-bottom: 1px solid var(--border);
+}
+
+.trend-label {
+  width: 72px;
+  font-family: var(--serif);
+  font-size: 16px;
+  font-weight: 300;
+  color: var(--text-h);
+}
+
+.trend-svg {
+  flex: 1;
+  max-width: 240px;
+  height: 48px;
+}
+
+.trend-accuracy {
+  stroke: var(--accent);
+  fill: var(--accent);
+}
+
+.trend-fluency {
+  stroke: var(--text);
+  fill: var(--text);
+}
+
+.trend-fluency polyline {
+  stroke-dasharray: 4 3;
+}
+
+.trend-values {
+  font-family: var(--sans);
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  color: var(--text);
+  white-space: nowrap;
+}

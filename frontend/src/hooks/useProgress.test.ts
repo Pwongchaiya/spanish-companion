@@ -7,6 +7,7 @@ vi.mock("../api/client", () => ({
     listTopicCoverage: vi.fn(),
     getSpeakingTotal: vi.fn(),
     getUnflaggedStreak: vi.fn(),
+    getPronunciationTrend: vi.fn(),
   },
 }));
 
@@ -18,6 +19,7 @@ describe("useProgress", () => {
     vi.clearAllMocks();
     (apiClient.getSpeakingTotal as any).mockResolvedValue({ total_seconds: 0, session_count: 0 });
     (apiClient.getUnflaggedStreak as any).mockResolvedValue({ longest: 0, current: 0 });
+    (apiClient.getPronunciationTrend as any).mockResolvedValue([]);
   });
 
   it("loads mistakes and topics independently on mount", async () => {
@@ -76,5 +78,18 @@ describe("useProgress", () => {
 
     await waitFor(() => expect(result.current.hasLoaded).toBe(true));
     expect(result.current.speaking).toBeNull();
+  });
+
+  it("loads the pronunciation trend with its own loaded flag", async () => {
+    (apiClient.listMistakeSummary as any).mockResolvedValue([]);
+    (apiClient.listTopicCoverage as any).mockResolvedValue([]);
+    const trend = [{ created_at: "2026-01-01T00:00:00", accuracy: 70, fluency: 60, overall: 65 }];
+    (apiClient.getPronunciationTrend as any).mockResolvedValue(trend);
+
+    const { result } = renderHook(() => useProgress());
+
+    expect(result.current.trendLoaded).toBe(false);
+    await waitFor(() => expect(result.current.trendLoaded).toBe(true));
+    expect(result.current.trend).toEqual(trend);
   });
 });
