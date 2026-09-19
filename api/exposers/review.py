@@ -118,4 +118,33 @@ def make_review_blueprint(orchestrator: ReviewOrchestrationService) -> Blueprint
         except ReviewOrchestrationServiceException as e:
             return jsonify({"error": str(e.inner_exception)}), 500
 
+    @review_blueprint.route("/dictation", methods=["GET"])
+    def get_dictation_exercise():
+        try:
+            exercise = orchestrator.get_dictation_exercise(request.args.get("exclude") or None)
+            if exercise is None:
+                return jsonify({"error": "No flagged sentences to dictate yet"}), 404
+            return jsonify(asdict(exercise)), 200
+        except ReviewOrchestrationDependencyException as e:
+            return jsonify({"error": str(e.inner_exception)}), 500
+        except ReviewOrchestrationServiceException as e:
+            return jsonify({"error": str(e.inner_exception)}), 500
+
+    @review_blueprint.route("/dictation/<flag_id>/check", methods=["POST"])
+    def check_dictation(flag_id: str):
+        body = request.get_json(silent=True) or {}
+        typed_text = body.get("typed_text")
+        if not isinstance(typed_text, str) or not typed_text.strip():
+            return jsonify({"error": "typed_text is required"}), 400
+        try:
+            return jsonify(asdict(orchestrator.check_dictation(flag_id, typed_text))), 200
+        except ReviewOrchestrationValidationException as e:
+            if isinstance(e.inner_exception.inner_exception, NotFoundFlagException):
+                return jsonify({"error": str(e.inner_exception)}), 404
+            return jsonify({"error": str(e.inner_exception)}), 400
+        except ReviewOrchestrationDependencyException as e:
+            return jsonify({"error": str(e.inner_exception)}), 500
+        except ReviewOrchestrationServiceException as e:
+            return jsonify({"error": str(e.inner_exception)}), 500
+
     return review_blueprint
