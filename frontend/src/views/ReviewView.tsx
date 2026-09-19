@@ -142,7 +142,10 @@ export function ReviewView() {
                 />
               </svg>
             </div>
-            <div className="st">{attempt.mastered ? "Mastered" : "Logged"}</div>
+            <div className="st">
+              <span>{attempt.mastered ? "Mastered" : "Logged"}</span>{" "}
+              <span className="grade">({attempt.grade})</span>
+            </div>
           </div>
 
           <div>

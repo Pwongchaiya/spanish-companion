@@ -23,11 +23,14 @@ export interface Explanation {
   source_excerpt: string;
 }
 
+export type PracticeGrade = "again" | "hard" | "good" | "easy";
+
 export interface PracticeAttempt {
   flag_id: string;
   attempt_text: string;
   timestamp: string;
   mastered: boolean;
+  grade: PracticeGrade;
 }
 
 export type TurnState = "listening" | "thinking" | "speaking" | "idle" | null;
