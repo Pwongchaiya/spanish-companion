@@ -6,9 +6,9 @@ read logic. ProgressOrchestrationService is mocked via
 unittest.mock.Mock(spec=ProgressOrchestrationService);
 tests/unit/services/progress/ covers the real logic.
 
-Both routes take no input, so there is no validation-shaped 400 case --
-same two-tier exception mapping (Dependency/Service only) as Review's
-GET /review/flags.
+All four routes take no input, so there is no validation-shaped 400
+case -- same two-tier exception mapping (Dependency/Service only) as
+Review's GET /review/flags.
 """
 
 from datetime import datetime
@@ -23,7 +23,9 @@ from api.models.orchestrations.progress.exceptions import (
     ProgressOrchestrationDependencyException,
     ProgressOrchestrationServiceException,
 )
+from api.models.orchestrations.progress.speaking_total import SpeakingTotal
 from api.models.orchestrations.progress.topic_coverage_entry import TopicCoverageEntry
+from api.models.orchestrations.progress.unflagged_streak import UnflaggedStreak
 from api.services.orchestrations.progress import ProgressOrchestrationService
 
 
@@ -138,3 +140,97 @@ class TestListTopics:
 
         # then
         assert response.status_code == 500
+
+
+class TestGetSpeaking:
+    """Roadmap C1. SpeakingTotal carries no datetime, so unlike /mistakes
+    and /topics this route's body is a straight asdict() with nothing to
+    isoformat()."""
+
+    def test_should_return_200_with_total_seconds_and_session_count(self, client, mock_orchestrator):
+        # given
+        mock_orchestrator.get_speaking_total.return_value = SpeakingTotal(
+            total_seconds=5400.0, session_count=3
+        )
+
+        # when
+        response = client.get("/progress/speaking")
+
+        # then
+        assert response.status_code == 200
+        assert response.get_json() == {"total_seconds": 5400.0, "session_count": 3}
+        mock_orchestrator.get_speaking_total.assert_called_once_with()
+
+    def test_should_return_200_with_zeroes_when_nothing_logged(self, client, mock_orchestrator):
+        # given
+        mock_orchestrator.get_speaking_total.return_value = SpeakingTotal(total_seconds=0.0, session_count=0)
+
+        # when
+        response = client.get("/progress/speaking")
+
+        # then
+        assert response.status_code == 200
+        assert response.get_json() == {"total_seconds": 0.0, "session_count": 0}
+
+    def test_should_return_500_when_orchestrator_raises_dependency_exception(self, client, mock_orchestrator):
+        # given
+        mock_orchestrator.get_speaking_total.side_effect = ProgressOrchestrationDependencyException(
+            inner_exception=RuntimeError("db down")
+        )
+
+        # when / then
+        assert client.get("/progress/speaking").status_code == 500
+
+    def test_should_return_500_when_orchestrator_raises_service_exception(self, client, mock_orchestrator):
+        # given
+        mock_orchestrator.get_speaking_total.side_effect = ProgressOrchestrationServiceException(
+            inner_exception=RuntimeError("unexpected")
+        )
+
+        # when / then
+        assert client.get("/progress/speaking").status_code == 500
+
+
+class TestGetStreak:
+    """Roadmap C3."""
+
+    def test_should_return_200_with_longest_and_current(self, client, mock_orchestrator):
+        # given
+        mock_orchestrator.get_longest_unflagged_streak.return_value = UnflaggedStreak(longest=4, current=1)
+
+        # when
+        response = client.get("/progress/streak")
+
+        # then
+        assert response.status_code == 200
+        assert response.get_json() == {"longest": 4, "current": 1}
+        mock_orchestrator.get_longest_unflagged_streak.assert_called_once_with()
+
+    def test_should_return_200_with_zeroes_when_nothing_logged(self, client, mock_orchestrator):
+        # given
+        mock_orchestrator.get_longest_unflagged_streak.return_value = UnflaggedStreak(longest=0, current=0)
+
+        # when
+        response = client.get("/progress/streak")
+
+        # then
+        assert response.status_code == 200
+        assert response.get_json() == {"longest": 0, "current": 0}
+
+    def test_should_return_500_when_orchestrator_raises_dependency_exception(self, client, mock_orchestrator):
+        # given
+        mock_orchestrator.get_longest_unflagged_streak.side_effect = ProgressOrchestrationDependencyException(
+            inner_exception=RuntimeError("db down")
+        )
+
+        # when / then
+        assert client.get("/progress/streak").status_code == 500
+
+    def test_should_return_500_when_orchestrator_raises_service_exception(self, client, mock_orchestrator):
+        # given
+        mock_orchestrator.get_longest_unflagged_streak.side_effect = ProgressOrchestrationServiceException(
+            inner_exception=RuntimeError("unexpected")
+        )
+
+        # when / then
+        assert client.get("/progress/streak").status_code == 500
