@@ -48,6 +48,16 @@ export interface MistakePatternSummary {
   status: "active" | "resolved";
 }
 
+export interface SpeakingTotal {
+  total_seconds: number;
+  session_count: number;
+}
+
+export interface UnflaggedStreak {
+  longest: number;
+  current: number;
+}
+
 export interface TopicCoverageEntry {
   topic: string;
   covered: boolean;

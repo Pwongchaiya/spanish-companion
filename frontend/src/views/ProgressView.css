@@ -83,3 +83,37 @@
   color: var(--text);
   white-space: nowrap;
 }
+
+/* C1/C3 meters -- two hairline-separated columns above the existing
+   lists, same type scale as .pattern-row, no cards (Aliento). */
+
+.meters {
+  display: flex;
+  gap: 28px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 18px;
+}
+
+.meter {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.meter-value {
+  font-family: var(--serif);
+  font-size: 30px;
+  font-weight: 300;
+  line-height: 1;
+  color: var(--text-h);
+  margin: 2px 0 0;
+}
+
+.meter-sub {
+  font-family: var(--sans);
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  color: var(--text);
+  margin: 0;
+}
