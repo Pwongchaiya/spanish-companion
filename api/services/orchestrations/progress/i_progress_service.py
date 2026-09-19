@@ -11,9 +11,10 @@ Foundation/Processing entity name in this codebase, so the Protocol is
 `ProgressOrchestrationService`.
 """
 
-from typing import List, Protocol
+from typing import List, Optional, Protocol
 
 from api.models.foundations.mistake_pattern.mistake_pattern import MistakePattern
+from api.models.foundations.session_log_entry.session_log_entry import SessionLogEntry
 from api.models.orchestrations.progress.speaking_total import SpeakingTotal
 from api.models.orchestrations.progress.topic_coverage_entry import TopicCoverageEntry
 from api.models.orchestrations.progress.unflagged_streak import UnflaggedStreak
@@ -89,6 +90,20 @@ class ProgressService(Protocol):
         get_speaking_total(), in `started_at` order, counting runs where
         `flag_count == 0`. `current` is the trailing run, `longest` the
         best. Both are 0 when no session has completed.
+
+        Raises the same three exception tiers as get_speaking_total().
+        """
+        ...
+
+    def get_latest_completed_session(self) -> Optional[SessionLogEntry]:
+        """The most recently started `session_log` row with `ended_at` set
+        (roadmap C2 post-session recap), or None if no session has ever
+        completed.
+
+        Reads the same completed-only, `started_at`-ordered rows as
+        get_speaking_total()/get_longest_unflagged_streak() and returns the
+        last one -- no new query shape, just a different fold over the same
+        list.
 
         Raises the same three exception tiers as get_speaking_total().
         """

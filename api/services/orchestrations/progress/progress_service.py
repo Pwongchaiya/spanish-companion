@@ -38,7 +38,7 @@ method's entire body is an inline nested closure passed straight to
 `_try_catch`, same convention as Review and LearnerProfile.
 """
 
-from typing import List
+from typing import List, Optional
 
 from api.brokers.configuration import ConfigurationBroker, EnvConfigurationBroker
 from api.brokers.logging import LoggingBroker
@@ -135,6 +135,17 @@ class ProgressOrchestrationService(ProgressOrchestrationServiceExceptions, Progr
                 longest = max(longest, current)
             self._logging_broker.log_info("computed unflagged streak: longest %d, current %d", longest, current)
             return UnflaggedStreak(longest=longest, current=current)
+
+        return self._try_catch(action)
+
+    def get_latest_completed_session(self) -> Optional[SessionLogEntry]:
+        def action() -> Optional[SessionLogEntry]:
+            completed = _completed_sessions(self._session_log_entry_service.list_session_log_entries())
+            latest = completed[-1] if completed else None
+            self._logging_broker.log_info(
+                "resolved latest completed session for recap: %s", latest.id if latest else None
+            )
+            return latest
 
         return self._try_catch(action)
 
