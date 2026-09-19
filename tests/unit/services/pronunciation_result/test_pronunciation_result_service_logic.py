@@ -30,6 +30,7 @@ class TestCreatePronunciationResult:
 
         # then
         mock_pronunciation_result_broker.insert_pronunciation_result.assert_called_once_with(submitted)
+        assert mock_pronunciation_result_broker.select_all_pronunciation_results.call_count == 0
 
 
 class TestListPronunciationResults:
@@ -51,3 +52,5 @@ class TestListPronunciationResults:
         mock_pronunciation_result_broker.select_all_pronunciation_results.return_value = []
 
         assert service.list_pronunciation_results() == []
+        mock_pronunciation_result_broker.select_all_pronunciation_results.assert_called_once_with()
+        assert mock_pronunciation_result_broker.insert_pronunciation_result.call_count == 0
