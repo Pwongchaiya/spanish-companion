@@ -99,7 +99,7 @@ def mock_generation_service():
         source_url="https://rae.es/verb-conjugation",
         source_excerpt="El verbo 'tener' se conjuga como 'tengo' en la primera persona.",
     )
-    mock.judge_practice_attempt.return_value = True
+    mock.judge_practice_attempt.return_value = "good"
     return mock
 
 
@@ -187,6 +187,8 @@ class TestRecordPractice:
         body = response.get_json()
         assert body["flag_id"] == "flag-1"
         assert body["attempt_text"] == "yo tengo"
+        assert body["grade"] == "good"
+        assert body["mastered"] is True
 
         # then -- actually written to the real temp file, read back via the
         # same broker instance the app was built with
@@ -194,6 +196,7 @@ class TestRecordPractice:
         assert len(persisted) == 1
         assert persisted[0].flag_id == "flag-1"
         assert persisted[0].attempt_text == "yo tengo"
+        assert persisted[0].grade == "good"
 
     def test_should_return_404_for_unknown_flag(self, client):
         # when
