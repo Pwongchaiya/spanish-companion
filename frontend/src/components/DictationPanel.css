@@ -1,0 +1,36 @@
+/* Dictation-back panel (Phase 5 E2) -- same hairline language as MinimalPairDrill.css. */
+
+.dictation {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.dictation form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dictation-error {
+  color: var(--text-h);
+}
+
+.dictation-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dw-ok {
+  color: var(--text);
+}
+
+.dw-accent,
+.dw-spelling,
+.dw-missing,
+.dw-extra {
+  color: var(--text-h);
+  text-decoration: underline;
+}

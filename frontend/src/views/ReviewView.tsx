@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useReviewFlow } from "../hooks/useReviewFlow";
 import { useConnectionStore } from "../state/connectionStore";
+import { DictationPanel } from "../components/DictationPanel";
 import { groupScenariosByTier } from "../data/roleplayScenarios";
 import "./ReviewView.css";
 
@@ -77,6 +78,7 @@ export function ReviewView() {
               ))}
             </div>
           )}
+          {connectionOk && flags.length > 0 && <DictationPanel />}
         </>
       )}
 

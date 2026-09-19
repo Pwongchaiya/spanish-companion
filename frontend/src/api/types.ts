@@ -23,6 +23,27 @@ export interface Explanation {
   source_excerpt: string;
 }
 
+export interface DictationExercise {
+  flag_id: string;
+  target: string;
+}
+
+export type DictationWordStatus = "ok" | "accent" | "spelling" | "missing" | "extra";
+
+export interface DictationWord {
+  target: string;
+  typed: string;
+  status: DictationWordStatus;
+}
+
+export interface DictationResult {
+  flag_id: string;
+  target: string;
+  typed_text: string;
+  matches: boolean;
+  words: DictationWord[];
+}
+
 export type PracticeGrade = "again" | "hard" | "good" | "easy";
 
 export interface PracticeAttempt {
