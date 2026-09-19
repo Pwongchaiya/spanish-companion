@@ -53,12 +53,14 @@ from api.brokers.logging import LoggingBroker
 from api.brokers.practice_log import PracticeAttempt
 from api.models.foundations.flag import Flag
 from api.models.foundations.mistake_pattern.exceptions import NotFoundMistakePatternException
+from api.models.orchestrations.review.dictation import DictationExercise, DictationResult
 from api.models.orchestrations.review.practice_result import PracticeResult
 from api.models.orchestrations.review.task_outcome import TaskOutcome
 from api.services.foundations.flag import IFlagService
 from api.services.foundations.live_transcript import ILiveTranscriptService
 from api.services.foundations.practice_log import IPracticeLogService
 from api.services.foundations.session_log_entry import ISessionLogEntryService
+from api.services.orchestrations.review._dictation import check_dictation
 from api.services.orchestrations.review.i_review_service import ReviewService
 from api.services.orchestrations.review.review_service_exceptions import ReviewOrchestrationServiceExceptions
 from api.services.processings.learner_profile import ILearnerProfileProcessingService
@@ -277,5 +279,33 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
                 )
 
             return PracticeResult(attempt=attempt, mastered=mastered, grade=grade)
+
+        return self._try_catch(action)
+
+    def get_dictation_exercise(self, exclude_flag_id: Optional[str] = None) -> Optional[DictationExercise]:
+        def action() -> Optional[DictationExercise]:
+            eligible = [f for f in self._flag_service.list_flags() if f.corrected.strip() and f.id != exclude_flag_id]
+            if not eligible:
+                return None
+            # Deterministic: most-repeated mistake first, newest next, id as
+            # the final tiebreak. ponytail: no randomness -- the UI's
+            # "another" passes exclude_flag_id; upgrade to a rotating queue
+            # if that feels repetitive.
+            best = min(eligible, key=lambda f: (-f.occurrence_count, -f.timestamp.timestamp(), f.id))
+            return DictationExercise(flag_id=best.id, target=best.corrected)
+
+        return self._try_catch(action)
+
+    def check_dictation(self, flag_id: str, typed_text: str) -> DictationResult:
+        def action() -> DictationResult:
+            flag = self._flag_service.get_flag(flag_id)
+            words = check_dictation(typed_text, flag.corrected)
+            return DictationResult(
+                flag_id=flag.id,
+                target=flag.corrected,
+                typed_text=typed_text,
+                matches=all(w.status == "ok" for w in words),
+                words=words,
+            )
 
         return self._try_catch(action)
