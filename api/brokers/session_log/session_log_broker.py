@@ -61,6 +61,11 @@ class FileSessionLogBroker:
         with open(self._transcript_file_path, "a", encoding="utf-8") as f:
             f.write(line + "\n")
 
+    def read_transcript(self) -> str:
+        if not self._transcript_file_path.exists():
+            return ""
+        return self._transcript_file_path.read_text(encoding="utf-8")
+
     def write_turn_state(self, state: str) -> None:
         self._turn_state_file_path.parent.mkdir(parents=True, exist_ok=True)
         self._turn_state_file_path.write_text(state, encoding="utf-8")

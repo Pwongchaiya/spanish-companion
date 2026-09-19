@@ -62,6 +62,11 @@ _PROMPTS_DIR = Path(rag.__file__).parent / "data" / "prompts"
 _EXPLANATION_PROMPT = (_PROMPTS_DIR / "explanation.txt").read_text(encoding="utf-8")
 _GROUNDING_JUDGE_PROMPT = (_PROMPTS_DIR / "grounding_judge.txt").read_text(encoding="utf-8")
 _PRACTICE_JUDGE_PROMPT = (_PROMPTS_DIR / "practice_judge.txt").read_text(encoding="utf-8")
+_CEFR_ESTIMATE_PROMPT = (_PROMPTS_DIR / "cefr_estimate.txt").read_text(encoding="utf-8")
+
+# A6 (roadmap): the only six answers estimate_cefr_level() will accept from
+# the broker -- anything else is treated as unparseable (see its docstring).
+_CEFR_LEVELS = frozenset({"A1", "A2", "B1", "B2", "C1", "C2"})
 
 # A2: Anki-style 4-level grade, replacing the old binary YES/NO verdict.
 # "again" is the conservative fallback for a broker failure or an unparseable
@@ -134,6 +139,23 @@ class GenerationService(GenerationServiceExceptions, IGenerationService):
             self._logging_broker.log_info("practice judge verdict unparseable, falling back to %r: %r", _FALLBACK_GRADE, verdict)
             return _FALLBACK_GRADE
         return grade
+
+    def estimate_cefr_level(self, transcript_text: str) -> str | None:
+        def action() -> str | None:
+            prompt = _CEFR_ESTIMATE_PROMPT.format(transcript=transcript_text)
+            try:
+                verdict = self._broker.generate(prompt)
+            except GenerationError as e:
+                self._logging_broker.log_info("cefr estimate call failed, skipping: %s", e)
+                return None
+            first_word = verdict.strip().upper().split()[0] if verdict.strip() else ""
+            level = first_word.rstrip(".,:;!")
+            if level not in _CEFR_LEVELS:
+                self._logging_broker.log_info("cefr estimate unparseable, skipping: %s", verdict.strip())
+                return None
+            return level
+
+        return self._try_catch(action)
 
     def _build_practice_judge_prompt(self, flag: FlagLike, attempt_text: str, roleplay_setting: str | None) -> str:
         # LearnerProfile Phase 4: an optional roleplay setting (resolved from a

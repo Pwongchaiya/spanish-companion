@@ -31,3 +31,16 @@ class ILiveTranscriptService(Protocol):
         Raises LiveTranscriptServiceException for any other unexpected failure.
         """
         ...
+
+    def read_full_text(self) -> str:
+        """Read back the just-ended session's transcript as plain text
+        ("[role] text" per line, same shape as
+        ConversationOrchestrationService._extract_turns), for the roadmap A6
+        CEFR estimate. Returns "" if no transcript was written this session.
+
+        Raises LiveTranscriptDependencyException (wrapping
+        LiveTranscriptUnavailableError) if the underlying SessionLogBroker
+        call fails.
+        Raises LiveTranscriptServiceException for any other unexpected failure.
+        """
+        ...

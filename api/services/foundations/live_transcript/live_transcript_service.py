@@ -75,3 +75,22 @@ class LiveTranscriptService(LiveTranscriptServiceExceptions, ILiveTranscriptServ
                 raise LiveTranscriptUnavailableError(str(e)) from e
 
         self._try_catch(action)
+
+    def read_full_text(self) -> str:
+        def action() -> str:
+            try:
+                raw = self._session_log_broker.read_transcript()
+            except Exception as e:
+                raise LiveTranscriptUnavailableError(str(e)) from e
+            lines = []
+            for json_line in raw.splitlines():
+                if not json_line.strip():
+                    continue
+                try:
+                    turn = json.loads(json_line)
+                except json.JSONDecodeError:
+                    continue
+                lines.append(f"[{turn.get('role', '?')}] {turn.get('text', '')}")
+            return "\n".join(lines)
+
+        return self._try_catch(action)

@@ -1,0 +1,6 @@
+You are assessing a Spanish learner's proficiency level from a transcript of a spoken conversation.
+
+Transcript:
+{transcript}
+
+Based on vocabulary range, grammatical accuracy, sentence complexity, and fluency shown in the learner's turns, estimate their CEFR level. Answer with exactly one of: A1, A2, B1, B2, C1, C2 as the first word of your reply, optionally followed by a one-line reason.

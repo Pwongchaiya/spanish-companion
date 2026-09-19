@@ -29,6 +29,12 @@ class SessionLogBroker(Protocol):
         """Append one already-formatted line to the live transcript file."""
         ...
 
+    def read_transcript(self) -> str:
+        """Return the live transcript file's full raw content, or "" if it
+        doesn't exist yet (roadmap A6 -- read-back for the end-of-session
+        CEFR estimate)."""
+        ...
+
     def write_turn_state(self, state: str) -> None:
         """Overwrite the turn-state file with the pipeline's current turn
         state (listening/thinking/speaking), for /api/events."""

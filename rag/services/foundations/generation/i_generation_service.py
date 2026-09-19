@@ -76,3 +76,18 @@ class IGenerationService(Protocol):
         sees the resolved text, never a slug (rag must not import api/data).
         """
         ...
+
+    def estimate_cefr_level(self, transcript_text: str) -> str | None:
+        """Estimate a CEFR level (A1-C2) from a full session transcript.
+
+        Roadmap A6, async/best-effort from Voice Conversation's teardown
+        path. Returns None -- never raises past this method for a broker
+        failure or an unparseable verdict -- meaning "couldn't estimate this
+        session"; the caller must treat None as skip-the-update, never write
+        a garbage value to learner_profile.cefr_estimate. Same swallow-to-
+        None shape as explain()'s grounding judge and
+        judge_practice_attempt()'s swallow-to-False, just with a third
+        outcome (parsed level) instead of two.
+        May raise GenerationServiceException for anything else unexpected.
+        """
+        ...
