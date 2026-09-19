@@ -16,3 +16,6 @@ class NotFoundSessionLogEntryException(ApiError):
     SessionLogEntryValidationException before leaving
     SessionLogEntryService.
     """
+
+    def __init__(self) -> None:
+        super().__init__("No session_log row exists for that lookup")
