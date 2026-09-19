@@ -17,6 +17,9 @@ class RoleplayScenario:
     label: str
     setting: str
     tier: str  # one of SCENARIO_TIERS; beginner ~ A1-A2, intermediate ~ B1-B2, advanced ~ C1+
+    # D4 task scenarios: what the user must accomplish. Judged by an LLM in
+    # Review Mode after the session -- never live. None = not a task scenario.
+    success_condition: str | None = None
 
 
 SCENARIO_TIERS = ("beginner", "intermediate", "advanced")
@@ -28,12 +31,17 @@ ROLEPLAY_SCENARIOS: list[RoleplayScenario] = [
         label="Ordering coffee",
         setting="You are a barista at a small café. The user is a customer ordering a drink and something to eat.",
         tier="beginner",
+        success_condition="The user successfully orders both a drink and a food item from the barista.",
     ),
     RoleplayScenario(
         slug="job_interview",
         label="Job interview",
         setting="You are an interviewer at a company. The user is a candidate interviewing for a job.",
         tier="advanced",
+        success_condition=(
+            "The user answers the interviewer's questions well enough to present their experience "
+            "and explain why they want the job."
+        ),
     ),
     RoleplayScenario(
         slug="casual_chat",
@@ -53,5 +61,8 @@ if __name__ == "__main__":
     assert len(slugs) == len(set(slugs)), f"duplicate slugs: {slugs}"
     assert all(s.tier in SCENARIO_TIERS for s in ROLEPLAY_SCENARIOS), "invalid tier"
     assert get_roleplay_scenario("ordering_coffee") is not None
+    assert get_roleplay_scenario("ordering_coffee").success_condition
+    assert get_roleplay_scenario("job_interview").success_condition
+    assert get_roleplay_scenario("casual_chat").success_condition is None
     assert get_roleplay_scenario("nonexistent") is None
     print("roleplay_scenarios self-check passed")
