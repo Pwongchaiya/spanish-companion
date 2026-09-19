@@ -52,6 +52,7 @@ from api.models.orchestrations.learner_profile.exceptions import (
     LearnerProfileOrchestrationServiceException,
     LearnerProfileOrchestrationValidationException,
 )
+from api.data.spanish_variants import VARIANT_KEYS
 from api.exposers.learner_profile import LearnerProfileController
 from api.services.foundations.session_lifecycle import SessionLifecycleService
 
@@ -96,8 +97,11 @@ def make_session_lifecycle_blueprint(
         pressure_level = body.get("pressure_level")
         if pressure_level is not None and pressure_level not in VALID_PRESSURE_LEVELS:
             return jsonify({"error": f"Invalid pressure_level: {pressure_level!r}"}), 400
+        variant = body.get("variant")
+        if variant is not None and variant not in VARIANT_KEYS:
+            return jsonify({"error": f"Invalid variant: {variant!r}"}), 400
         try:
-            service.start(scenario_text, pressure_level)
+            service.start(scenario_text, pressure_level, variant)
             return jsonify(asdict(service.get_status())), 200
         except SessionValidationException as e:
             if isinstance(e.inner_exception, AlreadyRunningSessionException):
