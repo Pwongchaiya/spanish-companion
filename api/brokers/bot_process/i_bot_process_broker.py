@@ -44,7 +44,9 @@ class BotProcessBroker(Protocol):
     terminate() -> wait(timeout) -> kill() itself.
     """
 
-    def start(self, scenario_text: Optional[str] = None, pressure_level: Optional[str] = None) -> None:
+    def start(
+        self, scenario_text: Optional[str] = None, pressure_level: Optional[str] = None, variant: Optional[str] = None
+    ) -> None:
         """Launch the subprocess. Non-blocking.
 
         `scenario_text`, if given, is written to a one-shot file the child
@@ -56,6 +58,10 @@ class BotProcessBroker(Protocol):
         injected as a SESSION_PRESSURE env var into the child process --
         a structured value, not prose, so it can't travel via the
         scenario-text file. If None, the child falls back to "normal".
+
+        `variant` (D2, a key of api/data/spanish_variants.py), if given, is
+        injected the same way as SESSION_VARIANT. If None, the child falls
+        back to "neutral".
         """
         ...
 

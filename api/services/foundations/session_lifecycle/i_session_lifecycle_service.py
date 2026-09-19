@@ -16,7 +16,9 @@ from api.models.foundations.session_lifecycle.session_status import SessionStatu
 class SessionLifecycleService(Protocol):
     """External-facing contract for Session Lifecycle's Foundation service."""
 
-    def start(self, scenario_text: Optional[str] = None, pressure_level: Optional[str] = None) -> None:
+    def start(
+        self, scenario_text: Optional[str] = None, pressure_level: Optional[str] = None, variant: Optional[str] = None
+    ) -> None:
         """Start the voice-conversation subprocess.
 
         `scenario_text`, if given, overrides the subprocess's own default
@@ -24,6 +26,9 @@ class SessionLifecycleService(Protocol):
 
         `pressure_level` (D5, "gentle"/"normal"/"push"), if given, drives
         TTS pace, lexical range, and idle-rescue timing for this session.
+
+        `variant` (D2, a key of api/data/spanish_variants.py), if given,
+        selects the regional Spanish variety (voice, register, flag guard).
 
         Raises SessionValidationException (wrapping AlreadyRunningSessionException)
         if a session is already running.

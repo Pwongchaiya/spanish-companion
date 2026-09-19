@@ -39,7 +39,9 @@ class SubprocessBotProcessBroker:
         self._process: Optional[subprocess.Popen] = None
         self._last_return_code: Optional[int] = None
 
-    def start(self, scenario_text: Optional[str] = None, pressure_level: Optional[str] = None) -> None:
+    def start(
+        self, scenario_text: Optional[str] = None, pressure_level: Optional[str] = None, variant: Optional[str] = None
+    ) -> None:
         if scenario_text is not None:
             self._scenario_override_path.parent.mkdir(parents=True, exist_ok=True)
             self._scenario_override_path.write_text(scenario_text, encoding="utf-8")
@@ -50,7 +52,13 @@ class SubprocessBotProcessBroker:
         # file: the child's EnvConfigurationBroker reads SESSION_PRESSURE via
         # os.environ, and load_dotenv(override=False) means this injected
         # value wins over anything in .env.
-        env = {**os.environ, "SESSION_PRESSURE": pressure_level} if pressure_level is not None else None
+        # D2 regional variant travels the same way (SESSION_VARIANT).
+        injected = {
+            name: value
+            for name, value in (("SESSION_PRESSURE", pressure_level), ("SESSION_VARIANT", variant))
+            if value is not None
+        }
+        env = {**os.environ, **injected} if injected else None
         self._process = subprocess.Popen(self._command, cwd=str(self._cwd), env=env)
 
     def send_graceful_signal(self) -> None:
@@ -101,4 +109,7 @@ if __name__ == "__main__":
 
             broker.start(pressure_level="push")
             assert mock_popen.call_args.kwargs["env"]["SESSION_PRESSURE"] == "push"
+
+            broker.start(variant="mexican")
+            assert mock_popen.call_args.kwargs["env"]["SESSION_VARIANT"] == "mexican"
     print("OK")
