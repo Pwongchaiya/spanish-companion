@@ -78,6 +78,14 @@ const PRESSURE_LEVELS: { key: "gentle" | "normal" | "push"; label: string }[] = 
   { key: "normal", label: "Normal" },
   { key: "push", label: "Push" },
 ];
+// D2 regional variant: keys match api/data/spanish_variants.py; the backend owns
+// voice, register guidance and flag suppression, this only sends the token.
+const VARIANTS: { key: "neutral" | "castilian" | "rioplatense" | "mexican"; label: string }[] = [
+  { key: "neutral", label: "Neutral LatAm" },
+  { key: "castilian", label: "Castilian" },
+  { key: "rioplatense", label: "Rioplatense" },
+  { key: "mexican", label: "Mexican" },
+];
 const SESSION_LENGTHS = ["5", "10", "20"] as const;
 
 // P2 placement: the mic-permission control (M2 look -- glyph + label,
@@ -119,6 +127,7 @@ export function ConversationView() {
   const { status, transcript, turnState, scenario, start, stop } = useSessionState();
   const mic = useMicPermission();
   const [pressure, setPressure] = useState<(typeof PRESSURE_LEVELS)[number]["key"]>("normal");
+  const [variant, setVariant] = useState<(typeof VARIANTS)[number]["key"]>("neutral");
   const [sceneText, setSceneText] = useState("");
   const [sceneEdited, setSceneEdited] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
@@ -305,6 +314,20 @@ export function ConversationView() {
                     </button>
                   ))}
                 </div>
+                <span className="field-label">Spanish variety</span>
+                <div className="pressure-dial" role="group" aria-label="Spanish variety">
+                  {VARIANTS.map((v) => (
+                    <button
+                      key={v.key}
+                      type="button"
+                      className="dial-notch"
+                      aria-pressed={variant === v.key}
+                      onClick={() => setVariant(v.key)}
+                    >
+                      {v.label}
+                    </button>
+                  ))}
+                </div>
                 <div className="more-panel-row">
                   <span className="row-key">Microphone</span>
                   {/* ponytail: WebRTC spike step, standalone mic-permission
@@ -336,7 +359,7 @@ export function ConversationView() {
               } else {
                 setPanelOpen(false);
                 setRecap(null);
-                start(scenarioText || undefined, sessionLength ?? undefined, pressure);
+                start(scenarioText || undefined, sessionLength ?? undefined, pressure, variant);
                 setSceneEdited(false);
               }
             }}

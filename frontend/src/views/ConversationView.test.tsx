@@ -115,7 +115,7 @@ describe("ConversationView scenario picker", () => {
     fireEvent.click(screen.getByRole("button", { name: "Push" }));
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
 
-    expect(startMock).toHaveBeenCalledWith("talk about the weather", undefined, "push");
+    expect(startMock).toHaveBeenCalledWith("talk about the weather", undefined, "push", "neutral");
   });
 
   it("passes the selected session length as a hint, and Done/Start both collapse the panel", () => {
@@ -131,7 +131,20 @@ describe("ConversationView scenario picker", () => {
     expect(screen.getByRole("button", { name: "+ More to adjust" })).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
-    expect(startMock).toHaveBeenCalledWith(expect.any(String), "5", "normal");
+    expect(startMock).toHaveBeenCalledWith(expect.any(String), "5", "normal", "neutral");
+  });
+
+  it("passes the selected Spanish variety to start(), defaulting to neutral", () => {
+    const startMock = vi.fn();
+    mockSession({ status: { running: false, ready: false, graceful: null }, scenario: loadedScenario, start: startMock });
+    render(<ConversationView />);
+
+    fireEvent.click(screen.getByRole("button", { name: "+ More to adjust" }));
+    expect(screen.getByRole("button", { name: "Neutral LatAm" }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Rioplatense" }));
+    fireEvent.click(screen.getByRole("button", { name: "Start" }));
+
+    expect(startMock).toHaveBeenCalledWith(expect.any(String), undefined, "normal", "rioplatense");
   });
 });
 
@@ -164,7 +177,7 @@ describe("ConversationView boss fight (C4)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Boss fight" }));
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
 
-    expect(start).toHaveBeenCalledWith("Boss fight: quiz me on ser estar", undefined, "push");
+    expect(start).toHaveBeenCalledWith("Boss fight: quiz me on ser estar", undefined, "push", "neutral");
   });
 });
 
@@ -346,6 +359,7 @@ describe("ConversationView roleplay picker (Phase 4)", () => {
       "You are an interviewer at a company. The user is a candidate interviewing for a job.",
       undefined,
       "normal",
+      "neutral",
     );
   });
 });
