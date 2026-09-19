@@ -9,7 +9,8 @@ resolve() are Processing-tier logic, built later against this interface
 (see Projects/spanish-companion/entities/mistake-pattern.md).
 """
 
-from typing import Protocol
+from datetime import datetime
+from typing import Optional, Protocol
 
 from api.models.foundations.mistake_pattern.mistake_pattern import MistakePattern
 
@@ -51,12 +52,21 @@ class IMistakePatternService(Protocol):
         """
         ...
 
-    def update_mistake_pattern(self, pattern_id: int, occurrence_count: int, status: str) -> MistakePattern:
-        """Update the given row's occurrence_count and status.
+    def update_mistake_pattern(
+        self,
+        pattern_id: int,
+        occurrence_count: int,
+        status: str,
+        interval_days: Optional[float] = None,
+        next_due_at: Optional[datetime] = None,
+    ) -> MistakePattern:
+        """Update the given row's occurrence_count and status, plus
+        interval_days / next_due_at when supplied (None leaves them unchanged).
 
         Raises MistakePatternValidationException (wrapping
         InvalidMistakePatternException) if pattern_id is not a positive
-        int, occurrence_count < 1, or status is not "active"/"resolved".
+        int, occurrence_count < 1, status is not "active"/"resolved", or
+        interval_days is supplied and not positive.
         Raises MistakePatternDependencyException (wrapping
         FailedMistakePatternStorageException) if the underlying broker call fails
         (including pattern_id not existing).

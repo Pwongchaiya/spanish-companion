@@ -32,12 +32,18 @@ class MistakePatternServiceValidations:
         )
 
     def _validate_mistake_pattern_on_update(
-        self, pattern_id: int | None, occurrence_count: int | None, status: str | None
+        self,
+        pattern_id: int | None,
+        occurrence_count: int | None,
+        status: str | None,
+        interval_days: float | None = None,
     ) -> None:
         self._validate(
             (self._is_invalid_id(pattern_id), "pattern_id", "Pattern id is required"),
             (self._is_invalid_occurrence_count(occurrence_count), "occurrence_count", "Occurrence count must be at least 1"),
             (status not in _VALID_STATUSES, "status", "Status is not recognized"),
+            # None = "leave unchanged", so only a supplied value is checked.
+            (interval_days is not None and interval_days <= 0, "interval_days", "Interval days must be positive"),
         )
 
     @staticmethod
