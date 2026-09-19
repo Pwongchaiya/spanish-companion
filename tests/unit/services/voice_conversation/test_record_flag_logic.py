@@ -11,6 +11,7 @@ from datetime import datetime
 from unittest.mock import Mock
 
 from api.brokers.logging import LoggingBroker
+from api.data.spanish_variants import get_variant
 from api.models.foundations.flag import Flag
 from api.services.orchestrations.voice_conversation.voice_conversation_service import _record_flag
 
@@ -80,3 +81,29 @@ if __name__ == "__main__":
     import sys
 
     raise SystemExit(subprocess.call([sys.executable, "-m", "pytest", __file__, "-q"]))
+
+class TestRecordFlagDialectGuard:
+    """D2: a flag whose `said` is a form legit in the session's variant is dropped."""
+
+    def test_drops_voseo_flag_for_rioplatense(self):
+        session_flags: list[Flag] = []
+        logging_broker = Mock(spec=LoggingBroker)
+
+        _record_flag(session_flags, _parsed(said="vos tenés razón", corrected="tú tienes razón"), logging_broker, get_variant("rioplatense"))
+
+        assert session_flags == []
+        logging_broker.log_info.assert_called_once()
+
+    def test_keeps_same_flag_for_neutral(self):
+        session_flags: list[Flag] = []
+
+        _record_flag(session_flags, _parsed(said="vos tenés razón", corrected="tú tienes razón"), Mock(spec=LoggingBroker), get_variant("neutral"))
+
+        assert len(session_flags) == 1
+
+    def test_keeps_genuine_error_for_rioplatense(self):
+        session_flags: list[Flag] = []
+
+        _record_flag(session_flags, _parsed(), Mock(spec=LoggingBroker), get_variant("rioplatense"))
+
+        assert len(session_flags) == 1

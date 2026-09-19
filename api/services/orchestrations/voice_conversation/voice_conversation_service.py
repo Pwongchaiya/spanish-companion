@@ -100,6 +100,7 @@ from api.brokers.configuration import ConfigurationBroker, EnvConfigurationBroke
 from api.brokers.logging import LoggingBroker
 from api.brokers.session_log import SessionLogBroker
 from api.brokers.stt import SttBroker
+from api.data.spanish_variants import SpanishVariant, get_variant, is_dialect_legit
 from api.models.foundations.flag import Flag
 from api.models.foundations.flag.exceptions import FlagDependencyException, FlagServiceException
 from api.models.foundations.session_log.exceptions import (
@@ -190,7 +191,12 @@ def parse_flag(content: str, logging_broker: LoggingBroker) -> Optional[dict]:
     return {**{key: flag[key] for key in FLAG_KEYS}, "channel": channel}
 
 
-def _record_flag(session_flags: List[Flag], parsed: dict, logging_broker: LoggingBroker) -> None:
+def _record_flag(
+    session_flags: List[Flag],
+    parsed: dict,
+    logging_broker: LoggingBroker,
+    variant: SpanishVariant = get_variant(None),
+) -> None:
     """Apply one parsed flag to the running session_flags list — the single
     point A7 (dedupe) and B3 (channel suppression) both act at, so every
     future flag writer inherits both for free instead of re-implementing
@@ -198,12 +204,18 @@ def _record_flag(session_flags: List[Flag], parsed: dict, logging_broker: Loggin
 
     Orthography-channel flags are dropped outright: a spoken session can't
     produce a legitimate one (there's no writing to get wrong) until E2
-    (dictation-back) exists. A repeat of the same (category, said, corrected)
+    (dictation-back) exists. Flags whose `said` uses a form legit in the
+    session's regional `variant` (D2) are dropped the same way. A repeat of the same (category, said, corrected)
     within this session increments the existing Flag's occurrence_count
     instead of appending a new row.
     """
     if parsed["channel"] == "orthography":
         logging_broker.log_info(f"Suppressed orthography-channel flag (spoken session): {parsed['said']!r}")
+        return
+    # D2: a form that is correct in the chosen regional variety (voseo,
+    # vosotros, ahorita...) is not an error -- same guard point as B3 above.
+    if is_dialect_legit(parsed["said"], variant):
+        logging_broker.log_info(f"Suppressed dialect-legit flag ({variant.key}): {parsed['said']!r}")
         return
     for existing in session_flags:
         if (existing.category, existing.said, existing.corrected) == (
@@ -478,6 +490,9 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
         # VAD_CONFIDENCE above stay hardware-calibration-only, never
         # pressure-driven (see _pressure.py's module docstring).
         pressure = get_pressure_level(self._configuration_broker.get("SESSION_PRESSURE"))
+        # D2 regional variant -- drives live-flag suppression here; the voice
+        # and prompt side is resolved in the composition root.
+        variant = get_variant(self._configuration_broker.get("SESSION_VARIANT"))
 
         stt = self._stt_broker.create()
 
@@ -521,7 +536,7 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
             parsed = parse_flag(match.text, self._logging_broker)
             if parsed is None:
                 return
-            _record_flag(session_flags, parsed, self._logging_broker)
+            _record_flag(session_flags, parsed, self._logging_broker, variant)
 
         flag_aggregator.on_pattern_match(FLAG_TYPE, on_error_flag)
 

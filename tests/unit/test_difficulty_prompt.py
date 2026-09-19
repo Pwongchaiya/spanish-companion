@@ -59,6 +59,20 @@ class TestComposeSystemPrompt:
         assert _compose("zzz") == BASE
 
 
+class TestComposeSystemPromptVariant:
+
+    def test_should_append_variant_block_before_difficulty_block(self):
+        with patch.object(vc, "FilePromptBroker") as prompt_broker, patch.object(
+            vc, "_read_and_clear_scenario_override", return_value="SCENARIO"
+        ), patch.object(vc, "_load_scenario", return_value=None), patch.object(
+            vc, "_read_cefr_estimate", return_value="B2"
+        ):
+            prompt_broker.return_value.get_system_prompt.return_value = "BASE"
+            result = vc._compose_system_prompt(Mock(spec=LoggingBroker), "PRESSURE", "VARIANT")
+        assert result == f"{BASE}\n\nVARIANT\n\n{get_difficulty_block('B2')}"
+        prompt_broker.return_value.get_system_prompt.assert_called_once_with()
+
+
 class TestScenarioTextProficiencyLine:
     SCENARIO = SessionScenario(proficiency_level="beginner", focus_category=None, suggested_topic="ser vs estar")
 
