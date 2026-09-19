@@ -18,6 +18,11 @@ import pytest
 from flask import Flask
 
 from api.exposers.progress import make_progress_blueprint
+from api.models.aggregations.session_recap.exceptions import (
+    SessionRecapAggregationDependencyException,
+    SessionRecapAggregationServiceException,
+)
+from api.models.aggregations.session_recap.session_recap import SessionRecap
 from api.models.foundations.mistake_pattern.mistake_pattern import MistakePattern
 from api.models.orchestrations.progress.exceptions import (
     ProgressOrchestrationDependencyException,
@@ -26,6 +31,7 @@ from api.models.orchestrations.progress.exceptions import (
 from api.models.orchestrations.progress.speaking_total import SpeakingTotal
 from api.models.orchestrations.progress.topic_coverage_entry import TopicCoverageEntry
 from api.models.orchestrations.progress.unflagged_streak import UnflaggedStreak
+from api.services.aggregations.session_recap import SessionRecapAggregationService
 from api.services.orchestrations.progress import ProgressOrchestrationService
 
 
@@ -35,9 +41,14 @@ def mock_orchestrator():
 
 
 @pytest.fixture
-def client(mock_orchestrator):
+def mock_recap_aggregator():
+    return Mock(spec=SessionRecapAggregationService)
+
+
+@pytest.fixture
+def client(mock_orchestrator, mock_recap_aggregator):
     app = Flask(__name__)
-    app.register_blueprint(make_progress_blueprint(mock_orchestrator))
+    app.register_blueprint(make_progress_blueprint(mock_orchestrator, mock_recap_aggregator))
     return app.test_client()
 
 
@@ -234,3 +245,63 @@ class TestGetStreak:
 
         # when / then
         assert client.get("/progress/streak").status_code == 500
+
+
+class TestGetRecap:
+    """Roadmap C2. Unlike /speaking and /streak, there is no zero-valued
+    SessionRecap to fall back to -- the "nothing yet" case is `null`, not a
+    dataclass of zeroes, so it gets its own explicit test rather than
+    reusing the "zeroes when nothing logged" shape above."""
+
+    def test_should_return_200_with_isoformat_timestamps_when_a_session_has_completed(
+        self, client, mock_recap_aggregator
+    ):
+        # given
+        mock_recap_aggregator.get_latest_recap.return_value = SessionRecap(
+            flag_count=2,
+            categories_flagged=["gender-agreement", "ser-vs-estar"],
+            session_started_at=datetime(2026, 9, 18, 18, 0, 0),
+            session_ended_at=datetime(2026, 9, 18, 18, 20, 0),
+        )
+
+        # when
+        response = client.get("/progress/recap")
+
+        # then
+        assert response.status_code == 200
+        assert response.get_json() == {
+            "flag_count": 2,
+            "categories_flagged": ["gender-agreement", "ser-vs-estar"],
+            "session_started_at": "2026-09-18T18:00:00",
+            "session_ended_at": "2026-09-18T18:20:00",
+        }
+        mock_recap_aggregator.get_latest_recap.assert_called_once_with()
+
+    def test_should_return_200_with_null_when_no_session_has_ever_completed(self, client, mock_recap_aggregator):
+        # given
+        mock_recap_aggregator.get_latest_recap.return_value = None
+
+        # when
+        response = client.get("/progress/recap")
+
+        # then
+        assert response.status_code == 200
+        assert response.get_json() is None
+
+    def test_should_return_500_when_aggregator_raises_dependency_exception(self, client, mock_recap_aggregator):
+        # given
+        mock_recap_aggregator.get_latest_recap.side_effect = SessionRecapAggregationDependencyException(
+            inner_exception=RuntimeError("db down")
+        )
+
+        # when / then
+        assert client.get("/progress/recap").status_code == 500
+
+    def test_should_return_500_when_aggregator_raises_service_exception(self, client, mock_recap_aggregator):
+        # given
+        mock_recap_aggregator.get_latest_recap.side_effect = SessionRecapAggregationServiceException(
+            inner_exception=RuntimeError("unexpected")
+        )
+
+        # when / then
+        assert client.get("/progress/recap").status_code == 500
