@@ -27,6 +27,10 @@ from api.models.foundations.mistake_pattern.exceptions import (
     MistakePatternDependencyException,
     MistakePatternValidationException,
 )
+from api.models.foundations.pronunciation_result.exceptions import (
+    PronunciationResultDependencyException,
+    PronunciationResultValidationException,
+)
 from api.models.foundations.session_log_entry.exceptions import (
     SessionLogEntryDependencyException,
     SessionLogEntryValidationException,
@@ -56,6 +60,7 @@ class ProgressOrchestrationServiceExceptions:
             MistakePatternValidationException,
             TopicCoveredValidationException,
             SessionLogEntryValidationException,
+            PronunciationResultValidationException,
         ) as e:
             raise self._create_and_log_validation_exception(e) from e
         except (
@@ -63,6 +68,7 @@ class ProgressOrchestrationServiceExceptions:
             MistakePatternDependencyException,
             TopicCoveredDependencyException,
             SessionLogEntryDependencyException,
+            PronunciationResultDependencyException,
         ) as e:
             raise self._create_and_log_dependency_exception(e) from e
         except Exception as e:

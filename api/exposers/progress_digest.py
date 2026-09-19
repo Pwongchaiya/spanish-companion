@@ -24,12 +24,14 @@ from dotenv import load_dotenv
 from api.brokers.learner_profile import SqlAlchemyLearnerProfileBroker
 from api.brokers.logging import StdlibLoggingBroker
 from api.brokers.mistake_pattern.mistake_pattern_broker import SqlAlchemyMistakePatternBroker
+from api.brokers.pronunciation_result import SqlAlchemyPronunciationResultBroker
 from api.brokers.session_log_entry import SqlAlchemySessionLogEntryBroker
 from api.brokers.topic_covered import SqlAlchemyTopicCoveredBroker
 from api.models.foundations.mistake_pattern.mistake_pattern import MistakePattern
 from api.models.orchestrations.progress.topic_coverage_entry import TopicCoverageEntry
 from api.services.foundations.learner_profile import LearnerProfileService
 from api.services.foundations.mistake_pattern import MistakePatternService
+from api.services.foundations.pronunciation_result import PronunciationResultService
 from api.services.foundations.session_log_entry import SessionLogEntryService
 from api.services.foundations.topic_covered import TopicCoveredService
 from api.services.orchestrations.progress import ProgressOrchestrationService
@@ -91,6 +93,7 @@ def main() -> None:
         mistake_pattern_service,
         topic_covered_service,
         session_log_entry_service,
+        PronunciationResultService(SqlAlchemyPronunciationResultBroker(database_url), logging_broker=logging_broker),
         logging_broker=logging_broker,
     )
 

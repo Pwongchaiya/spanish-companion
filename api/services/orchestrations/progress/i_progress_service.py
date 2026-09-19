@@ -15,6 +15,7 @@ from typing import List, Optional, Protocol
 
 from api.models.foundations.mistake_pattern.mistake_pattern import MistakePattern
 from api.models.foundations.session_log_entry.session_log_entry import SessionLogEntry
+from api.models.orchestrations.progress.pronunciation_trend_point import PronunciationTrendPoint
 from api.models.orchestrations.progress.speaking_total import SpeakingTotal
 from api.models.orchestrations.progress.topic_coverage_entry import TopicCoverageEntry
 from api.models.orchestrations.progress.unflagged_streak import UnflaggedStreak
@@ -106,6 +107,22 @@ class ProgressService(Protocol):
         list.
 
         Raises the same three exception tiers as get_speaking_total().
+        """
+        ...
+
+    def list_pronunciation_trend(self, limit: Optional[int] = None) -> List[PronunciationTrendPoint]:
+        """The last `limit` scored pronunciation attempts, oldest -> newest.
+
+        `limit` defaults to config key PRONUNCIATION_TREND_LIMIT (default 30).
+        `overall` is the row's pronunciation_score. [] when nothing has been
+        scored yet -- a normal state, not an error.
+
+        Raises ProgressOrchestrationValidationException (wrapping
+        PronunciationResultValidationException) if the dependency rejects an
+        input.
+        Raises ProgressOrchestrationDependencyException (wrapping
+        PronunciationResultDependencyException) if its storage call fails.
+        Raises ProgressOrchestrationServiceException for anything else.
         """
         ...
 
