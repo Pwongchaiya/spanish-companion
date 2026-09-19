@@ -96,6 +96,7 @@ def make_review_blueprint(orchestrator: ReviewOrchestrationService) -> Blueprint
                 **asdict(result.attempt),
                 "timestamp": result.attempt.timestamp.isoformat(),
                 "mastered": result.mastered,
+                "grade": result.grade,
             }
             return jsonify(body), 201
         except ReviewOrchestrationValidationException as e:
