@@ -118,9 +118,11 @@ from api.models.foundations.session_log_entry.exceptions import (
 )
 from api.models.foundations.session_log_entry.session_log_entry import SessionLogEntry
 from api.services.foundations.flag import IFlagService
+from api.services.foundations.learner_profile import ILearnerProfileService
 from api.services.foundations.session_log_entry import ISessionLogEntryService
 from api.services.foundations.live_transcript import ILiveTranscriptService
 from api.services.foundations.session_log import ISessionLogService
+from api.services.processings.learner_profile import ILearnerProfileProcessingService
 from api.services.orchestrations.voice_conversation._mic_gate import _MicGate
 from api.services.orchestrations.voice_conversation._pressure import get_pressure_level
 from api.services.orchestrations.voice_conversation._turn_state_observer import _TurnStateObserver
@@ -128,6 +130,7 @@ from api.services.orchestrations.voice_conversation.i_voice_conversation_service
 from api.services.orchestrations.voice_conversation.voice_conversation_service_exceptions import (
     ConversationOrchestrationServiceExceptions,
 )
+from rag.services.foundations.generation import IGenerationService
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -267,6 +270,9 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
         flag_service: IFlagService,
         session_log_broker: SessionLogBroker,
         session_log_entry_service: ISessionLogEntryService,
+        generation_service: IGenerationService,
+        learner_profile_processing_service: ILearnerProfileProcessingService,
+        learner_profile_service: ILearnerProfileService,
         *,
         logging_broker: LoggingBroker,
         configuration_broker: ConfigurationBroker = EnvConfigurationBroker(),
@@ -280,6 +286,12 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
         self._flag_service = flag_service
         self._session_log_broker = session_log_broker
         self._session_log_entry_service = session_log_entry_service
+        # Roadmap A6 -- _estimate_and_persist_cefr_level()'s three
+        # dependencies: the rag-side estimate call, and get-or-create +
+        # write on the api-side learner_profile singleton.
+        self._generation_service = generation_service
+        self._learner_profile_processing_service = learner_profile_processing_service
+        self._learner_profile_service = learner_profile_service
         # Mirrors the LoggingBroker constructor parameter on
         # ConversationSessionService/_ReviewOrchestrationServiceBase -- _create_and_log_*
         # methods (Exceptions mixin) log through it before raising.
@@ -339,6 +351,11 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
             except OSError as e:
                 self._logging_broker.log_error(e)
             self._end_session_log_entry(session_log_entry, len(session_flags))
+            # Roadmap A6: last in the cleanup block, after every data-
+            # critical write above -- an estimate is a nice-to-have signal
+            # for D6's difficulty dial, not something worth losing a
+            # graceful /stop over if the LLM or DB is unavailable.
+            self._estimate_and_persist_cefr_level()
 
         if self._setup_timed_out:
             raise VoiceConversationPipelineError(
@@ -388,6 +405,47 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
             SessionLogEntryDependencyException,
             SessionLogEntryServiceException,
         ) as e:
+            self._logging_broker.log_error(e)
+
+    def _estimate_and_persist_cefr_level(self) -> None:
+        """Roadmap A6: best-effort CEFR estimate from this session's full
+        transcript, persisted to the learner_profile singleton.
+
+        ponytail: called synchronously (not asyncio.create_task), same as
+        every other call in this method's caller (run()'s finally block) --
+        estimate_cefr_level()/update_learner_profile() are already
+        synchronous, blocking calls in this codebase (no asyncio anywhere in
+        the GenerationService/LearnerProfile stack), so wrapping a sync call
+        in a task wouldn't make it non-blocking; it would only risk it never
+        completing before this subprocess exits (asyncio.run() tears down
+        pending tasks with the loop once run() returns). A real non-blocking
+        version needs a thread/executor, which is over-engineering for one
+        best-effort call in a single-user CLI subprocess. Upgrade path if
+        teardown latency ever matters: run this in a thread via
+        loop.run_in_executor() and await it here (still before run()
+        returns, just off the main thread while it waits).
+
+        Broad except by design (per this method's own spec, not this file's
+        usual narrow-catch style elsewhere): every failure mode here --
+        broker down, DB down, an unparseable LLM answer already handled
+        inside estimate_cefr_level() -- must be equally harmless, since this
+        is a nice-to-have signal for D6's difficulty dial, not session data.
+        """
+        try:
+            transcript_text = self._live_transcript_service.read_full_text()
+            if not transcript_text:
+                return
+            level = self._generation_service.estimate_cefr_level(transcript_text)
+            if level is None:
+                return
+            # Matches ReviewOrchestrationService.record_practice()'s own
+            # ensure_profile() call: single-user app, same config key, so a
+            # profile created here or there converges on the same default.
+            default_level = self._configuration_broker.get("DEFAULT_PROFICIENCY_LEVEL", "beginner")
+            profile = self._learner_profile_processing_service.ensure_profile(default_level)
+            self._learner_profile_service.update_learner_profile(profile.id, cefr_estimate=level)
+            self._logging_broker.log_info(f"CEFR estimate for this session: {level}")
+        except Exception as e:
             self._logging_broker.log_error(e)
 
     async def _setup(self) -> Tuple[WorkerRunner, LLMContext, List[Flag]]:
