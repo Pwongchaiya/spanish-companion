@@ -18,13 +18,16 @@ from api.brokers.session_log import SessionLogBroker
 from api.brokers.stt import SttBroker
 from api.models.foundations.live_transcript.exceptions import LiveTranscriptServiceException
 from api.services.foundations.flag import IFlagService
+from api.services.foundations.learner_profile import ILearnerProfileService
 from api.services.foundations.live_transcript import ILiveTranscriptService
 from api.services.foundations.session_log import ISessionLogService
 from api.services.foundations.session_log_entry import ISessionLogEntryService
 from api.services.orchestrations.voice_conversation import ConversationOrchestrationService
+from api.services.processings.learner_profile import ILearnerProfileProcessingService
 from pipecat.services.azure.tts import AzureTTSService
 from pipecat.services.google.llm import GoogleLLMService
 from pipecat.transports.local.audio import LocalAudioTransport
+from rag.services.foundations.generation import IGenerationService
 
 
 def _make_orchestrator(**overrides):
@@ -38,6 +41,9 @@ def _make_orchestrator(**overrides):
         "flag_service": Mock(spec=IFlagService),
         "session_log_broker": Mock(spec=SessionLogBroker),
         "session_log_entry_service": Mock(spec=ISessionLogEntryService),
+        "generation_service": Mock(spec=IGenerationService),
+        "learner_profile_processing_service": Mock(spec=ILearnerProfileProcessingService),
+        "learner_profile_service": Mock(spec=ILearnerProfileService),
         "logging_broker": Mock(spec=LoggingBroker),
         "configuration_broker": Mock(spec=ConfigurationBroker),
     }

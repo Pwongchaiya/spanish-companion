@@ -76,6 +76,8 @@ from api.services.orchestrations.learner_profile import LearnerProfileOrchestrat
 from api.services.orchestrations.voice_conversation import ConversationOrchestrationService
 from api.services.orchestrations.voice_conversation._pressure import get_pressure_level
 from api.services.processings.learner_profile import LearnerProfileProcessingService
+from rag.brokers.generation import GeminiGenerationBroker
+from rag.services.foundations.generation import GenerationService
 
 
 def _read_and_clear_scenario_override(path: Path = SCENARIO_OVERRIDE_FILE_PATH) -> Optional[str]:
@@ -194,6 +196,15 @@ def main() -> None:
         logging_broker.log_error(f"Missing required configuration: {e}")
         raise
 
+    # Roadmap A6. Same DATABASE_URL already required just below for
+    # session_log_entry_service -- one connection string, reused rather than
+    # re-reading the env var, for the same reason _default_scenario_text's
+    # own LearnerProfile chain reuses it above.
+    database_url = configuration_broker.require("DATABASE_URL")
+    learner_profile_service = LearnerProfileService(
+        SqlAlchemyLearnerProfileBroker(database_url), logging_broker=logging_broker
+    )
+
     orchestrator = ConversationOrchestrationService(
         stt_broker=AzureSttBroker(),
         transport=transport,
@@ -213,9 +224,16 @@ def main() -> None:
         # ConversationOrchestrationService are individually guarded, so a
         # dead DB costs the meter one session, not the conversation).
         session_log_entry_service=SessionLogEntryService(
-            SqlAlchemySessionLogEntryBroker(configuration_broker.require("DATABASE_URL")),
+            SqlAlchemySessionLogEntryBroker(database_url),
             logging_broker=logging_broker,
         ),
+        # Roadmap A6 -- _estimate_and_persist_cefr_level()'s three
+        # dependencies, same GeminiGenerationBroker construction api/app.py
+        # uses for Review, plus the same LearnerProfile get-or-create chain
+        # built above.
+        generation_service=GenerationService(GeminiGenerationBroker(), logging_broker=logging_broker),
+        learner_profile_processing_service=LearnerProfileProcessingService(learner_profile_service),
+        learner_profile_service=learner_profile_service,
         logging_broker=logging_broker,
         configuration_broker=configuration_broker,
     )
