@@ -19,6 +19,7 @@ from typing import List, Optional, Protocol
 
 from api.models.foundations.flag import Flag
 from api.models.orchestrations.review.practice_result import PracticeResult
+from api.models.orchestrations.review.task_outcome import TaskOutcome
 from rag.models.foundations.generation import Explanation
 
 
@@ -49,6 +50,21 @@ class ReviewService(Protocol):
         Also raises ReviewOrchestrationValidationException wrapping
         RetrievalOrchestrationValidationException if the flag's corrected text
         is unusable as a retrieval query.
+        """
+        ...
+
+    def get_task_outcome(self) -> Optional[TaskOutcome]:
+        """Roadmap D4: the latest completed session's task-scenario outcome.
+
+        Returns None if there is no completed session, or its scenario is
+        absent/has no success_condition. Otherwise returns a TaskOutcome; if
+        the session was not yet judged, judges it now (Generation LLM judge
+        over the transcript) and persists the result to session_log. `outcome`
+        stays None if it couldn't be judged (no transcript, judge failure) --
+        retried on the next call. Never called in live Conversation Mode.
+
+        Failures beneath (session_log / transcript storage) surface as
+        ReviewOrchestrationServiceException.
         """
         ...
 

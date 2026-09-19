@@ -39,6 +39,7 @@ from api.brokers.mistake_pattern.mistake_pattern_broker import SqlAlchemyMistake
 from api.brokers.practice_log import JsonLinesPracticeLogBroker
 from api.brokers.pronunciation_assessment import AzurePronunciationAssessmentBroker
 from api.brokers.pronunciation_result import SqlAlchemyPronunciationResultBroker
+from api.brokers.session_log import FileSessionLogBroker
 from api.brokers.session_log_entry import SqlAlchemySessionLogEntryBroker
 from api.brokers.topic_covered import SqlAlchemyTopicCoveredBroker
 from api.brokers.tts import AzureTtsBroker
@@ -50,6 +51,7 @@ from api.exposers.session_lifecycle import make_session_lifecycle_blueprint
 from api.exposers.tts import make_tts_blueprint
 from api.services.foundations.flag import FlagService
 from api.services.foundations.learner_profile import LearnerProfileService
+from api.services.foundations.live_transcript import LiveTranscriptService
 from api.services.foundations.mistake_pattern import MistakePatternService
 from api.services.foundations.practice_log import PracticeLogService
 from api.services.foundations.pronunciation_assessment import PronunciationAssessmentService
@@ -257,6 +259,8 @@ def create_app() -> Flask:
         generation_service=generation_service,
         learner_profile_processing_service=learner_profile_processing_service,
         mistake_pattern_processing_service=mistake_pattern_processing_service,
+        session_log_entry_service=session_log_entry_service,
+        live_transcript_service=LiveTranscriptService(FileSessionLogBroker(), logging_broker=logging_broker),
         logging_broker=logging_broker,
         configuration_broker=configuration_broker,
     )

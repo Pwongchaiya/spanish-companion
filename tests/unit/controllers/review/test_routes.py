@@ -17,6 +17,7 @@ from flask import Flask
 from api.brokers.practice_log import PracticeAttempt
 from api.exposers.review import make_review_blueprint
 from api.models.orchestrations.review.practice_result import PracticeResult
+from api.models.orchestrations.review.task_outcome import TaskOutcome
 from api.models.foundations.flag import Flag
 from api.models.foundations.flag.exceptions import FlagValidationException, NotFoundFlagException
 from api.models.orchestrations.review.exceptions import (
@@ -275,3 +276,48 @@ class TestRecordPractice:
         assert response.status_code == 400
         assert response.get_json() == {"error": "attempt_text is required"}
         mock_orchestrator.record_practice.assert_not_called()
+
+
+class TestTaskOutcomeRoute:
+
+    def test_should_return_outcome_json(self, client, mock_orchestrator):
+        # given
+        mock_orchestrator.get_task_outcome.return_value = TaskOutcome(
+            scenario_slug="ordering_coffee", label="Ordering coffee", success_condition="orders both", outcome="success"
+        )
+
+        # when
+        response = client.get("/review/task-outcome")
+
+        # then
+        assert response.status_code == 200
+        assert response.get_json() == {
+            "scenario_slug": "ordering_coffee",
+            "label": "Ordering coffee",
+            "success_condition": "orders both",
+            "outcome": "success",
+        }
+        mock_orchestrator.get_task_outcome.assert_called_once_with()
+
+    def test_should_return_null_when_no_task_session(self, client, mock_orchestrator):
+        # given
+        mock_orchestrator.get_task_outcome.return_value = None
+
+        # when
+        response = client.get("/review/task-outcome")
+
+        # then
+        assert response.status_code == 200
+        assert response.get_json() is None
+
+    def test_should_return_500_on_service_exception(self, client, mock_orchestrator):
+        # given
+        mock_orchestrator.get_task_outcome.side_effect = ReviewOrchestrationServiceException(
+            inner_exception=RuntimeError("boom")
+        )
+
+        # when
+        response = client.get("/review/task-outcome")
+
+        # then
+        assert response.status_code == 500

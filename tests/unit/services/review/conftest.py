@@ -22,7 +22,9 @@ import pytest
 from api.models.foundations.flag import Flag
 from api.models.foundations.learner_profile.learner_profile import LearnerProfile
 from api.services.foundations.flag import IFlagService
+from api.services.foundations.live_transcript import ILiveTranscriptService
 from api.services.foundations.practice_log import IPracticeLogService
+from api.services.foundations.session_log_entry import ISessionLogEntryService
 from api.services.orchestrations.review import ReviewOrchestrationService
 from api.services.processings.learner_profile import ILearnerProfileProcessingService
 from api.services.processings.mistake_pattern import IMistakePatternProcessingService
@@ -94,6 +96,16 @@ def mock_mistake_pattern_processing_service():
 
 
 @pytest.fixture
+def mock_session_log_entry_service():
+    return Mock(spec=ISessionLogEntryService)
+
+
+@pytest.fixture
+def mock_live_transcript_service():
+    return Mock(spec=ILiveTranscriptService)
+
+
+@pytest.fixture
 def clock():
     return FakeClock()
 
@@ -111,6 +123,8 @@ def service(
     mock_generation_service,
     mock_learner_profile_processing_service,
     mock_mistake_pattern_processing_service,
+    mock_session_log_entry_service,
+    mock_live_transcript_service,
     clock,
     configuration_broker,
     mock_logging_broker,
@@ -122,6 +136,8 @@ def service(
         generation_service=mock_generation_service,
         learner_profile_processing_service=mock_learner_profile_processing_service,
         mistake_pattern_processing_service=mock_mistake_pattern_processing_service,
+        session_log_entry_service=mock_session_log_entry_service,
+        live_transcript_service=mock_live_transcript_service,
         clock=clock,
         configuration_broker=configuration_broker,
         logging_broker=mock_logging_broker,
