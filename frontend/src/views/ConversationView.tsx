@@ -6,6 +6,7 @@ import { useConnectionStore } from "../state/connectionStore";
 import { apiClient } from "../api/client";
 import type { SessionRecap, SessionScenario, TurnState } from "../api/types";
 import { ROLEPLAY_SCENARIOS } from "../data/roleplayScenarios";
+import { DueBrief } from "../components/DueBrief";
 
 // C2 post-session recap card. Plain summary, not a celebratory screen --
 // this is a personal single-user app (see CLAUDE.md's "deprioritize social/
@@ -199,6 +200,7 @@ export function ConversationView() {
         {hint && <p className="hint">{hint}</p>}
         {showScenarioPicker && (
           <div className="scene-control">
+            <DueBrief due={scenario?.due_patterns} />
             <div className="pressure-dial" role="group" aria-label="Pressure">
               {PRESSURE_LEVELS.map((p) => (
                 <button

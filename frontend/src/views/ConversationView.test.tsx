@@ -91,6 +91,20 @@ describe("ConversationView scenario picker", () => {
     expect(screen.getByRole("button", { name: "+ More to adjust" })).toBeTruthy();
   });
 
+  it("shows the Due for review row only when the scenario has due patterns", () => {
+    mockSession({ status: { running: false, ready: false, graceful: null }, scenario: loadedScenario });
+    const { unmount } = render(<ConversationView />);
+    expect(screen.queryByText("Due for review")).toBeNull();
+    unmount();
+
+    mockSession({
+      status: { running: false, ready: false, graceful: null },
+      scenario: { ...loadedScenario, due_patterns: [{ category: "past_tense", occurrence_count: 2, days_overdue: 3 }] },
+    });
+    render(<ConversationView />);
+    expect(screen.getByText("Due for review")).toBeTruthy();
+    expect(screen.getByText("past tense")).toBeTruthy();
+  });
   it("passes scene text and the selected pressure level token to start() on Start (D5: no more phrase-folding)", () => {
     const startMock = vi.fn();
     mockSession({ status: { running: false, ready: false, graceful: null }, scenario: loadedScenario, start: startMock });
