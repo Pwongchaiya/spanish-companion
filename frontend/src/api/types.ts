@@ -47,6 +47,8 @@ export interface SessionScenario {
   suggested_topic: string | null;
   recent_mistake_categories: string[];
   due_patterns?: DuePattern[];
+  boss_fight_text?: string | null;
+  boss_fight_categories?: string[];
 }
 
 export interface MistakePatternSummary {

@@ -247,6 +247,19 @@ export function ConversationView() {
                     setSceneEdited(true);
                   }}
                 />
+                {scenario?.boss_fight_text && (
+                  <button
+                    type="button"
+                    className="boss-fight"
+                    onClick={() => {
+                      setSceneText(scenario.boss_fight_text ?? "");
+                      setSceneEdited(true);
+                      setPressure("push");
+                    }}
+                  >
+                    Boss fight
+                  </button>
+                )}
                 <label className="field-label" htmlFor="roleplay-select">
                   Or pick a roleplay
                 </label>

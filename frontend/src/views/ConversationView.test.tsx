@@ -135,6 +135,39 @@ describe("ConversationView scenario picker", () => {
   });
 });
 
+describe("ConversationView boss fight (C4)", () => {
+  const base = {
+    proficiency_level: "beginner",
+    focus_category: null,
+    suggested_topic: null,
+    recent_mistake_categories: [],
+  };
+
+  beforeEach(() => {
+    useConnectionStore.getState().setOk();
+  });
+
+  it("is hidden when the scenario has no boss fight text", () => {
+    mockSession({ scenario: base });
+    render(<ConversationView />);
+    expect(screen.queryByRole("button", { name: "Boss fight" })).toBeNull();
+  });
+
+  it("sets the scene text and pressure to push on click", () => {
+    const start = vi.fn();
+    mockSession({
+      scenario: { ...base, boss_fight_text: "Boss fight: quiz me on ser estar", boss_fight_categories: ["ser_estar"] },
+      start,
+    });
+    render(<ConversationView />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Boss fight" }));
+    fireEvent.click(screen.getByRole("button", { name: "Start" }));
+
+    expect(start).toHaveBeenCalledWith("Boss fight: quiz me on ser estar", undefined, "push");
+  });
+});
+
 describe("ConversationView post-session recap (C2)", () => {
   beforeEach(() => {
     useConnectionStore.getState().setOk();
