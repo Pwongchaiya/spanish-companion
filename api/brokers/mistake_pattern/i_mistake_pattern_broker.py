@@ -7,6 +7,7 @@ increment logic. `record_occurrence()` (find-by-category -> insert or
 increment) is Processing-tier logic, built later against this interface.
 """
 
+from datetime import datetime
 from typing import Optional, Protocol
 
 from api.models.foundations.mistake_pattern.mistake_pattern import MistakePattern
@@ -34,9 +35,15 @@ class IMistakePatternBroker(Protocol):
         ...
 
     def update_mistake_pattern(
-        self, pattern_id: int, occurrence_count: int, status: str
+        self,
+        pattern_id: int,
+        occurrence_count: int,
+        status: str,
+        interval_days: Optional[float] = None,
+        next_due_at: Optional[datetime] = None,
     ) -> Optional[MistakePattern]:
-        """Update the given row's occurrence_count and status. Returns None
+        """Update the given row's occurrence_count and status (and, when not
+        None, interval_days / next_due_at -- None leaves them unchanged). Returns None
         if pattern_id doesn't exist — Foundation maps that to
         NotFoundMistakePatternException, same convention as
         select_mistake_patterns_by_profile() returning an empty list for no

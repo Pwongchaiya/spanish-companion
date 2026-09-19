@@ -9,8 +9,9 @@ here — this broker's CRUD is pure select/insert/update, same shape as
 
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Optional
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -30,6 +31,8 @@ class MistakePatternRecord(Base):
         DateTime(), server_default=func.now(), onupdate=func.now(), nullable=False
     )
     status: Mapped[str] = mapped_column(String, server_default="active", nullable=False)
+    interval_days: Mapped[float] = mapped_column(Float, server_default="1.0", nullable=False)
+    next_due_at: Mapped[Optional[datetime]] = mapped_column(DateTime(), nullable=True)
 
 
 @dataclass
@@ -42,3 +45,5 @@ class MistakePattern:
     occurrence_count: int
     last_seen_at: datetime
     status: str
+    interval_days: float = 1.0
+    next_due_at: Optional[datetime] = None

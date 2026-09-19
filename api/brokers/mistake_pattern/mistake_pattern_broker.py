@@ -8,6 +8,7 @@ owned per-instance, Session opened per call, pg8000 driver-scheme
 normalization in __init__).
 """
 
+from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import create_engine, select
@@ -24,6 +25,8 @@ def _to_dataclass(record: MistakePatternRecord) -> MistakePattern:
         occurrence_count=record.occurrence_count,
         last_seen_at=record.last_seen_at,
         status=record.status,
+        interval_days=record.interval_days,
+        next_due_at=record.next_due_at,
     )
 
 
@@ -55,7 +58,12 @@ class SqlAlchemyMistakePatternBroker:
             return _to_dataclass(record)
 
     def update_mistake_pattern(
-        self, pattern_id: int, occurrence_count: int, status: str
+        self,
+        pattern_id: int,
+        occurrence_count: int,
+        status: str,
+        interval_days: Optional[float] = None,
+        next_due_at: Optional[datetime] = None,
     ) -> Optional[MistakePattern]:
         with Session(self._engine) as session:
             record = session.get(MistakePatternRecord, pattern_id)
@@ -63,6 +71,11 @@ class SqlAlchemyMistakePatternBroker:
                 return None
             record.occurrence_count = occurrence_count
             record.status = status
+            # None = leave the scheduling columns unchanged.
+            if interval_days is not None:
+                record.interval_days = interval_days
+            if next_due_at is not None:
+                record.next_due_at = next_due_at
             session.commit()
             session.refresh(record)
             return _to_dataclass(record)
