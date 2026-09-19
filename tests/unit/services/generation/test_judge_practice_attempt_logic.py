@@ -1,33 +1,28 @@
 """Unit tests for GenerationService.judge_practice_attempt().
 
-LearnerProfile Phase 2 (see decisions/dynamic-bot-behavior-and-learner-memory.md).
-Same shape as explain()'s grounding judge: one broker call, YES/NO verdict.
+A2 (graded practice-attempt verdict): one broker call, now returning one of
+"again" | "hard" | "good" | "easy" instead of a binary YES/NO verdict.
 """
+
+import pytest
 
 
 class TestGenerationServiceJudgePracticeAttempt:
 
-    def test_should_return_true_when_broker_verdict_starts_with_yes(self, service, mock_broker, flag):
+    @pytest.mark.parametrize("grade", ["again", "hard", "good", "easy"])
+    def test_should_return_the_grade_word_when_broker_verdict_starts_with_it(
+        self, service, mock_broker, flag, grade
+    ):
         # given
-        mock_broker.generate.return_value = "YES, that's the correct preterite form."
+        mock_broker.generate.return_value = f"{grade.upper()}, that's my assessment."
 
         # when
         result = service.judge_practice_attempt(flag, "yo tengo")
 
         # then
-        assert result is True
+        assert result == grade
 
-    def test_should_return_false_when_broker_verdict_starts_with_no(self, service, mock_broker, flag):
-        # given
-        mock_broker.generate.return_value = "NO, that's still incorrect."
-
-        # when
-        result = service.judge_practice_attempt(flag, "yo soy tener")
-
-        # then
-        assert result is False
-
-    def test_should_return_false_when_broker_call_fails(self, service, mock_broker, flag):
+    def test_should_fall_back_to_again_when_broker_call_fails(self, service, mock_broker, flag):
         # given
         from rag.brokers.generation import GenerationError
 
@@ -37,11 +32,31 @@ class TestGenerationServiceJudgePracticeAttempt:
         result = service.judge_practice_attempt(flag, "yo tengo")
 
         # then -- can't verify, so don't credit it
-        assert result is False
+        assert result == "again"
+
+    def test_should_fall_back_to_again_when_verdict_is_unparseable(self, service, mock_broker, flag):
+        # given -- not one of the four known grade words
+        mock_broker.generate.return_value = "definitely correct!"
+
+        # when
+        result = service.judge_practice_attempt(flag, "yo tengo")
+
+        # then
+        assert result == "again"
+
+    def test_should_fall_back_to_again_when_verdict_is_blank(self, service, mock_broker, flag):
+        # given
+        mock_broker.generate.return_value = "   "
+
+        # when
+        result = service.judge_practice_attempt(flag, "yo tengo")
+
+        # then
+        assert result == "again"
 
     def test_should_include_original_mistake_and_attempt_text_in_prompt(self, service, mock_broker, flag):
         # given
-        mock_broker.generate.return_value = "YES"
+        mock_broker.generate.return_value = "good"
 
         # when
         service.judge_practice_attempt(flag, "yo tengo")

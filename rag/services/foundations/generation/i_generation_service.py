@@ -54,16 +54,21 @@ class IGenerationService(Protocol):
         """
         ...
 
-    def judge_practice_attempt(self, flag: FlagLike, attempt_text: str, roleplay_setting: str | None = None) -> bool:
-        """Return True if `attempt_text` correctly applies flag's correction.
+    def judge_practice_attempt(self, flag: FlagLike, attempt_text: str, roleplay_setting: str | None = None) -> str:
+        """Return one of "again" | "hard" | "good" | "easy" grading how well
+        `attempt_text` applies flag's correction.
 
         LearnerProfile Phase 2 (see decisions/dynamic-bot-behavior-and-
-        learner-memory.md): one broker call, same shape as explain()'s
-        grounding judge -- a single YES/NO verdict, no scoring/threshold
-        config. Review Mode only, untimed. A broker failure is treated as
-        "not mastered" (can't verify, so don't credit it) rather than
-        raising -- same swallow-to-fallback shape as the grounding judge.
-        May raise GenerationServiceException for anything else unexpected.
+        learner-memory.md), A2 (graded verdict): one broker call, same shape
+        as explain()'s grounding judge, now returning an Anki-style 4-level
+        grade instead of a binary YES/NO verdict. Review Mode only, untimed.
+        A broker failure, or a response that doesn't parse to one of the four
+        grades, falls back to "again" (can't verify, so don't credit it) --
+        same swallow-to-fallback shape as the grounding judge. Deriving the
+        `mastered: bool` other consumers rely on (`grade in ("good", "easy")`)
+        is Review's job, not this service's -- see
+        ReviewOrchestrationService.record_practice(). May raise
+        GenerationServiceException for anything else unexpected.
 
         `roleplay_setting` (LearnerProfile Phase 4, optional) frames the
         judged attempt inside a roleplay scene instead of a bare sentence --
