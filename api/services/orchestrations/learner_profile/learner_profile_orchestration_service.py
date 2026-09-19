@@ -121,6 +121,13 @@ class LearnerProfileOrchestrationService(LearnerProfileOrchestrationServiceExcep
                 for p in self._mp_processing.list_due(profile.id, now)[:due_limit]
             ]
 
+            # C4 boss fight: struggling-but-not-improving patterns, due now.
+            boss = self._pick_boss_patterns(
+                patterns, now, int(self._configuration_broker.get("BOSS_MIN_OCCURRENCES", "3"))
+            )
+            boss_text = self._boss_fight_text([p.category for p in boss])
+            boss_categories = [p.category for p in boss][: boss_text.count(", ") + 1] if boss_text else []
+
             self._logging_broker.log_info(
                 "suggested session scenario: level=%s focus=%r topic=%r due=%d",
                 profile.proficiency_level,
@@ -134,6 +141,8 @@ class LearnerProfileOrchestrationService(LearnerProfileOrchestrationServiceExcep
                 suggested_topic=suggested_topic,
                 recent_mistake_categories=recent_mistake_categories,
                 due_patterns=due_patterns,
+                boss_fight_text=boss_text or None,
+                boss_fight_categories=boss_categories,
             )
 
         return self._try_catch(action)
@@ -147,6 +156,31 @@ class LearnerProfileOrchestrationService(LearnerProfileOrchestrationServiceExcep
         """
         active = [p for p in patterns if p.status == "active"]
         return max(active, key=lambda p: p.occurrence_count).category if active else None
+
+    @staticmethod
+    def _pick_boss_patterns(patterns: List[MistakePattern], now: datetime, min_occurrences: int) -> List[MistakePattern]:
+        """C4: up to 3 active, due, frequently-repeated patterns whose review
+        interval hasn't grown past 2 days (a proxy for "not improving")."""
+        eligible = [
+            p
+            for p in patterns
+            if p.status == "active"
+            and p.next_due_at is not None
+            and p.next_due_at <= now
+            and p.occurrence_count >= min_occurrences
+            and p.interval_days < 2.0
+        ]
+        return sorted(eligible, key=lambda p: p.occurrence_count, reverse=True)[:3]
+
+    @staticmethod
+    def _boss_fight_text(categories: List[str]) -> str:
+        """One line for the scene input (maxLength 80); drops trailing
+        categories that don't fit. Empty string if none fit."""
+        prefix = "Boss fight: quiz me on "
+        labels = [c.replace("_", " ") for c in categories]
+        while labels and len(prefix + ", ".join(labels)) > 80:
+            labels.pop()
+        return prefix + ", ".join(labels) if labels else ""
 
     @staticmethod
     def _pick_due_topic(topics: List[TopicCovered]) -> Optional[str]:
@@ -173,6 +207,13 @@ if __name__ == "__main__":
         MistakePattern(id=2, profile_id=1, category="ser_estar", occurrence_count=5, last_seen_at=datetime.now(), status="active"),
     ]
     assert svc._pick_focus_category(mixed) == "ser_estar"
+
+    now = datetime(2026, 1, 10)
+    boss_ok = MistakePattern(id=3, profile_id=1, category="ser_estar", occurrence_count=4, last_seen_at=now, status="active", next_due_at=now, interval_days=1.0)
+    assert svc._pick_boss_patterns([boss_ok], now, 3) == [boss_ok]
+    assert svc._pick_boss_patterns([boss_ok], now, 5) == []
+    assert svc._boss_fight_text(["a"] * 40) != "" and len(svc._boss_fight_text(["a"] * 40)) <= 80
+    assert svc._boss_fight_text([]) == ""
 
     assert svc._pick_due_topic([]) is None
     topics = [
