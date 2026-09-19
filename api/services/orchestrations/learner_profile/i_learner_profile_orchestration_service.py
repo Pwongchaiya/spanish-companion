@@ -47,6 +47,10 @@ class LearnerProfileScenarioService(Protocol):
           covered yet).
         - recent_mistake_categories: deduped Flag categories from the most
           recent flags (config-driven limit), newest first.
+        - due_patterns: mistake patterns whose spaced-review is due
+          (MistakePatternProcessingService.list_due), next_due_at-ascending,
+          capped at DUE_BRIEF_LIMIT (default 3). Coexists with
+          focus_category/suggested_topic (A3 priming brief).
 
         Raises LearnerProfileOrchestrationValidationException (wrapping
         LearnerProfileValidationException, MistakePatternValidationException,

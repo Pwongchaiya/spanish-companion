@@ -32,7 +32,9 @@ def _compose(cefr):
     logging_broker = Mock(spec=LoggingBroker)
     with patch.object(vc, "FilePromptBroker") as prompt_broker, patch.object(
         vc, "_read_and_clear_scenario_override", return_value="SCENARIO"
-    ) as override, patch.object(vc, "_read_cefr_estimate", return_value=cefr) as read:
+    ) as override, patch.object(vc, "_load_scenario", return_value=None), patch.object(
+        vc, "_read_cefr_estimate", return_value=cefr
+    ) as read:
         prompt_broker.return_value.get_system_prompt.return_value = "BASE"
         result = vc._compose_system_prompt(logging_broker, "PRESSURE")
         override.assert_called_once_with()

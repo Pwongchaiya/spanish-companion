@@ -44,13 +44,14 @@ nested closure passed straight to `_try_catch`, not a separate `_do_thing`
 private method with its own local try/except -- same convention as Review.
 """
 
+from datetime import datetime
 from typing import Callable, List, Optional
 
 from api.brokers.configuration import ConfigurationBroker, EnvConfigurationBroker
 from api.brokers.logging import LoggingBroker
 from api.models.foundations.mistake_pattern.mistake_pattern import MistakePattern
 from api.models.foundations.topic_covered.topic_covered import TopicCovered
-from api.models.orchestrations.learner_profile.session_scenario import SessionScenario
+from api.models.orchestrations.learner_profile.session_scenario import DuePattern, SessionScenario
 from api.services.foundations.flag import IFlagService
 from api.services.foundations.mistake_pattern import IMistakePatternService
 from api.services.foundations.topic_covered import ITopicCoveredService
@@ -61,6 +62,7 @@ from api.services.orchestrations.learner_profile.learner_profile_orchestration_s
     LearnerProfileOrchestrationServiceExceptions,
 )
 from api.services.processings.learner_profile import ILearnerProfileProcessingService
+from api.services.processings.mistake_pattern import IMistakePatternProcessingService
 
 
 class LearnerProfileOrchestrationService(LearnerProfileOrchestrationServiceExceptions, LearnerProfileScenarioService):
@@ -74,7 +76,9 @@ class LearnerProfileOrchestrationService(LearnerProfileOrchestrationServiceExcep
         flag_service: IFlagService,
         *,
         logging_broker: LoggingBroker,
+        mistake_pattern_processing_service: IMistakePatternProcessingService,
         configuration_broker: ConfigurationBroker = EnvConfigurationBroker(),
+        clock: Callable[[], datetime] = datetime.now,
     ) -> None:
         # ORC-002 check: every dependency above is a Foundation or Processing
         # service interface (I*Service Protocol). Nothing here is imported
@@ -87,6 +91,8 @@ class LearnerProfileOrchestrationService(LearnerProfileOrchestrationServiceExcep
         self._flag_service = flag_service
         self._logging_broker = logging_broker
         self._configuration_broker = configuration_broker
+        self._mp_processing = mistake_pattern_processing_service
+        self._clock = clock
 
     def suggest_session_scenario(self) -> SessionScenario:
         def action() -> SessionScenario:
@@ -103,17 +109,31 @@ class LearnerProfileOrchestrationService(LearnerProfileOrchestrationServiceExcep
             recent_flags = sorted(self._flag_service.list_flags(), key=lambda f: f.timestamp, reverse=True)
             recent_mistake_categories = list(dict.fromkeys(f.category for f in recent_flags[:flag_limit]))
 
+            # A3 priming brief: list_due is already next_due_at-ascending.
+            now = self._clock()
+            due_limit = int(self._configuration_broker.get("DUE_BRIEF_LIMIT", "3"))
+            due_patterns = [
+                DuePattern(
+                    category=p.category,
+                    occurrence_count=p.occurrence_count,
+                    days_overdue=max(0.0, (now - p.next_due_at).total_seconds() / 86400),
+                )
+                for p in self._mp_processing.list_due(profile.id, now)[:due_limit]
+            ]
+
             self._logging_broker.log_info(
-                "suggested session scenario: level=%s focus=%r topic=%r",
+                "suggested session scenario: level=%s focus=%r topic=%r due=%d",
                 profile.proficiency_level,
                 focus_category,
                 suggested_topic,
+                len(due_patterns),
             )
             return SessionScenario(
                 proficiency_level=profile.proficiency_level or default_level,
                 focus_category=focus_category,
                 suggested_topic=suggested_topic,
                 recent_mistake_categories=recent_mistake_categories,
+                due_patterns=due_patterns,
             )
 
         return self._try_catch(action)

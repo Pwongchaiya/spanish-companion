@@ -16,6 +16,15 @@ from typing import List, Optional
 
 
 @dataclass
+class DuePattern:
+    """A mistake pattern whose review is due (A3 priming brief)."""
+
+    category: str
+    occurrence_count: int
+    days_overdue: float
+
+
+@dataclass
 class SessionScenario:
     """Plain data-carrier returned by suggest_session_scenario()."""
 
@@ -23,3 +32,4 @@ class SessionScenario:
     focus_category: Optional[str]  # highest-occurrence active MistakePattern.category, or None
     suggested_topic: Optional[str]  # focus_category if set, else the topic due for review, else None
     recent_mistake_categories: List[str] = field(default_factory=list)  # newest-first, deduped
+    due_patterns: List[DuePattern] = field(default_factory=list)  # A3: next_due_at-ascending, capped

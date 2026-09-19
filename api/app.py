@@ -191,6 +191,7 @@ def create_app() -> Flask:
         topic_covered_service,
         flag_service,
         logging_broker=logging_broker,
+        mistake_pattern_processing_service=mistake_pattern_processing_service,
         configuration_broker=configuration_broker,
     )
     learner_profile_controller = LearnerProfileController(learner_profile_orchestrator)

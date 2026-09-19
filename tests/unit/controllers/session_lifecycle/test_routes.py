@@ -151,6 +151,7 @@ class TestSessionLifecycleRoutesSessionScenario:
             "focus_category": "gender_agreement",
             "suggested_topic": "gender_agreement",
             "recent_mistake_categories": ["gender_agreement"],
+            "due_patterns": [],
         }
         mock_learner_profile_controller.suggest_session_scenario.assert_called_once_with()
 
