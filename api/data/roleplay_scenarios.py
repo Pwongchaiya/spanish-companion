@@ -16,6 +16,10 @@ class RoleplayScenario:
     slug: str
     label: str
     setting: str
+    tier: str  # one of SCENARIO_TIERS; beginner ~ A1-A2, intermediate ~ B1-B2, advanced ~ C1+
+
+
+SCENARIO_TIERS = ("beginner", "intermediate", "advanced")
 
 
 ROLEPLAY_SCENARIOS: list[RoleplayScenario] = [
@@ -23,16 +27,19 @@ ROLEPLAY_SCENARIOS: list[RoleplayScenario] = [
         slug="ordering_coffee",
         label="Ordering coffee",
         setting="You are a barista at a small café. The user is a customer ordering a drink and something to eat.",
+        tier="beginner",
     ),
     RoleplayScenario(
         slug="job_interview",
         label="Job interview",
         setting="You are an interviewer at a company. The user is a candidate interviewing for a job.",
+        tier="advanced",
     ),
     RoleplayScenario(
         slug="casual_chat",
         label="Casual chat",
         setting="You are a friend catching up with the user about their week, no particular topic.",
+        tier="intermediate",
     ),
 ]
 
@@ -44,6 +51,7 @@ def get_roleplay_scenario(slug: str) -> RoleplayScenario | None:
 if __name__ == "__main__":
     slugs = [s.slug for s in ROLEPLAY_SCENARIOS]
     assert len(slugs) == len(set(slugs)), f"duplicate slugs: {slugs}"
+    assert all(s.tier in SCENARIO_TIERS for s in ROLEPLAY_SCENARIOS), "invalid tier"
     assert get_roleplay_scenario("ordering_coffee") is not None
     assert get_roleplay_scenario("nonexistent") is None
     print("roleplay_scenarios self-check passed")
