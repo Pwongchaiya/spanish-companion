@@ -83,3 +83,31 @@ class TestSessionRecapAggregationServiceExceptions:
             service.get_latest_recap()
 
         mock_logging_broker.log_error.assert_called_once()
+
+
+class TestGetLatestRecapSpeechExceptions:
+
+    def test_should_keep_dependency_tier_when_progress_raises_dependency(
+        self, service, mock_progress_service, mock_tts_service
+    ):
+        mock_progress_service.get_latest_completed_session.side_effect = ProgressOrchestrationDependencyException(
+            inner_exception=Exception("db down")
+        )
+
+        with pytest.raises(SessionRecapAggregationDependencyException):
+            service.get_latest_recap_speech()
+
+        mock_progress_service.get_latest_completed_session.assert_called_once_with()
+        mock_tts_service.synthesize_speech.assert_not_called()
+
+    def test_should_wrap_tts_failure_as_service_exception(
+        self, service, mock_progress_service, mock_review_service, mock_tts_service, make_session_log_entry
+    ):
+        mock_progress_service.get_latest_completed_session.return_value = make_session_log_entry(flag_count=0)
+        mock_review_service.list_flags.return_value = []
+        mock_tts_service.synthesize_speech.side_effect = Exception("azure down")
+
+        with pytest.raises(SessionRecapAggregationServiceException):
+            service.get_latest_recap_speech()
+
+        mock_tts_service.synthesize_speech.assert_called_once()

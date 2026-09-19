@@ -52,8 +52,21 @@ from api.services.aggregations.session_recap.i_session_recap_aggregation_service
 from api.services.aggregations.session_recap.session_recap_aggregation_service_exceptions import (
     SessionRecapAggregationServiceExceptions,
 )
+from api.services.foundations.tts.i_tts_service import ITtsService
 from api.services.orchestrations.progress.i_progress_service import ProgressService
 from api.services.orchestrations.review.i_review_service import ReviewService
+
+
+def build_recap_script(recap: SessionRecap) -> str:
+    """Spanish narration text for a recap (roadmap E4). Categories are spoken
+    as stored (slug hyphens -> spaces)."""
+    if recap.flag_count == 0:
+        return "En tu última sesión no marqué ningún error. ¡Buen trabajo!"
+    n = recap.flag_count
+    text = f"En tu última sesión marqué {n} error{'' if n == 1 else 'es'}."
+    if recap.categories_flagged:
+        text += " Categorías: " + ", ".join(c.replace("-", " ") for c in recap.categories_flagged) + "."
+    return text
 
 
 class SessionRecapAggregationService(SessionRecapAggregationServiceExceptions, ISessionRecapAggregationService):
@@ -65,6 +78,7 @@ class SessionRecapAggregationService(SessionRecapAggregationServiceExceptions, I
         self,
         review_service: ReviewService,
         progress_service: ProgressService,
+        tts_service: ITtsService,
         *,
         logging_broker: LoggingBroker,
     ) -> None:
@@ -73,32 +87,43 @@ class SessionRecapAggregationService(SessionRecapAggregationServiceExceptions, I
         # directly. That is the whole point of sitting one layer above them.
         self._review_service = review_service
         self._progress_service = progress_service
+        self._tts_service = tts_service
         self._logging_broker = logging_broker
 
-    def get_latest_recap(self) -> Optional[SessionRecap]:
-        def action() -> Optional[SessionRecap]:
-            latest_session = self._progress_service.get_latest_completed_session()
-            if latest_session is None:
-                self._logging_broker.log_info("no completed session yet -- nothing to recap")
+    def get_latest_recap_speech(self) -> Optional[bytes]:
+        def action() -> Optional[bytes]:
+            recap = self._compute_recap()
+            if recap is None:
                 return None
-
-            flags = self._review_service.list_flags()
-            categories_flagged = sorted({flag.category for flag in flags})
-
-            self._logging_broker.log_info(
-                "built session recap: session_id=%s flag_count=%d categories=%d",
-                latest_session.id,
-                latest_session.flag_count,
-                len(categories_flagged),
-            )
-            return SessionRecap(
-                flag_count=latest_session.flag_count,
-                categories_flagged=categories_flagged,
-                session_started_at=latest_session.started_at,
-                session_ended_at=latest_session.ended_at,
-            )
+            return self._tts_service.synthesize_speech(build_recap_script(recap))
 
         return self._try_catch(action)
+
+    def get_latest_recap(self) -> Optional[SessionRecap]:
+        return self._try_catch(self._compute_recap)
+
+    def _compute_recap(self) -> Optional[SessionRecap]:
+        # Unwrapped: each public method wraps once via _try_catch.
+        latest_session = self._progress_service.get_latest_completed_session()
+        if latest_session is None:
+            self._logging_broker.log_info("no completed session yet -- nothing to recap")
+            return None
+
+        flags = self._review_service.list_flags()
+        categories_flagged = sorted({flag.category for flag in flags})
+
+        self._logging_broker.log_info(
+            "built session recap: session_id=%s flag_count=%d categories=%d",
+            latest_session.id,
+            latest_session.flag_count,
+            len(categories_flagged),
+        )
+        return SessionRecap(
+            flag_count=latest_session.flag_count,
+            categories_flagged=categories_flagged,
+            session_started_at=latest_session.started_at,
+            session_ended_at=latest_session.ended_at,
+        )
 
 
 if __name__ == "__main__":
@@ -130,6 +155,7 @@ if __name__ == "__main__":
                 )
             )
         ),
+        tts_service=Mock(),
         logging_broker=Mock(),
     )
     recap = svc.get_latest_recap()
@@ -142,6 +168,7 @@ if __name__ == "__main__":
     svc_no_session = SessionRecapAggregationService(
         review_service=Mock(),
         progress_service=Mock(get_latest_completed_session=Mock(return_value=None)),
+        tts_service=Mock(),
         logging_broker=Mock(),
     )
     assert svc_no_session.get_latest_recap() is None, "no completed session -> no recap"

@@ -75,3 +75,57 @@ class TestGetLatestRecap:
         actual = service.get_latest_recap()
 
         assert actual.categories_flagged == []
+
+
+class TestGetLatestRecapSpeech:
+
+    def test_should_return_none_and_skip_tts_when_no_session_has_completed(
+        self, service, mock_progress_service, mock_review_service, mock_tts_service
+    ):
+        mock_progress_service.get_latest_completed_session.return_value = None
+
+        assert service.get_latest_recap_speech() is None
+
+        mock_progress_service.get_latest_completed_session.assert_called_once_with()
+        mock_review_service.list_flags.assert_not_called()
+        mock_tts_service.synthesize_speech.assert_not_called()
+
+    def test_should_synthesize_spanish_script_with_count_and_categories(
+        self, service, mock_progress_service, mock_review_service, mock_tts_service, make_session_log_entry, make_flag
+    ):
+        mock_progress_service.get_latest_completed_session.return_value = make_session_log_entry(flag_count=2)
+        mock_review_service.list_flags.return_value = [make_flag("ser-vs-estar", "f1"), make_flag("subjunctive", "f2")]
+        mock_tts_service.synthesize_speech.return_value = b"RIFFwav"
+
+        actual = service.get_latest_recap_speech()
+
+        assert actual == b"RIFFwav"
+        mock_tts_service.synthesize_speech.assert_called_once_with(
+            "En tu última sesión marqué 2 errores. Categorías: ser vs estar, subjunctive."
+        )
+        mock_progress_service.get_latest_completed_session.assert_called_once_with()
+        mock_review_service.list_flags.assert_called_once_with()
+
+    def test_should_use_singular_for_one_flag(
+        self, service, mock_progress_service, mock_review_service, mock_tts_service, make_session_log_entry, make_flag
+    ):
+        mock_progress_service.get_latest_completed_session.return_value = make_session_log_entry(flag_count=1)
+        mock_review_service.list_flags.return_value = [make_flag("subjunctive")]
+
+        service.get_latest_recap_speech()
+
+        mock_tts_service.synthesize_speech.assert_called_once_with(
+            "En tu última sesión marqué 1 error. Categorías: subjunctive."
+        )
+
+    def test_should_congratulate_when_no_flags(
+        self, service, mock_progress_service, mock_review_service, mock_tts_service, make_session_log_entry
+    ):
+        mock_progress_service.get_latest_completed_session.return_value = make_session_log_entry(flag_count=0)
+        mock_review_service.list_flags.return_value = []
+
+        service.get_latest_recap_speech()
+
+        mock_tts_service.synthesize_speech.assert_called_once_with(
+            "En tu última sesión no marqué ningún error. ¡Buen trabajo!"
+        )
