@@ -44,7 +44,7 @@ class TestListPronunciationTrend:
         mock_pronunciation_result_service.list_pronunciation_results.assert_called_once_with()
 
     def test_should_map_fields_oldest_to_newest_with_overall_as_pronunciation_score(
-        self, service, mock_pronunciation_result_service
+        self, service, mock_pronunciation_result_service, mock_logging_broker
     ):
         # given
         mock_pronunciation_result_service.list_pronunciation_results.return_value = [_result(1), _result(2)]
@@ -57,6 +57,8 @@ class TestListPronunciationTrend:
             PronunciationTrendPoint(created_at=FIXED_NOW + timedelta(days=1), accuracy=1.0, fluency=2.0, overall=3.0),
             PronunciationTrendPoint(created_at=FIXED_NOW + timedelta(days=2), accuracy=2.0, fluency=3.0, overall=4.0),
         ]
+        mock_pronunciation_result_service.list_pronunciation_results.assert_called_once_with()
+        mock_logging_broker.log_error.assert_not_called()
 
     def test_should_keep_only_last_n_where_n_comes_from_config(
         self, mock_learner_profile_processing_service, mock_mistake_pattern_service, mock_topic_covered_service,
@@ -79,6 +81,11 @@ class TestListPronunciationTrend:
 
         # then
         assert [p.accuracy for p in trend] == [3.0, 4.0]
+        mock_pronunciation_result_service.list_pronunciation_results.assert_called_once_with()
+        assert mock_mistake_pattern_service.mock_calls == []
+        assert mock_topic_covered_service.mock_calls == []
+        assert mock_session_log_entry_service.mock_calls == []
+        assert mock_learner_profile_processing_service.mock_calls == []
 
     def test_should_default_limit_to_30(self, service, mock_pronunciation_result_service):
         # given
@@ -90,6 +97,7 @@ class TestListPronunciationTrend:
         # then
         assert len(trend) == 30
         assert trend[-1].accuracy == 39.0
+        mock_pronunciation_result_service.list_pronunciation_results.assert_called_once_with()
 
     def test_should_wrap_dependency_failure(self, service, mock_pronunciation_result_service, mock_logging_broker):
         # given
@@ -102,6 +110,7 @@ class TestListPronunciationTrend:
 
         # then
         assert exc_info.value.inner_exception is wrapper
+        mock_pronunciation_result_service.list_pronunciation_results.assert_called_once_with()
         mock_logging_broker.log_error.assert_called_once()
 
     @pytest.mark.parametrize("raw,expected", [("abc", 30), ("", 30), ("0", 0), ("-3", 0)])

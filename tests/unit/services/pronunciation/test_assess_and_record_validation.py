@@ -33,3 +33,4 @@ class TestAssessAndRecordValidation:
         mock_assessment_service.assess_pronunciation.assert_called_once_with(WAV, TEXT)
         mock_result_service.create_pronunciation_result.assert_not_called()
         mock_logging_broker.log_error.assert_called_once()
+        mock_logging_broker.log_info.assert_not_called()

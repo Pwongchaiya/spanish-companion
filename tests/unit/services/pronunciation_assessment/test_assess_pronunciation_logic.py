@@ -5,7 +5,9 @@ from tests.unit.services.pronunciation_assessment.conftest import VALID_TEXT, VA
 
 class TestPronunciationAssessmentServiceAssessLogic:
 
-    def test_should_return_broker_assessment_when_input_is_valid(self, service, mock_broker, assessment):
+    def test_should_return_broker_assessment_when_input_is_valid(
+        self, service, mock_broker, assessment, mock_logging_broker
+    ):
         # given
         mock_broker.assess.return_value = assessment
 
@@ -15,8 +17,11 @@ class TestPronunciationAssessmentServiceAssessLogic:
         # then
         assert result is assessment
         mock_broker.assess.assert_called_once_with(VALID_WAV, VALID_TEXT)
+        mock_logging_broker.log_error.assert_not_called()
 
-    def test_should_pass_reference_text_through_unmodified(self, service, mock_broker, assessment):
+    def test_should_pass_reference_text_through_unmodified(
+        self, service, mock_broker, assessment, mock_logging_broker
+    ):
         # given
         mock_broker.assess.return_value = assessment
 
@@ -25,3 +30,4 @@ class TestPronunciationAssessmentServiceAssessLogic:
 
         # then
         mock_broker.assess.assert_called_once_with(VALID_WAV, "¿Cómo estás?")
+        mock_logging_broker.log_error.assert_not_called()

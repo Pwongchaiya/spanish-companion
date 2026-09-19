@@ -95,7 +95,7 @@ class AzurePronunciationAssessmentBroker:
         )
         try:
             config.enable_prosody_assessment()
-        except Exception:  # noqa: BLE001 -- prosody is optional (en-US only); its score is None otherwise
+        except Exception:  # noqa: BLE001 -- ponytail: prosody is optional (en-US only); its score is None otherwise
             pass
         config.apply_to(recognizer)
 

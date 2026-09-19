@@ -12,6 +12,7 @@ from api.models.foundations.pronunciation_result.exceptions import (
     PronunciationResultDependencyException,
     PronunciationResultValidationException,
 )
+from api.models.foundations.pronunciation_result.pronunciation_result import PronunciationResult
 from api.models.orchestrations.pronunciation.exceptions import (
     FailedPronunciationOrchestrationServiceException,
     PronunciationOrchestrationDependencyException,
@@ -40,6 +41,7 @@ class TestAssessAndRecordExceptions:
         mock_assessment_service.assess_pronunciation.assert_called_once_with(WAV, TEXT)
         mock_result_service.create_pronunciation_result.assert_not_called()
         mock_logging_broker.log_error.assert_called_once()
+        mock_logging_broker.log_info.assert_not_called()
 
     def test_should_surface_persist_failure_after_successful_assessment_as_dependency_exception(
         self, service, mock_assessment_service, mock_result_service, assessment, mock_logging_broker
@@ -59,7 +61,9 @@ class TestAssessAndRecordExceptions:
         assert exc_info.value.inner_exception is wrapper
         mock_assessment_service.assess_pronunciation.assert_called_once_with(WAV, TEXT)
         mock_result_service.create_pronunciation_result.assert_called_once()
+        assert isinstance(mock_result_service.create_pronunciation_result.call_args.args[0], PronunciationResult)
         mock_logging_broker.log_error.assert_called_once()
+        mock_logging_broker.log_info.assert_not_called()
 
     def test_should_wrap_result_validation_exception_as_service_exception_not_400_tier(
         self, service, mock_assessment_service, mock_result_service, assessment, mock_logging_broker
@@ -76,7 +80,10 @@ class TestAssessAndRecordExceptions:
         # then
         assert isinstance(exc_info.value.inner_exception, FailedPronunciationOrchestrationServiceException)
         assert exc_info.value.inner_exception.inner_exception is leaf
+        mock_assessment_service.assess_pronunciation.assert_called_once_with(WAV, TEXT)
+        mock_result_service.create_pronunciation_result.assert_called_once()
         mock_logging_broker.log_error.assert_called_once()
+        mock_logging_broker.log_info.assert_not_called()
 
     def test_should_wrap_unexpected_exception_in_service_exception(
         self, service, mock_assessment_service, mock_result_service, mock_logging_broker
@@ -92,5 +99,7 @@ class TestAssessAndRecordExceptions:
         # then
         assert isinstance(exc_info.value.inner_exception, FailedPronunciationOrchestrationServiceException)
         assert exc_info.value.inner_exception.inner_exception is boom
+        mock_assessment_service.assess_pronunciation.assert_called_once_with(WAV, TEXT)
         mock_result_service.create_pronunciation_result.assert_not_called()
         mock_logging_broker.log_error.assert_called_once()
+        mock_logging_broker.log_info.assert_not_called()
