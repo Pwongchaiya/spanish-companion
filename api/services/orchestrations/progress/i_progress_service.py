@@ -14,7 +14,9 @@ Foundation/Processing entity name in this codebase, so the Protocol is
 from typing import List, Protocol
 
 from api.models.foundations.mistake_pattern.mistake_pattern import MistakePattern
+from api.models.orchestrations.progress.speaking_total import SpeakingTotal
 from api.models.orchestrations.progress.topic_coverage_entry import TopicCoverageEntry
+from api.models.orchestrations.progress.unflagged_streak import UnflaggedStreak
 
 
 class ProgressService(Protocol):
@@ -58,6 +60,37 @@ class ProgressService(Protocol):
         LearnerProfileDependencyException or TopicCoveredDependencyException)
         if a dependency's underlying storage call fails.
         Raises ProgressOrchestrationServiceException for anything else.
+        """
+        ...
+
+    def get_speaking_total(self) -> SpeakingTotal:
+        """Total time spoken across every completed session, plus how many
+        sessions that was (C1).
+
+        Reads `session_log` rows and sums (ended_at - started_at). Rows with
+        no `ended_at` -- still running, or killed before completion -- are
+        skipped, as are rows whose `ended_at` precedes `started_at` (clock
+        change mid-session). Returns SpeakingTotal(0.0, 0) when nothing
+        qualifies. No profile is resolved: `session_log` is not per-profile.
+
+        Raises ProgressOrchestrationValidationException (wrapping
+        SessionLogEntryValidationException) if the dependency rejects an
+        input.
+        Raises ProgressOrchestrationDependencyException (wrapping
+        SessionLogEntryDependencyException) if its storage call fails.
+        Raises ProgressOrchestrationServiceException for anything else.
+        """
+        ...
+
+    def get_longest_unflagged_streak(self) -> UnflaggedStreak:
+        """Longest and current runs of consecutive zero-flag sessions (C3).
+
+        Walks the same completed-only `session_log` rows as
+        get_speaking_total(), in `started_at` order, counting runs where
+        `flag_count == 0`. `current` is the trailing run, `longest` the
+        best. Both are 0 when no session has completed.
+
+        Raises the same three exception tiers as get_speaking_total().
         """
         ...
 

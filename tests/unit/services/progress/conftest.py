@@ -7,14 +7,16 @@ ConfigurationBroker is faked (FakeConfigurationBroker), same pattern as
 tests/unit/services/learner_profile/conftest.py.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest.mock import Mock
 
 import pytest
 
 from api.models.foundations.mistake_pattern.mistake_pattern import MistakePattern
+from api.models.foundations.session_log_entry.session_log_entry import SessionLogEntry
 from api.models.foundations.topic_covered.topic_covered import TopicCovered
 from api.services.foundations.mistake_pattern import IMistakePatternService
+from api.services.foundations.session_log_entry import ISessionLogEntryService
 from api.services.foundations.topic_covered import ITopicCoveredService
 from api.services.orchestrations.progress.progress_service import ProgressOrchestrationService
 from api.services.processings.learner_profile import ILearnerProfileProcessingService
@@ -52,6 +54,11 @@ def mock_topic_covered_service():
 
 
 @pytest.fixture
+def mock_session_log_entry_service():
+    return Mock(spec=ISessionLogEntryService)
+
+
+@pytest.fixture
 def configuration_broker():
     return FakeConfigurationBroker({"DEFAULT_PROFICIENCY_LEVEL": "beginner"})
 
@@ -61,6 +68,7 @@ def service(
     mock_learner_profile_processing_service,
     mock_mistake_pattern_service,
     mock_topic_covered_service,
+    mock_session_log_entry_service,
     configuration_broker,
     mock_logging_broker,
 ):
@@ -68,6 +76,7 @@ def service(
         mock_learner_profile_processing_service,
         mock_mistake_pattern_service,
         mock_topic_covered_service,
+        mock_session_log_entry_service,
         logging_broker=mock_logging_broker,
         configuration_broker=configuration_broker,
     )
@@ -113,6 +122,30 @@ def make_topic():
             topic=topic,
             first_covered_at=FIXED_NOW,
             last_practiced_at=FIXED_NOW,
+        )
+
+    return _make
+
+
+@pytest.fixture
+def make_session():
+    """A completed session_log row, unless ended_at is explicitly None.
+
+    Default duration is 30 minutes, so a test asserting on total seconds
+    reads as "n sessions x 1800s" without restating the arithmetic.
+    """
+
+    def _make(
+        entry_id: int = 1,
+        started_at: datetime = FIXED_NOW,
+        minutes: float | None = 30.0,
+        flag_count: int = 0,
+    ) -> SessionLogEntry:
+        return SessionLogEntry(
+            id=entry_id,
+            started_at=started_at,
+            ended_at=None if minutes is None else started_at + timedelta(minutes=minutes),
+            flag_count=flag_count,
         )
 
     return _make

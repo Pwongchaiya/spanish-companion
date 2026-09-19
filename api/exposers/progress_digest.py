@@ -24,11 +24,13 @@ from dotenv import load_dotenv
 from api.brokers.learner_profile import SqlAlchemyLearnerProfileBroker
 from api.brokers.logging import StdlibLoggingBroker
 from api.brokers.mistake_pattern.mistake_pattern_broker import SqlAlchemyMistakePatternBroker
+from api.brokers.session_log_entry import SqlAlchemySessionLogEntryBroker
 from api.brokers.topic_covered import SqlAlchemyTopicCoveredBroker
 from api.models.foundations.mistake_pattern.mistake_pattern import MistakePattern
 from api.models.orchestrations.progress.topic_coverage_entry import TopicCoverageEntry
 from api.services.foundations.learner_profile import LearnerProfileService
 from api.services.foundations.mistake_pattern import MistakePatternService
+from api.services.foundations.session_log_entry import SessionLogEntryService
 from api.services.foundations.topic_covered import TopicCoveredService
 from api.services.orchestrations.progress import ProgressOrchestrationService
 from api.services.processings.learner_profile import LearnerProfileProcessingService
@@ -79,10 +81,16 @@ def main() -> None:
     topic_covered_service = TopicCoveredService(
         SqlAlchemyTopicCoveredBroker(database_url), logging_broker=logging_broker
     )
+    # Roadmap C1/C3 -- the only new broker Progress needed; A5/F1
+    # reuse the services already built above.
+    session_log_entry_service = SessionLogEntryService(
+        SqlAlchemySessionLogEntryBroker(database_url), logging_broker=logging_broker
+    )
     progress_service = ProgressOrchestrationService(
         learner_profile_processing_service,
         mistake_pattern_service,
         topic_covered_service,
+        session_log_entry_service,
         logging_broker=logging_broker,
     )
 

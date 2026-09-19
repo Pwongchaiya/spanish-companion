@@ -8,9 +8,11 @@ dependencies here (LearnerProfile Processing, MistakePattern/TopicCovered
 Foundation) raise from that same three-shape vocabulary.
 
 Validation tier catches the *wrappers* LearnerProfileProcessingService /
-IMistakePatternService / ITopicCoveredService raise --
+IMistakePatternService / ITopicCoveredService / ISessionLogEntryService
+raise --
 LearnerProfileValidationException, MistakePatternValidationException,
-TopicCoveredValidationException -- never their raw leaves, same shape as
+TopicCoveredValidationException, SessionLogEntryValidationException --
+never their raw leaves, same shape as
 LearnerProfile's orchestration service. The leaf stays reachable at
 `.inner_exception.inner_exception`.
 """
@@ -24,6 +26,10 @@ from api.models.foundations.learner_profile.exceptions import (
 from api.models.foundations.mistake_pattern.exceptions import (
     MistakePatternDependencyException,
     MistakePatternValidationException,
+)
+from api.models.foundations.session_log_entry.exceptions import (
+    SessionLogEntryDependencyException,
+    SessionLogEntryValidationException,
 )
 from api.models.foundations.topic_covered.exceptions import (
     TopicCoveredDependencyException,
@@ -49,12 +55,14 @@ class ProgressOrchestrationServiceExceptions:
             LearnerProfileValidationException,
             MistakePatternValidationException,
             TopicCoveredValidationException,
+            SessionLogEntryValidationException,
         ) as e:
             raise self._create_and_log_validation_exception(e) from e
         except (
             LearnerProfileDependencyException,
             MistakePatternDependencyException,
             TopicCoveredDependencyException,
+            SessionLogEntryDependencyException,
         ) as e:
             raise self._create_and_log_dependency_exception(e) from e
         except Exception as e:

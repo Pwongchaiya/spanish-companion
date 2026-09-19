@@ -1,18 +1,29 @@
 """Orchestration service for Progress (roadmap Phase 2: A5 cumulative
-mistake dashboard, F1 corpus coverage map).
+mistake dashboard, F1 corpus coverage map, C1 speaking-hours meter, C3
+longest unflagged stretch).
 
-Composes three service dependencies -- LearnerProfileProcessingService
-(Processing) plus IMistakePatternService and ITopicCoveredService
-(Foundation) -- into two independent read-only reports. No new brokers:
-both Foundation dependencies already exist and already expose the
-list_*_by_profile() reads this needs (per the feature-roadmap-2026-09-18.md
-Phase 2 scope note, "light Processing/script work over data that already
-exists").
+Composes four service dependencies -- LearnerProfileProcessingService
+(Processing) plus IMistakePatternService, ITopicCoveredService and
+ISessionLogEntryService (Foundation) -- into four independent read-only
+reports.
+
+A5/F1 needed no new brokers. C1/C3 did, and that is exactly why they were
+parked when the rest of Phase 2 shipped: neither per-session duration nor
+cross-session flag history existed in any queryable store
+(wiki/decisions/progress-dashboard-scope-c1-c3-parked.md). The
+`session_log` table added for them is the whole of that new storage; both
+reads here are plain folds over its rows.
+
+Neither C1 nor C3 resolves a profile: `session_log` has no profile_id (this
+app is single-user by design, see the 0003 migration), so the
+ensure_profile() step the A5/F1 reads open with would be a pointless write
+on the read path.
 
 Per CLAUDE.md's Phase 2 Layer-Agent Mapping & Waivers, ORC-001 (Florance
 dep-count limit) is waived for the Orchestration-layer feature set,
 extended here the same way LearnerProfileOrchestrationService's
-four-dependency case was. ORC-002 (no direct broker deps) is NOT waived and
+four-dependency case was -- now four dependencies here too, with
+ISessionLogEntryService. ORC-002 (no direct broker deps) is NOT waived and
 holds -- only logging_broker/configuration_broker are held directly (both
 cross-cutting), every other dependency is a Foundation or Processing
 service interface, never a broker.
@@ -32,8 +43,12 @@ from typing import List
 from api.brokers.configuration import ConfigurationBroker, EnvConfigurationBroker
 from api.brokers.logging import LoggingBroker
 from api.models.foundations.mistake_pattern.mistake_pattern import MistakePattern
+from api.models.foundations.session_log_entry.session_log_entry import SessionLogEntry
+from api.models.orchestrations.progress.speaking_total import SpeakingTotal
 from api.models.orchestrations.progress.topic_coverage_entry import TopicCoverageEntry
+from api.models.orchestrations.progress.unflagged_streak import UnflaggedStreak
 from api.services.foundations.mistake_pattern import IMistakePatternService
+from api.services.foundations.session_log_entry import ISessionLogEntryService
 from api.services.foundations.topic_covered import ITopicCoveredService
 from api.services.orchestrations.progress.i_progress_service import ProgressService
 from api.services.orchestrations.progress.progress_service_exceptions import ProgressOrchestrationServiceExceptions
@@ -49,6 +64,7 @@ class ProgressOrchestrationService(ProgressOrchestrationServiceExceptions, Progr
         learner_profile_processing_service: ILearnerProfileProcessingService,
         mistake_pattern_service: IMistakePatternService,
         topic_covered_service: ITopicCoveredService,
+        session_log_entry_service: ISessionLogEntryService,
         *,
         logging_broker: LoggingBroker,
         configuration_broker: ConfigurationBroker = EnvConfigurationBroker(),
@@ -60,6 +76,7 @@ class ProgressOrchestrationService(ProgressOrchestrationServiceExceptions, Progr
         self._learner_profile_processing_service = learner_profile_processing_service
         self._mistake_pattern_service = mistake_pattern_service
         self._topic_covered_service = topic_covered_service
+        self._session_log_entry_service = session_log_entry_service
         self._logging_broker = logging_broker
         self._configuration_broker = configuration_broker
 
@@ -98,6 +115,49 @@ class ProgressOrchestrationService(ProgressOrchestrationServiceExceptions, Progr
 
         return self._try_catch(action)
 
+    def get_speaking_total(self) -> SpeakingTotal:
+        def action() -> SpeakingTotal:
+            completed = _completed_sessions(self._session_log_entry_service.list_session_log_entries())
+            total_seconds = sum((entry.ended_at - entry.started_at).total_seconds() for entry in completed)
+            self._logging_broker.log_info(
+                "computed speaking total: %.1fs across %d completed session(s)", total_seconds, len(completed)
+            )
+            return SpeakingTotal(total_seconds=total_seconds, session_count=len(completed))
+
+        return self._try_catch(action)
+
+    def get_longest_unflagged_streak(self) -> UnflaggedStreak:
+        def action() -> UnflaggedStreak:
+            completed = _completed_sessions(self._session_log_entry_service.list_session_log_entries())
+            longest = current = 0
+            for entry in completed:
+                current = current + 1 if entry.flag_count == 0 else 0
+                longest = max(longest, current)
+            self._logging_broker.log_info("computed unflagged streak: longest %d, current %d", longest, current)
+            return UnflaggedStreak(longest=longest, current=current)
+
+        return self._try_catch(action)
+
+
+def _completed_sessions(entries: List[SessionLogEntry]) -> List[SessionLogEntry]:
+    """The `session_log` rows both C1 and C3 are allowed to count.
+
+    A row with no `ended_at` is either still running or belongs to a
+    process that was killed before it could finish writing (see
+    ConversationOrchestrationService._end_session_log_entry). Skipping it is
+    not just about duration: its `flag_count` is still the insert-time 0,
+    which C3 would otherwise read as a genuine zero-flag session and use to
+    extend a streak that never happened.
+
+    Rows whose `ended_at` precedes `started_at` are dropped too -- a clock
+    change mid-session is the only way to produce one, and a negative
+    duration would silently eat real hours out of the C1 total.
+
+    Ordering is preserved (the broker already sorts by `started_at`), which
+    is what makes C3's single pass meaningful.
+    """
+    return [e for e in entries if e.ended_at is not None and e.ended_at >= e.started_at]
+
 
 if __name__ == "__main__":
     # ponytail: assert-based self-check for the pure topic-coverage merge
@@ -128,6 +188,7 @@ if __name__ == "__main__":
                 return_value=[Mock(topic="ser-vs-estar", first_covered_at=datetime(2026, 1, 1))]
             )
         ),
+        session_log_entry_service=Mock(),
         logging_broker=Mock(),
     )
     entries = svc.list_topic_coverage()
