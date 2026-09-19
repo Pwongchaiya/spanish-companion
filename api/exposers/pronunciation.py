@@ -22,12 +22,11 @@ from api.models.orchestrations.pronunciation.exceptions import (
     PronunciationOrchestrationServiceException,
     PronunciationOrchestrationValidationException,
 )
-from api.services.foundations.pronunciation_assessment.pronunciation_assessment_service_validations import (
-    MAX_REFERENCE_TEXT_LENGTH,
-)
 from api.services.orchestrations.pronunciation import PronunciationService
 
 WAV_HEADER_BYTES = 44
+# Mirrors the Foundation validation cap; Foundation stays the source of truth, this is only an early 400.
+MAX_REFERENCE_TEXT_LENGTH = 200
 
 
 def make_pronunciation_blueprint(orchestrator: PronunciationService) -> Blueprint:

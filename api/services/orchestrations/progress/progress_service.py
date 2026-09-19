@@ -153,9 +153,17 @@ class ProgressOrchestrationService(ProgressOrchestrationServiceExceptions, Progr
 
         return self._try_catch(action)
 
+    def _trend_limit_from_config(self) -> int:
+        # A malformed PRONUNCIATION_TREND_LIMIT falls back to 30 rather than 500ing every request.
+        try:
+            return int(self._configuration_broker.get("PRONUNCIATION_TREND_LIMIT", "30"))
+        except (TypeError, ValueError):
+            return 30
+
     def list_pronunciation_trend(self, limit: Optional[int] = None) -> List[PronunciationTrendPoint]:
         def action() -> List[PronunciationTrendPoint]:
-            n = limit if limit is not None else int(self._configuration_broker.get("PRONUNCIATION_TREND_LIMIT", "30"))
+            n = limit if limit is not None else self._trend_limit_from_config()
+            # ponytail: loads every row then slices; add a LIMIT query if the table ever gets large.
             results = self._pronunciation_result_service.list_pronunciation_results()
             # Service returns oldest-first; the last n are the most recent, still oldest->newest.
             recent = results[-n:] if n > 0 else []
