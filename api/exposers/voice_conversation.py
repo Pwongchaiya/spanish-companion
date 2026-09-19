@@ -60,6 +60,11 @@ from api.brokers.session_log_entry import SqlAlchemySessionLogEntryBroker
 from api.brokers.stt import AzureSttBroker
 from api.brokers.topic_covered import SqlAlchemyTopicCoveredBroker
 from api.exposers.learner_profile import LearnerProfileController
+from api.models.foundations.learner_profile.exceptions import (
+    LearnerProfileDependencyException,
+    LearnerProfileServiceException,
+    LearnerProfileValidationException,
+)
 from api.models.orchestrations.learner_profile.exceptions import (
     LearnerProfileOrchestrationDependencyException,
     LearnerProfileOrchestrationServiceException,
@@ -74,6 +79,7 @@ from api.services.foundations.session_log_entry import SessionLogEntryService
 from api.services.foundations.topic_covered import TopicCoveredService
 from api.services.orchestrations.learner_profile import LearnerProfileOrchestrationService
 from api.services.orchestrations.voice_conversation import ConversationOrchestrationService
+from api.services.orchestrations.voice_conversation._difficulty import get_difficulty_block
 from api.services.orchestrations.voice_conversation._pressure import get_pressure_level
 from api.services.processings.learner_profile import LearnerProfileProcessingService
 from rag.brokers.generation import GeminiGenerationBroker
@@ -140,10 +146,32 @@ def _default_scenario_text(logging_broker: LoggingBroker) -> str:
     return " ".join(parts)
 
 
+def _read_cefr_estimate(logging_broker: LoggingBroker) -> Optional[str]:
+    """D6: the learner's stored CEFR estimate, or None if unavailable. Same
+    degrade-don't-crash stance as _default_scenario_text -- any profile-read
+    failure just means no difficulty block."""
+    try:
+        learner_profile_service = LearnerProfileService(
+            SqlAlchemyLearnerProfileBroker(EnvConfigurationBroker().require("DATABASE_URL")),
+            logging_broker=logging_broker,
+        )
+        return learner_profile_service.get_learner_profile().cefr_estimate
+    except (
+        KeyError,
+        LearnerProfileValidationException,
+        LearnerProfileDependencyException,
+        LearnerProfileServiceException,
+    ) as e:
+        logging_broker.log_warning("Skipping adaptive-difficulty block: %s", e)
+        return None
+
+
 def _compose_system_prompt(logging_broker: LoggingBroker, pressure_prompt_block: str) -> str:
     base_rules = FilePromptBroker().get_system_prompt()
     scenario_text = _read_and_clear_scenario_override() or _default_scenario_text(logging_broker)
-    return f"{base_rules}\n\nFor this session, practice: {scenario_text}\n\n{pressure_prompt_block}"
+    prompt = f"{base_rules}\n\nFor this session, practice: {scenario_text}\n\n{pressure_prompt_block}"
+    difficulty_block = get_difficulty_block(_read_cefr_estimate(logging_broker))
+    return f"{prompt}\n\n{difficulty_block}" if difficulty_block else prompt
 
 
 def main() -> None:
