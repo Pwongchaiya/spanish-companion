@@ -1,4 +1,11 @@
-"""StdlibLoggingBroker — stdlib `logging`-backed LoggingBroker for rag."""
+"""StdlibLoggingBroker — stdlib `logging`-backed LoggingBroker.
+
+Shared by api/brokers/logging and rag/brokers/logging: same concrete
+implementation, same fixed "spanish_companion" logger name so api- and
+rag-side services land in one stream. Each package's own `LoggingBroker`
+Protocol stays local (api -> rag is the only allowed dependency direction;
+this common module depends on neither).
+"""
 
 import logging
 
@@ -6,10 +13,10 @@ import logging
 class StdlibLoggingBroker:
     """LoggingBroker backed by `logging.getLogger`.
 
-    Byte-for-byte the behavior of api/brokers/logging/logging_broker.py's
-    StdlibLoggingBroker — same fixed "spanish_companion" logger name, so
-    api- and rag-side services land in one stream — reimplemented rather
-    than imported, because rag cannot import api.
+    Uses a fixed logger name ("spanish_companion") rather than `__name__`
+    so every broker/service logs to the same named logger regardless of
+    which module constructs it — matching the reference project's single
+    named logger rather than per-module fan-out.
     """
 
     def __init__(self, logger_name: str = "spanish_companion") -> None:
