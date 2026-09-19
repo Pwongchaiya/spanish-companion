@@ -63,6 +63,7 @@ _EXPLANATION_PROMPT = (_PROMPTS_DIR / "explanation.txt").read_text(encoding="utf
 _GROUNDING_JUDGE_PROMPT = (_PROMPTS_DIR / "grounding_judge.txt").read_text(encoding="utf-8")
 _PRACTICE_JUDGE_PROMPT = (_PROMPTS_DIR / "practice_judge.txt").read_text(encoding="utf-8")
 _CEFR_ESTIMATE_PROMPT = (_PROMPTS_DIR / "cefr_estimate.txt").read_text(encoding="utf-8")
+_TASK_OUTCOME_PROMPT = (_PROMPTS_DIR / "task_outcome_judge.txt").read_text(encoding="utf-8")
 
 # A6 (roadmap): the only six answers estimate_cefr_level() will accept from
 # the broker -- anything else is treated as unparseable (see its docstring).
@@ -154,6 +155,24 @@ class GenerationService(GenerationServiceExceptions, IGenerationService):
                 self._logging_broker.log_info("cefr estimate unparseable, skipping: %s", verdict.strip())
                 return None
             return level
+
+        return self._try_catch(action)
+
+    def judge_task_outcome(self, transcript_text: str, success_condition: str) -> str | None:
+        def action() -> str | None:
+            prompt = _TASK_OUTCOME_PROMPT.format(success_condition=success_condition, transcript=transcript_text)
+            try:
+                verdict = self._broker.generate(prompt)
+            except GenerationError as e:
+                self._logging_broker.log_info("task outcome judge call failed, skipping: %s", e)
+                return None
+            first_word = verdict.strip().lower().split()[0].rstrip(".,:;!") if verdict.strip() else ""
+            if first_word == "success":
+                return "success"
+            if first_word == "fail":
+                return "fail"
+            self._logging_broker.log_info("task outcome judge unparseable, skipping: %s", verdict.strip())
+            return None
 
         return self._try_catch(action)
 
