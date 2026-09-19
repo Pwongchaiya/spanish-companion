@@ -15,6 +15,12 @@ attempts back by.
 `PracticeAttempt` is defined here, not in `api/models/` — it's this
 broker's own record shape, not a shared domain model. No SQLAlchemy, no
 Alembic — there is no table backing this.
+
+A2 (graded practice-attempt verdict): `grade` is an additive field on this
+existing dataclass/file format — no migration needed, since no SQL table
+backs it. A JSONL row written before this change has no "grade" key; the
+concrete broker's `read_attempts()` defaults a missing key to "again" (the
+same conservative fallback the judge itself uses) rather than raising.
 """
 
 from dataclasses import dataclass
@@ -27,6 +33,7 @@ class PracticeAttempt:
     flag_id: str  # plain str — do not import Flag here, see module docstring
     attempt_text: str
     timestamp: datetime
+    grade: str  # one of "again" | "hard" | "good" | "easy" -- see GenerationService.judge_practice_attempt
 
 
 class PracticeLogBroker(Protocol):
