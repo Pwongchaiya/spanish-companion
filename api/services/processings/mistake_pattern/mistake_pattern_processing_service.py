@@ -8,7 +8,7 @@ mistake_pattern_service.py's docstring) -- this is exactly the composition
 the Processing tier exists for per CLAUDE.md's Processing-row reversal and
 the entity doc (Projects/spanish-companion/entities/mistake-pattern.md).
 
-Two methods, both do-or-delegate: each decides which Foundation call(s) to
+Four methods (record_review, list_due, record_occurrence, resolve), all do-or-delegate: each decides which Foundation call(s) to
 make from the find-by-category result, then delegates entirely -- neither
 transforms a Foundation response afterward. No base/validations/exceptions
 mixin split (that split earns its keep once there's per-method noise to

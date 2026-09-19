@@ -1,4 +1,4 @@
-﻿import "./DueBrief.css";
+import "./DueBrief.css";
 import type { DuePattern } from "../api/types";
 
 // A3: read-only "Due for review" chips. Display only -- the backend already

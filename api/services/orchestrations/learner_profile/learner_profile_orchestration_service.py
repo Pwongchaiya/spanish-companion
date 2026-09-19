@@ -111,7 +111,7 @@ class LearnerProfileOrchestrationService(LearnerProfileOrchestrationServiceExcep
 
             # A3 priming brief: list_due is already next_due_at-ascending.
             now = self._clock()
-            due_limit = int(self._configuration_broker.get("DUE_BRIEF_LIMIT", "3"))
+            due_limit = self._non_negative_int_config("DUE_BRIEF_LIMIT", 3)
             due_patterns = [
                 DuePattern(
                     category=p.category,
@@ -122,9 +122,7 @@ class LearnerProfileOrchestrationService(LearnerProfileOrchestrationServiceExcep
             ]
 
             # C4 boss fight: struggling-but-not-improving patterns, due now.
-            boss = self._pick_boss_patterns(
-                patterns, now, int(self._configuration_broker.get("BOSS_MIN_OCCURRENCES", "3"))
-            )
+            boss = self._pick_boss_patterns(patterns, now, self._non_negative_int_config("BOSS_MIN_OCCURRENCES", 3))
             boss_text, boss_categories = self._boss_fight_text([p.category for p in boss])
 
             self._logging_broker.log_info(
@@ -155,6 +153,14 @@ class LearnerProfileOrchestrationService(LearnerProfileOrchestrationServiceExcep
         """
         active = [p for p in patterns if p.status == "active"]
         return max(active, key=lambda p: p.occurrence_count).category if active else None
+
+    def _non_negative_int_config(self, key: str, default: int) -> int:
+        # A malformed or negative value falls back to the default rather than 500ing or mis-slicing.
+        try:
+            value = int(self._configuration_broker.get(key, str(default)))
+        except (TypeError, ValueError):
+            return default
+        return value if value >= 0 else default
 
     @staticmethod
     def _pick_boss_patterns(patterns: List[MistakePattern], now: datetime, min_occurrences: int) -> List[MistakePattern]:

@@ -46,16 +46,22 @@ class TestPatternRetirement:
 
         # when / then
         assert service.list_due(1, NOW) == []
+        assert foundation.list_mistake_patterns_by_profile.call_count == 2  # record_review + list_due
+        foundation.update_mistake_pattern.assert_called_once()
 
     def test_should_still_list_resolved_row_below_30_days(self):
         row = _pattern("resolved", 29.0)
-        _, service = _service([row])
+        foundation, service = _service([row])
         assert service.list_due(1, NOW) == [row]
+        foundation.list_mistake_patterns_by_profile.assert_called_once_with(1)
+        foundation.update_mistake_pattern.assert_not_called()
 
     def test_should_still_list_active_row_with_large_interval(self):
         row = _pattern("active", 90.0)
-        _, service = _service([row])
+        foundation, service = _service([row])
         assert service.list_due(1, NOW) == [row]
+        foundation.list_mistake_patterns_by_profile.assert_called_once_with(1)
+        foundation.update_mistake_pattern.assert_not_called()
 
     def test_should_resurface_retired_row_on_recurrence(self):
         # given
