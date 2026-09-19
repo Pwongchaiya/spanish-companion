@@ -30,9 +30,10 @@ class ISessionLogEntryBroker(Protocol):
     NL.Core.Users.Api/Brokers/Storages/IStorageBroker.UserProfiles.cs:14-17).
     """
 
-    def insert_session_log_entry(self, started_at: datetime) -> SessionLogEntry:
+    def insert_session_log_entry(self, started_at: datetime, scenario_slug: Optional[str] = None) -> SessionLogEntry:
         """Insert a new in-flight row: `started_at` set, `ended_at` NULL,
-        `flag_count` 0. Returns it with its assigned id, which the caller
+        `flag_count` 0, `scenario_slug` as given (D4; None = no roleplay
+        scenario), `task_outcome` NULL. Returns it with its assigned id, which the caller
         holds until the session ends."""
         ...
 
@@ -60,4 +61,10 @@ class ISessionLogEntryBroker(Protocol):
         NL.Core.Users' SelectUserProfileByIdAsync -> null ->
         NotFoundUserProfileException path (UserProfileService.cs:42-53).
         """
+        ...
+
+    def update_session_log_entry_task_outcome(self, entry_id: int, task_outcome: str) -> Optional[SessionLogEntry]:
+        """D4: set `task_outcome` on an existing row. Returns None if
+        entry_id doesn't exist (same None-on-missing convention as
+        update_session_log_entry)."""
         ...

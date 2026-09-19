@@ -8,6 +8,7 @@ import pytest
 
 from api.models.foundations.session_log_entry.exceptions import (
     InvalidSessionLogEntryException,
+    NotFoundSessionLogEntryException,
     SessionLogEntryValidationException,
 )
 from tests.unit.services.session_log_entry.conftest import FIXED_END, FIXED_START
@@ -70,3 +71,31 @@ class TestCompleteValidation:
         service.complete_session_log_entry(1, FIXED_END, 0)
 
         assert mock_session_log_entry_broker.update_session_log_entry.call_count == 1
+
+
+class TestSetTaskOutcomeValidation:
+
+    @pytest.mark.parametrize("bad_outcome", [None, "", "pass", "SUCCESS", 1])
+    def test_should_reject_unknown_task_outcome(self, service, mock_session_log_entry_broker, bad_outcome):
+        with pytest.raises(SessionLogEntryValidationException) as caught:
+            service.set_task_outcome(1, bad_outcome)
+
+        assert "task_outcome" in caught.value.inner_exception.errors
+        assert mock_session_log_entry_broker.update_session_log_entry_task_outcome.call_count == 0
+
+    @pytest.mark.parametrize("bad_entry_id", [None, 0, True])
+    def test_should_reject_bad_entry_id(self, service, mock_session_log_entry_broker, bad_entry_id):
+        with pytest.raises(SessionLogEntryValidationException) as caught:
+            service.set_task_outcome(bad_entry_id, "fail")
+
+        assert "entry_id" in caught.value.inner_exception.errors
+        assert mock_session_log_entry_broker.update_session_log_entry_task_outcome.call_count == 0
+
+    def test_should_raise_not_found_when_broker_returns_none(self, service, mock_session_log_entry_broker):
+        mock_session_log_entry_broker.update_session_log_entry_task_outcome.return_value = None
+
+        with pytest.raises(SessionLogEntryValidationException) as caught:
+            service.set_task_outcome(99, "fail")
+
+        assert isinstance(caught.value.inner_exception, NotFoundSessionLogEntryException)
+        assert mock_session_log_entry_broker.update_session_log_entry_task_outcome.call_count == 1

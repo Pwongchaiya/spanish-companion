@@ -31,6 +31,7 @@ ValidateUserProfileExists check on SelectUserProfileByIdAsync's result.
 """
 
 from datetime import datetime
+from typing import Optional
 
 from api.brokers.logging import LoggingBroker
 from api.brokers.session_log_entry.i_session_log_entry_broker import ISessionLogEntryBroker
@@ -63,10 +64,10 @@ class SessionLogEntryService(
         self._session_log_entry_broker = session_log_entry_broker
         self._logging_broker = logging_broker
 
-    def create_session_log_entry(self, started_at: datetime) -> SessionLogEntry:
+    def create_session_log_entry(self, started_at: datetime, scenario_slug: Optional[str] = None) -> SessionLogEntry:
         def action() -> SessionLogEntry:
             self._validate_session_log_entry_on_create(started_at)
-            return self._session_log_entry_broker.insert_session_log_entry(started_at)
+            return self._session_log_entry_broker.insert_session_log_entry(started_at, scenario_slug)
 
         return self._try_catch(action)
 
@@ -80,6 +81,16 @@ class SessionLogEntryService(
         def action() -> SessionLogEntry:
             self._validate_session_log_entry_on_complete(entry_id, ended_at, flag_count)
             maybe_entry = self._session_log_entry_broker.update_session_log_entry(entry_id, ended_at, flag_count)
+            if maybe_entry is None:
+                raise NotFoundSessionLogEntryException()
+            return maybe_entry
+
+        return self._try_catch(action)
+
+    def set_task_outcome(self, entry_id: int, task_outcome: str) -> SessionLogEntry:
+        def action() -> SessionLogEntry:
+            self._validate_session_log_entry_on_set_task_outcome(entry_id, task_outcome)
+            maybe_entry = self._session_log_entry_broker.update_session_log_entry_task_outcome(entry_id, task_outcome)
             if maybe_entry is None:
                 raise NotFoundSessionLogEntryException()
             return maybe_entry

@@ -23,7 +23,7 @@ class TestCreateSessionLogEntry:
 
         # then
         assert actual is entry
-        mock_session_log_entry_broker.insert_session_log_entry.assert_called_once_with(FIXED_START)
+        mock_session_log_entry_broker.insert_session_log_entry.assert_called_once_with(FIXED_START, None)
 
 
 class TestListSessionLogEntries:
@@ -75,3 +75,31 @@ class TestCompleteSessionLogEntry:
         # then
         assert actual.flag_count == 0
         mock_session_log_entry_broker.update_session_log_entry.assert_called_once_with(7, FIXED_END, 0)
+
+
+class TestCreateWithScenario:
+
+    def test_should_pass_scenario_slug_to_broker(self, service, mock_session_log_entry_broker, make_entry):
+        # given
+        mock_session_log_entry_broker.insert_session_log_entry.return_value = make_entry(entry_id=7)
+
+        # when
+        service.create_session_log_entry(FIXED_START, "ordering_coffee")
+
+        # then
+        mock_session_log_entry_broker.insert_session_log_entry.assert_called_once_with(FIXED_START, "ordering_coffee")
+
+
+class TestSetTaskOutcome:
+
+    def test_should_write_outcome_and_return_row(self, service, mock_session_log_entry_broker, make_entry):
+        # given
+        updated = make_entry(entry_id=7)
+        mock_session_log_entry_broker.update_session_log_entry_task_outcome.return_value = updated
+
+        # when
+        actual = service.set_task_outcome(7, "success")
+
+        # then
+        assert actual is updated
+        mock_session_log_entry_broker.update_session_log_entry_task_outcome.assert_called_once_with(7, "success")
