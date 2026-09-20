@@ -9,9 +9,11 @@ import type {
   PronunciationResult,
   PronunciationTrendPoint,
   SessionRecap,
+  SessionReplay,
   SessionScenario,
   SessionStatus,
   SpeakingTotal,
+  TaskOutcome,
   TopicCoverageEntry,
   UnflaggedStreak,
 } from "./types";
@@ -80,6 +82,14 @@ export const apiClient = {
     fetch(`/review/dictation${excludeFlagId ? `?exclude=${encodeURIComponent(excludeFlagId)}` : ""}`).then(
       json<DictationExercise>,
     ),
+  // E3: newest recorded session's replay. 404 from /latest (nothing recorded, or
+  // recording is off) -> null, not an error.
+  getLatestReplay: async (): Promise<SessionReplay | null> => {
+    const latest = await fetch("/review/sessions/latest");
+    if (latest.status === 404) return null;
+    const { session_log_id } = await json<{ session_log_id: number }>(latest);
+    return fetch(`/review/sessions/${session_log_id}/replay`).then(json<SessionReplay>);
+  },
   checkDictation: (flagId: string, typedText: string): Promise<DictationResult> =>
     fetch(`/review/dictation/${flagId}/check`, {
       method: "POST",
