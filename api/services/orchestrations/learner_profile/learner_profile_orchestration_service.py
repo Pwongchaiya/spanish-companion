@@ -121,6 +121,11 @@ class LearnerProfileOrchestrationService(LearnerProfileOrchestrationServiceExcep
                 for p in self._mp_processing.list_due(profile.id, now)[:due_limit]
             ]
 
+            # A4: hard per-pattern scene requirements, capped separately from the A3 hint.
+            scene_constraints = self._scene_constraints(
+                due_patterns, self._non_negative_int_config("SCENE_CONSTRAINT_LIMIT", 2)
+            )
+
             # C4 boss fight: struggling-but-not-improving patterns, due now.
             boss = self._pick_boss_patterns(patterns, now, self._non_negative_int_config("BOSS_MIN_OCCURRENCES", 3))
             boss_text, boss_categories = self._boss_fight_text([p.category for p in boss])
@@ -140,6 +145,7 @@ class LearnerProfileOrchestrationService(LearnerProfileOrchestrationServiceExcep
                 due_patterns=due_patterns,
                 boss_fight_text=boss_text or None,
                 boss_fight_categories=boss_categories,
+                scene_constraints=scene_constraints,
             )
 
         return self._try_catch(action)
@@ -190,6 +196,14 @@ class LearnerProfileOrchestrationService(LearnerProfileOrchestrationServiceExcep
         return prefix + ", ".join(c.replace("_", " ") for c in kept), kept
 
     @staticmethod
+    def _scene_constraints(due_patterns: List[DuePattern], limit: int) -> List[str]:
+        """A4: one hard requirement per due pattern (most overdue first, already ordered), capped at limit."""
+        return [
+            f"The scene must force me to use {d.category.replace('_', ' ')} to get through it."
+            for d in due_patterns[:limit]
+        ]
+
+    @staticmethod
     def _pick_due_topic(topics: List[TopicCovered]) -> Optional[str]:
         """The topic least recently practiced, or None if nothing is covered
         yet. Only consulted when there's no focus_category to fall back on."""
@@ -222,6 +236,11 @@ if __name__ == "__main__":
     _t, _k = svc._boss_fight_text(["a"] * 40)
     assert _t != "" and len(_t) <= 80 and _k == ["a"] * len(_k)
     assert svc._boss_fight_text([]) == ("", [])
+
+    assert svc._scene_constraints([], 2) == []
+    _dp = [DuePattern("ser_estar", 3, 1.0), DuePattern("gender", 2, 0.0)]
+    assert svc._scene_constraints(_dp, 1) == ["The scene must force me to use ser estar to get through it."]
+    assert svc._scene_constraints(_dp, 0) == []
 
     assert svc._pick_due_topic([]) is None
     topics = [
