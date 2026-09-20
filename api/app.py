@@ -75,6 +75,7 @@ from rag.services.foundations.embedding_model import EmbeddingModelService
 from rag.services.foundations.generation import GenerationService
 from rag.services.orchestrations.retrieval import HybridRetrievalOrchestrationService
 from rag.services.orchestrations.retrieval.strategies.dense import DenseVectorStrategy
+from rag.services.orchestrations.retrieval.strategies.lexical import LexicalStrategy
 from rag.services.orchestrations.retrieval.strategies.filters import MaxDistanceFilter
 from rag.services.orchestrations.retrieval.strategies.fusion import PassThroughRankFusion
 
@@ -248,6 +249,7 @@ def create_app() -> Flask:
                 logging_broker=logging_broker,
             )
         ],
+        alternate_strategy=LexicalStrategy(chunk_repository_service, logging_broker=logging_broker),
         logging_broker=logging_broker,
     )
     generation_service = GenerationService(GeminiGenerationBroker(), logging_broker=logging_broker)

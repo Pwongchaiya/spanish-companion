@@ -55,6 +55,7 @@ from rag.services.orchestrations.retrieval.retrieval_service_validations import 
 from rag.services.orchestrations.retrieval.strategies.dense import RetrievalStrategy
 from rag.services.orchestrations.retrieval.strategies.filters import CategoryBoostFilter, ResultFilter
 from rag.services.orchestrations.retrieval.strategies.fusion import RankFusionStrategy
+from rag.services.orchestrations.retrieval.strategies.lexical import TextRetrievalStrategy
 
 
 class HybridRetrievalOrchestrationService(
@@ -78,6 +79,7 @@ class HybridRetrievalOrchestrationService(
         fusion: RankFusionStrategy,
         *,
         filters: Optional[Sequence[ResultFilter]] = None,
+        alternate_strategy: Optional[TextRetrievalStrategy] = None,
         logging_broker: LoggingBroker,
     ) -> None:
         self._embedding_model_service = embedding_model_service
@@ -87,8 +89,13 @@ class HybridRetrievalOrchestrationService(
         self._strategies: Sequence[RetrievalStrategy] = strategies
         self._fusion: RankFusionStrategy = fusion
         self._filters: Sequence[ResultFilter] = filters if filters is not None else []
+        # Second-opinion search path (lexical). Only used when retrieve() is
+        # called with alternate=True; never part of the default pipeline.
+        self._alternate_strategy = alternate_strategy
 
-    def retrieve(self, query: str, top_k: int, category: Optional[str] = None) -> List[ScoredChunk]:
+    def retrieve(
+        self, query: str, top_k: int, category: Optional[str] = None, alternate: bool = False
+    ) -> List[ScoredChunk]:
         """Return up to top_k chunks grounding `query`, best-first.
 
         Args:
@@ -97,6 +104,12 @@ class HybridRetrievalOrchestrationService(
                 at the edge), never defaulted here.
             category: optional known-good topic hint (a flag's category). When
                 given, chunks whose topic matches are floated to the front.
+            alternate: when True, search with the alternate (lexical) strategy
+                instead of the default dense pipeline -- the second-opinion
+                pass. Skips embedding, fusion and the configured filters
+                (those are distance-based; lexical scores are not distances);
+                the category boost still applies. Returns [] when no alternate
+                strategy is configured.
 
         Returns:
             Up to top_k chunks, or [] when the corpus has no match. Empty is a
@@ -120,6 +133,23 @@ class HybridRetrievalOrchestrationService(
             self._logging_broker.log_debug(
                 "retrieve query=%r top_k=%d category=%r", query, top_k, category
             )
+
+            if alternate:
+                if self._alternate_strategy is None:
+                    self._logging_broker.log_info("alternate retrieval requested but none configured")
+                    return []
+                alt_results = self._alternate_strategy.search_text(query, top_k)
+                if category is not None:
+                    alt_results = CategoryBoostFilter(category, logging_broker=self._logging_broker).apply(alt_results)
+                alt_results = alt_results[:top_k]
+                self._logging_broker.log_info(
+                    "retrieve alternate top_k=%d category=%r returned=%d ids=%s",
+                    top_k,
+                    category,
+                    len(alt_results),
+                    [chunk.chunk_id for chunk in alt_results],
+                )
+                return alt_results
 
             # No try/except: EmbeddingModelService.embed() already raises its
             # own wrapped EmbeddingModelDependencyException, which
