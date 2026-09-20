@@ -54,6 +54,21 @@ class TestIngestionServiceIngestTopicLogic:
             ),
         ]
 
+    def test_should_skip_and_not_embed_or_insert_when_source_url_already_has_chunks(
+        self, service, mock_chunk_repository, mock_embedding_model
+    ):
+        # given
+        mock_chunk_repository.count_chunks_by_source_url.return_value = 5
+
+        # when
+        rows_inserted = service.ingest_topic(topic=TOPIC, source_url=SOURCE_URL, text="some page text")
+
+        # then
+        assert rows_inserted == 0
+        mock_chunk_repository.count_chunks_by_source_url.assert_called_once_with(SOURCE_URL)
+        mock_embedding_model.embed.assert_not_called()
+        mock_chunk_repository.insert_chunk.assert_not_called()
+
     def test_should_return_zero_and_touch_no_broker_when_text_is_empty(
         self, service, mock_chunk_repository, mock_embedding_model
     ):

@@ -115,13 +115,17 @@ class IngestionOrchestrationService(
             # is embedded or inserted.
             self._validate_ingest_topic_input(topic, source_url)
 
-            # ponytail: dict.fromkeys is stdlib order-preserving dedupe. Scoped to
-            # THIS call only — repeated boilerplate (nav text, a repeated legal
-            # footer) can make the fixed-size splitter emit byte-identical chunks
-            # from one page. It cannot skip chunks already stored by a previous
-            # run: ChunkRepositoryService exposes only insert_chunk and
-            # search_by_vector, no read/exists path. True idempotent re-ingestion
-            # needs a read method that does not exist yet — see notes.
+            # Idempotent re-ingest: a URL that already has rows is skipped whole.
+            # Keyed on source_url, not topic -- a topic spans several pages, and a
+            # new URL under an existing topic must still ingest. Coarse on purpose:
+            # a changed page (or new CHUNKING_STRATEGY_VERSION) needs a delete
+            # path, which does not exist.
+            if self._chunk_repository_service.count_chunks_by_source_url(source_url) > 0:
+                return 0
+
+            # ponytail: dict.fromkeys is stdlib order-preserving dedupe, scoped to
+            # THIS call -- repeated boilerplate can make the fixed-size splitter
+            # emit byte-identical chunks from one page.
             chunks = list(dict.fromkeys(chunk_text(text, self._chunk_size)))
             if not chunks:
                 return 0

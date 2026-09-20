@@ -25,7 +25,9 @@ CHUNK_SIZE = 800
 
 @pytest.fixture
 def mock_chunk_repository():
-    return Mock(spec=IChunkRepositoryService)
+    repository = Mock(spec=IChunkRepositoryService)
+    repository.count_chunks_by_source_url.return_value = 0  # nothing stored yet; override to test the skip
+    return repository
 
 
 @pytest.fixture
