@@ -20,6 +20,10 @@ class ChunkRepositoryBroker(Protocol):
         """Insert one row, return generated id. Ingestion's only write path."""
         ...
 
+    def count_chunks_by_source_url(self, source_url: str) -> int:
+        """Number of rows already stored for this source_url. Ingestion's skip check."""
+        ...
+
     def search_by_vector(self, embedding: list[float], top_k: int) -> list[ScoredChunk]:
         """Cosine-distance search (pgvector `<=>`), nearest-first, up to top_k rows.
 
