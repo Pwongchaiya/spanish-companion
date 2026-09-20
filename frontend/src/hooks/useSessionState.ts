@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiClient } from "../api/client";
 import type { ApiClientError } from "../api/client";
-import type { ServerEvent, SessionScenario } from "../api/types";
+import type { Persona, ServerEvent, SessionScenario } from "../api/types";
 import { useSessionStore } from "../state/store";
 import { useEventSource } from "./useEventSource";
 import { useConnectionStore } from "../state/connectionStore";
@@ -29,6 +29,23 @@ export function useSessionState() {
       .getSessionScenario()
       .then((s) => {
         if (!cancelled) setScenario(s);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [status.running]);
+
+  // Persona list for the picker -- same idle-only, silent-failure shape as the
+  // scenario above: a failed load leaves [] so the view offers "No persona" only.
+  const [personas, setPersonas] = useState<Persona[]>([]);
+  useEffect(() => {
+    if (status.running) return;
+    let cancelled = false;
+    apiClient
+      .listPersonas()
+      .then((p) => {
+        if (!cancelled) setPersonas(p);
       })
       .catch(() => {});
     return () => {
@@ -71,16 +88,17 @@ export function useSessionState() {
     pressureLevel?: string,
     variant?: string,
     scenarioSlug?: string,
+    persona?: string,
   ) {
     const previousStatus = status;
     setStatus({ running: true, ready: false, graceful: null });
     try {
-      await apiClient.startSession(scenarioText, sessionLengthHint, pressureLevel, variant, scenarioSlug);
+      await apiClient.startSession(scenarioText, sessionLengthHint, pressureLevel, variant, scenarioSlug, persona);
     } catch (e) {
       setStatus(previousStatus);
       handleActionError(
         e,
-        () => start(scenarioText, sessionLengthHint, pressureLevel, variant, scenarioSlug),
+        () => start(scenarioText, sessionLengthHint, pressureLevel, variant, scenarioSlug, persona),
         "Couldn't start the conversation.",
         "Try again when you're ready.",
       );
@@ -95,5 +113,5 @@ export function useSessionState() {
     }
   }
 
-  return { status, transcript, turnState, connectionStatus, scenario, start, stop };
+  return { status, transcript, turnState, connectionStatus, scenario, personas, start, stop };
 }

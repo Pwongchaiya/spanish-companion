@@ -1,4 +1,4 @@
-import { renderHook, act } from "@testing-library/react";
+import { renderHook, act, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useSessionState } from "./useSessionState";
 import type { SessionStatus } from "../api/types";
@@ -8,6 +8,7 @@ vi.mock("../api/client", () => ({
   apiClient: {
     getStatus: vi.fn(),
     getSessionScenario: vi.fn(),
+    listPersonas: vi.fn(),
     startSession: vi.fn(),
     stopSession: vi.fn(),
   },
@@ -106,6 +107,7 @@ describe("useSessionState", () => {
       suggested_topic: null,
       recent_mistake_categories: [],
     });
+    (apiClient.listPersonas as any).mockResolvedValue([]);
     (apiClient.startSession as any).mockResolvedValue(INITIAL_STATUS);
     (apiClient.stopSession as any).mockResolvedValue(INITIAL_STATUS);
   });
@@ -186,7 +188,7 @@ describe("useSessionState", () => {
       await result.current.start("practice ordering coffee");
     });
 
-    expect(apiClient.startSession).toHaveBeenCalledWith("practice ordering coffee", undefined, undefined, undefined, undefined);
+    expect(apiClient.startSession).toHaveBeenCalledWith("practice ordering coffee", undefined, undefined, undefined, undefined, undefined);
   });
 
   it("start should pass an optional session-length hint through to the API client", async () => {
@@ -198,7 +200,7 @@ describe("useSessionState", () => {
       await result.current.start("practice ordering coffee", "5");
     });
 
-    expect(apiClient.startSession).toHaveBeenCalledWith("practice ordering coffee", "5", undefined, undefined, undefined);
+    expect(apiClient.startSession).toHaveBeenCalledWith("practice ordering coffee", "5", undefined, undefined, undefined, undefined);
   });
 
   it("start should pass an optional pressure level through to the API client", async () => {
@@ -210,7 +212,7 @@ describe("useSessionState", () => {
       await result.current.start("practice ordering coffee", "5", "push", undefined);
     });
 
-    expect(apiClient.startSession).toHaveBeenCalledWith("practice ordering coffee", "5", "push", undefined, undefined);
+    expect(apiClient.startSession).toHaveBeenCalledWith("practice ordering coffee", "5", "push", undefined, undefined, undefined);
   });
 
   it("start should pass an optional regional variant through to the API client", async () => {
@@ -222,7 +224,7 @@ describe("useSessionState", () => {
       await result.current.start(undefined, undefined, "normal", "mexican");
     });
 
-    expect(apiClient.startSession).toHaveBeenCalledWith(undefined, undefined, "normal", "mexican", undefined);
+    expect(apiClient.startSession).toHaveBeenCalledWith(undefined, undefined, "normal", "mexican", undefined, undefined);
   });
 
   it("start should pass an optional scenario slug through to the API client", async () => {
@@ -240,7 +242,31 @@ describe("useSessionState", () => {
       "normal",
       "neutral",
       "ordering_coffee",
+      undefined,
     );
+  });
+
+  it("start should pass an optional persona slug through to the API client", async () => {
+    (apiClient.startSession as any).mockResolvedValueOnce({});
+
+    const { result } = renderHook(() => useSessionState());
+
+    await act(async () => {
+      await result.current.start(undefined, undefined, "normal", "neutral", undefined, "marta");
+    });
+
+    expect(apiClient.startSession).toHaveBeenCalledWith(undefined, undefined, "normal", "neutral", undefined, "marta");
+  });
+
+  it("loads personas while idle, and degrades to an empty list when the load fails", async () => {
+    (apiClient.listPersonas as any).mockResolvedValueOnce([{ slug: "marta", name: "Marta" }]);
+    const { result } = renderHook(() => useSessionState());
+    await waitFor(() => expect(result.current.personas).toEqual([{ slug: "marta", name: "Marta" }]));
+
+    (apiClient.listPersonas as any).mockRejectedValueOnce(new Error("boom"));
+    const failed = renderHook(() => useSessionState());
+    await waitFor(() => expect(apiClient.listPersonas).toHaveBeenCalledTimes(2));
+    expect(failed.result.current.personas).toEqual([]);
   });
 
   it("start should optimistically set running=true", async () => {
