@@ -4,6 +4,11 @@ export interface SessionStatus {
   graceful: boolean | null;
 }
 
+export interface Persona {
+  slug: string;
+  name: string;
+}
+
 export interface TranscriptTurn {
   role: "user" | "assistant";
   text: string;

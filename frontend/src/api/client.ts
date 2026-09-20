@@ -4,6 +4,7 @@ import type {
   Explanation,
   Flag,
   MistakePatternSummary,
+  Persona,
   PracticeAttempt,
   PronunciationResult,
   PronunciationTrendPoint,
@@ -41,6 +42,7 @@ export const apiClient = {
     pressureLevel?: string,
     variant?: string,
     scenarioSlug?: string,
+    persona?: string,
   ): Promise<SessionStatus> =>
     fetch("/start", {
       method: "POST",
@@ -51,8 +53,10 @@ export const apiClient = {
         pressure_level: pressureLevel,
         variant,
         scenario_slug: scenarioSlug,
+        persona,
       }),
     }).then(json<SessionStatus>),
+  listPersonas: (): Promise<Persona[]> => fetch("/personas").then(json<Persona[]>),
   stopSession: (): Promise<SessionStatus> => fetch("/stop", { method: "POST" }).then(json<SessionStatus>),
 
   listFlags: (): Promise<Flag[]> => fetch("/review/flags").then(json<Flag[]>),
