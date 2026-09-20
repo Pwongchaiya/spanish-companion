@@ -41,4 +41,24 @@ TOPICS: list[tuple[str, str]] = [
         "gender-agreement",
         "https://www.rae.es/gram%C3%A1tica-b%C3%A1sica/el-g%C3%A9nero/g%C3%A9nero-concordancia-flexi%C3%B3n-y-sexo",  # noqa: E501
     ),
+    # Added 2026-09-19 (F2 follow-up): common A2-B1 error areas the flag prompt
+    # doesn't name but the learner hits. URLs verified fetchable via
+    # fetch_page_text with real content. The first two are RAE's "El buen uso
+    # del español", not the Nueva gramática básica the rest use.
+    (
+        "por-vs-para",
+        "https://www.rae.es/buen-uso-espa%C3%B1ol/las-preposiciones-por-y-para",
+    ),
+    (
+        "articles",
+        "https://www.rae.es/buen-uso-espa%C3%B1ol/el-art%C3%ADculo-clases-y-usos",
+    ),
+    (
+        "object-pronouns",
+        "https://www.rae.es/gram%C3%A1tica-b%C3%A1sica/complemento-directo-complemento-indirecto-complemento-de-r%C3%A9gimen/el-complemento-directo-cd/propiedades-gramaticales-del-complemento-directo",  # noqa: E501
+    ),
+    (
+        "object-pronouns",
+        "https://www.rae.es/gram%C3%A1tica-b%C3%A1sica/complemento-directo-complemento-indirecto-complemento-de-r%C3%A9gimen/el-complemento-indirecto-ci/propiedades-gramaticales-del-complemento-indirecto",  # noqa: E501
+    ),
 ]
