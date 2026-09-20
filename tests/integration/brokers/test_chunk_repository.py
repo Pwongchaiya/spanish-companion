@@ -212,3 +212,44 @@ class TestSqlAlchemyChunkRepositoryBrokerSearchByVector:
 
         # then
         assert [r.chunk_id for r in results1] == [r.chunk_id for r in results2]
+
+
+class TestSqlAlchemyChunkRepositoryBrokerSearchByText:
+    """Tests for ChunkRepositoryBroker.search_by_text() (Postgres full-text, 'spanish' config)."""
+
+    @pytest.fixture
+    def text_chunks(self, chunk_repository):
+        contents = [
+            "El verbo hablar se conjuga en pretérito indefinido para acciones acabadas.",
+            "El subjuntivo expresa deseo, duda o posibilidad.",
+            "Los verbos hablaban y hablamos comparten la raíz habl-.",
+        ]
+        return [
+            chunk_repository.insert_chunk(
+                topic=f"topic-{i}",
+                source_url=f"https://test.com/text-{i}",
+                content=content,
+                embedding=axis_vector(i),
+                embedding_model_version="test-v1",
+                chunking_strategy_version="test-v1",
+            )
+            for i, content in enumerate(contents)
+        ]
+
+    def test_should_match_spanish_stemmed_forms(self, chunk_repository, text_chunks):
+        # when -- "hablando" shares the stem "habl" with "hablar"/"hablaban"/"hablamos"
+        results = chunk_repository.search_by_text("hablando", top_k=5)
+
+        # then
+        assert {r.chunk_id for r in results} == {text_chunks[0], text_chunks[2]}
+        assert all(isinstance(r.score, float) for r in results)
+        scores = [r.score for r in results]
+        assert scores == sorted(scores, reverse=True)
+
+    def test_should_return_empty_list_when_nothing_matches(self, chunk_repository, text_chunks):
+        assert chunk_repository.search_by_text("zzzxyz", top_k=5) == []
+
+    def test_should_respect_top_k_limit(self, chunk_repository, text_chunks):
+        results = chunk_repository.search_by_text("hablando", top_k=1)
+
+        assert len(results) == 1
