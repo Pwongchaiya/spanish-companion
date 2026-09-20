@@ -17,10 +17,19 @@ def format_priming_brief(due: List[DuePattern]) -> str:
     return f"Priority review: {items}. Weave these in naturally; do not announce them."
 
 
+def format_scene_constraints(constraints: List[str]) -> str:
+    """A4: "" when none; otherwise the hard scene requirements, one per line."""
+    if not constraints:
+        return ""
+    return "Scene requirements (mandatory, do not announce them):\n" + "\n".join(f"- {c}" for c in constraints)
+
+
 if __name__ == "__main__":
     assert format_priming_brief([]) == ""
     one = format_priming_brief([DuePattern("past_tense", 4, 3.2)])
     assert one == "Priority review: past tense (due 3d). Weave these in naturally; do not announce them.", one
     two = format_priming_brief([DuePattern("ser_estar", 2, 0.0), DuePattern("gender", 1, 7.6)])
     assert "ser estar (due 0d), gender (due 8d)" in two
+    assert format_scene_constraints([]) == ""
+    assert format_scene_constraints(["a", "b"]).endswith("\n- a\n- b")
     print("OK")
