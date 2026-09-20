@@ -1,0 +1,45 @@
+/* E3 replay panel -- hairline track, accent markers, same quiet language as DictationPanel.css. */
+
+.replay {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.replay audio {
+  width: 100%;
+}
+
+.replay-track {
+  position: relative;
+  height: 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.replay-progress {
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--accent);
+  pointer-events: none;
+}
+
+.replay-marker {
+  position: absolute;
+  bottom: 0;
+  width: 12px;
+  height: 20px;
+  margin-left: -6px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px 3px 0 0;
+  background: var(--ember);
+  cursor: pointer;
+}
+
+.replay-marker:hover,
+.replay-marker:focus-visible {
+  outline: 2px solid var(--accent-border);
+}

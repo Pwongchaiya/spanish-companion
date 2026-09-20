@@ -118,6 +118,22 @@ export interface SessionRecap {
   session_ended_at: string | null;
 }
 
+// E3: a finished session's audio plus its flags placed on the timeline.
+export interface ReplayFlag {
+  flag_id: string;
+  offset_seconds: number;
+  said: string;
+  corrected: string;
+  category: string;
+}
+
+export interface SessionReplay {
+  session_log_id: number;
+  duration_seconds: number;
+  audio_url: string;
+  flags: ReplayFlag[];
+}
+
 export interface PhonemeScore {
   phoneme: string;
   accuracy: number;
