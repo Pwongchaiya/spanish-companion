@@ -17,6 +17,9 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from api.models.base import Base
 
+# Registers `session_log` on Base.metadata so the FK below resolves.
+from api.models.foundations.session_log_entry.session_log_entry import SessionLogEntryRecord  # noqa: F401
+
 
 class SessionAudioRecord(Base):
     """SQLAlchemy ORM mapping for the `session_audio` table."""
