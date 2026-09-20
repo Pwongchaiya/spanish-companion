@@ -85,7 +85,7 @@ from api.services.orchestrations.learner_profile import LearnerProfileOrchestrat
 from api.services.orchestrations.voice_conversation import ConversationOrchestrationService
 from api.services.orchestrations.voice_conversation._difficulty import get_difficulty_block
 from api.services.orchestrations.voice_conversation._pressure import get_pressure_level
-from api.services.orchestrations.voice_conversation._priming import format_priming_brief
+from api.services.orchestrations.voice_conversation._priming import format_priming_brief, format_scene_constraints
 from api.services.processings.learner_profile import LearnerProfileProcessingService
 from api.services.processings.mistake_pattern import MistakePatternProcessingService
 from api.services.processings.persona import PersonaProcessingService
@@ -164,9 +164,12 @@ def _scenario_text(scenario: Optional[SessionScenario], has_difficulty_block: bo
 
 
 def _priming_block(scenario: Optional[SessionScenario], logging_broker: LoggingBroker) -> str:
-    """A3: never crashes -- any failure just means no priming brief."""
+    """A3/A4: never crashes -- any failure just means no priming brief."""
     try:
-        return format_priming_brief(scenario.due_patterns) if scenario else ""
+        if not scenario:
+            return ""
+        blocks = (format_priming_brief(scenario.due_patterns), format_scene_constraints(scenario.scene_constraints))
+        return "\n\n".join(b for b in blocks if b)
     except Exception as e:  # noqa: BLE001 -- degrade, don't crash (same stance as D6)
         logging_broker.log_warning("Skipping priming brief: %s", e)
         return ""

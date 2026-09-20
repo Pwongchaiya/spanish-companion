@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 from api.brokers.logging import LoggingBroker
 from api.exposers import voice_conversation as vc
 from api.models.orchestrations.learner_profile.session_scenario import DuePattern, SessionScenario
-from api.services.orchestrations.voice_conversation._priming import format_priming_brief
+from api.services.orchestrations.voice_conversation._priming import format_priming_brief, format_scene_constraints
 
 BASE = "BASE\n\nFor this session, practice: {}\n\nPRESSURE"
 BRIEF = "Priority review: past tense (due 3d). Weave these in naturally; do not announce them."
@@ -40,3 +40,19 @@ def test_brief_appended_on_default_path():
 def test_degrades_to_no_brief_when_scenario_unavailable_or_load_raises():
     assert _compose("MINE", None) == BASE.format("MINE")
     assert _compose("MINE", load_side_effect=RuntimeError("boom")) == BASE.format("MINE")
+
+
+CONSTRAINTS = ["The scene must force me to use past tense to get through it."]
+CONSTRAINT_BLOCK = "Scene requirements (mandatory, do not announce them):\n- " + CONSTRAINTS[0]
+
+
+def test_format_scene_constraints_empty_and_populated():
+    assert format_scene_constraints([]) == ""
+    assert format_scene_constraints(CONSTRAINTS) == CONSTRAINT_BLOCK
+
+
+def test_constraints_appended_after_brief_and_prompt_unchanged_when_empty():
+    with_c = SessionScenario("beginner", None, None, due_patterns=SCENARIO.due_patterns, scene_constraints=CONSTRAINTS)
+    assert _compose("MINE", with_c) == f"{BASE.format('MINE')}\n\n{BRIEF}\n\n{CONSTRAINT_BLOCK}"
+    assert _compose("MINE", SCENARIO) == f"{BASE.format('MINE')}\n\n{BRIEF}"
+    assert _compose("MINE", SessionScenario("beginner", None, None)) == BASE.format("MINE")
