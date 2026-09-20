@@ -22,6 +22,7 @@ class SessionLifecycleService(Protocol):
         pressure_level: Optional[str] = None,
         variant: Optional[str] = None,
         scenario_slug: Optional[str] = None,
+        persona: Optional[str] = None,
     ) -> None:
         """Start the voice-conversation subprocess.
 
@@ -36,6 +37,9 @@ class SessionLifecycleService(Protocol):
 
         `scenario_slug` (D4), if given, is recorded on the session's
         session_log row so Review Mode can judge a task scenario's outcome.
+
+        `persona` (a slug of api/data/personas.py), if given, makes the bot
+        play that persona (see voice_conversation's composition root).
 
         Raises SessionValidationException (wrapping AlreadyRunningSessionException)
         if a session is already running.
