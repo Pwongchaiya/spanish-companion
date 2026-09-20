@@ -88,3 +88,26 @@ class SqlAlchemyChunkRepositoryBroker:
             )
             for chunk, score in rows
         ]
+
+    def search_by_text(self, query: str, top_k: int) -> list[ScoredChunk]:
+        # ponytail: tsvector computed per query, no GIN index -- no migration
+        # needed and the corpus is ~30 chunks. Add a stored/indexed tsvector
+        # column via Alembic if the corpus grows large.
+        vector = func.to_tsvector("spanish", Chunk.content)
+        ts_query = func.websearch_to_tsquery("spanish", query)
+        rank = func.ts_rank(vector, ts_query).label("score")
+        statement = select(Chunk, rank).where(vector.op("@@")(ts_query)).order_by(rank.desc()).limit(top_k)
+        with Session(self._engine) as session:
+            rows = session.execute(statement).all()
+        return [
+            ScoredChunk(
+                chunk_id=chunk.id,
+                topic=chunk.topic,
+                source_url=chunk.source_url,
+                content=chunk.content,
+                score=score,
+                embedding_model_version=chunk.embedding_model_version,
+                chunking_strategy_version=chunk.chunking_strategy_version,
+            )
+            for chunk, score in rows
+        ]

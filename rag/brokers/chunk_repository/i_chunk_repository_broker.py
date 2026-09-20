@@ -28,3 +28,12 @@ class ChunkRepositoryBroker(Protocol):
         (built later, by a different feature).
         """
         ...
+
+    def search_by_text(self, query: str, top_k: int) -> list[ScoredChunk]:
+        """Postgres full-text search (Spanish config), best-first, up to top_k rows.
+
+        Second-opinion retrieval only. score is ts_rank -- HIGHER is better,
+        unlike search_by_vector's distance; scores are only comparable within
+        one strategy's list.
+        """
+        ...
