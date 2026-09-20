@@ -19,3 +19,4 @@ review/logs/
 .mcp.json
 .agents
 .vscode/
+data/audio/
