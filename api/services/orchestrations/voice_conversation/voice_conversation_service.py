@@ -88,6 +88,7 @@ from pipecat.processors.aggregators.llm_response_universal import (
     LLMUserAggregatorParams,
 )
 from pipecat.processors.aggregators.llm_text_processor import LLMTextProcessor
+from pipecat.processors.audio.audio_buffer_processor import AudioBufferProcessor
 from pipecat.processors.filters.function_filter import FunctionFilter
 from pipecat.utils.text.pattern_pair_aggregator import MatchAction, PatternMatch, PatternPairAggregator
 from pipecat.services.azure.tts import AzureTTSService
@@ -124,6 +125,7 @@ from api.services.foundations.learner_profile import ILearnerProfileService
 from api.services.foundations.session_log_entry import ISessionLogEntryService
 from api.services.foundations.live_transcript import ILiveTranscriptService
 from api.services.foundations.session_log import ISessionLogService
+from api.services.orchestrations.session_audio_recording import ISessionAudioRecordingService
 from api.services.processings.learner_profile import ILearnerProfileProcessingService
 from api.services.processings.persona import IPersonaProcessingService
 from api.services.orchestrations.voice_conversation._mic_gate import _MicGate
@@ -292,6 +294,7 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
         configuration_broker: ConfigurationBroker = EnvConfigurationBroker(),
         persona_processing_service: Optional[IPersonaProcessingService] = None,
         prompt_broker: PromptBroker = FilePromptBroker(),
+        session_audio_recording_service: Optional[ISessionAudioRecordingService] = None,
     ) -> None:
         self._stt_broker = stt_broker
         self._transport = transport
@@ -316,6 +319,11 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
         # Persona memory write (teardown only); None = feature not wired.
         self._persona_processing_service = persona_processing_service
         self._prompt_broker = prompt_broker
+        # E3 opt-in audio capture: None (or AUDIO_RECORD_ENABLED off) leaves the
+        # pipeline exactly as it was. `_recorded_audio` is filled by the audio
+        # buffer's on_audio_data handler when the pipeline stops.
+        self._session_audio_recording_service = session_audio_recording_service
+        self._recorded_audio: Optional[Tuple[bytes, int, int]] = None
         self._setup_timed_out = False
 
     async def run(self) -> None:
@@ -370,6 +378,7 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
             except OSError as e:
                 self._logging_broker.log_error(e)
             self._end_session_log_entry(session_log_entry, len(session_flags))
+            self._save_session_audio(session_log_entry)
             # Roadmap A6: last in the cleanup block, after every data-
             # critical write above -- an estimate is a nice-to-have signal
             # for D6's difficulty dial, not something worth losing a
@@ -428,6 +437,21 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
             SessionLogEntryServiceException,
         ) as e:
             self._logging_broker.log_error(e)
+
+    def _save_session_audio(self, entry: Optional[SessionLogEntry]) -> None:
+        """Roadmap E3: best-effort write of the captured session audio (WAV +
+        session_audio row). No-ops unless recording was enabled, the audio
+        buffer produced data, and the session_log row exists. Broad except by
+        design, same as the CEFR/persona teardown steps: audio is a
+        nice-to-have and must never break teardown."""
+        if entry is None or self._recorded_audio is None or self._session_audio_recording_service is None:
+            return
+        try:
+            pcm, sample_rate, num_channels = self._recorded_audio
+            self._session_audio_recording_service.save_recording(entry.id, pcm, sample_rate, num_channels)
+            self._logging_broker.log_info(f"Session audio saved for session {entry.id}")
+        except Exception as e:  # noqa: BLE001 -- degrade, never crash teardown
+            self._logging_broker.log_warning("Session audio save failed (%s): %s", entry.id, e)
 
     def _estimate_and_persist_cefr_level(self) -> None:
         """Roadmap A6: best-effort CEFR estimate from this session's full
@@ -593,22 +617,26 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
         # otherwise this run would see it and end immediately.
         self._stop_signal_file_path.unlink(missing_ok=True)
 
-        pipeline = Pipeline(
-            [
-                self._transport.input(),
-                FunctionFilter(filter=_MicGate(), filter_system_frames=True),
-                FunctionFilter(
-                    filter=_TurnStateObserver(self._session_log_broker), filter_system_frames=True
-                ),
-                stt,
-                user_aggregator,
-                self._llm,
-                LLMTextProcessor(text_aggregator=flag_aggregator),
-                self._tts,
-                self._transport.output(),
-                assistant_aggregator,
-            ]
-        )
+        processors = [
+            self._transport.input(),
+            FunctionFilter(filter=_MicGate(), filter_system_frames=True),
+            FunctionFilter(
+                filter=_TurnStateObserver(self._session_log_broker), filter_system_frames=True
+            ),
+            stt,
+            user_aggregator,
+            self._llm,
+            LLMTextProcessor(text_aggregator=flag_aggregator),
+            self._tts,
+            self._transport.output(),
+            assistant_aggregator,
+        ]
+        audio_buffer = self._build_audio_buffer()
+        if audio_buffer is not None:
+            # After transport.output() (pipecat's documented spot) so it sees
+            # both the mic frames and the bot's output audio.
+            processors.insert(processors.index(assistant_aggregator), audio_buffer)
+        pipeline = Pipeline(processors)
 
         # Gemini's own retry (retry_on_timeout=True, set at construction in
         # api/exposers/voice_conversation.py) fires once; if the retried call
@@ -651,6 +679,24 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
         await runner.add_workers(worker)
 
         return runner, context, session_flags
+
+    def _build_audio_buffer(self) -> Optional[AudioBufferProcessor]:
+        """E3: an AudioBufferProcessor when AUDIO_RECORD_ENABLED is on and a
+        recording service is wired, else None (pipeline unchanged). Mono at the
+        pipeline's audio_out_sample_rate (source rate; no extra resample).
+        buffer_size=0 -> on_audio_data fires once, with the whole session, when
+        the pipeline stops -- held in memory until teardown writes it.
+        ponytail: ~3MB/min in RAM; chunked streaming to disk if long sessions matter."""
+        enabled = str(self._configuration_broker.get("AUDIO_RECORD_ENABLED", "0")).strip().lower()
+        if self._session_audio_recording_service is None or enabled not in ("1", "true", "yes", "on"):
+            return None
+        audio_buffer = AudioBufferProcessor(num_channels=1, auto_start_recording=True)
+
+        @audio_buffer.event_handler("on_audio_data")
+        async def on_audio_data(_buffer, audio: bytes, sample_rate: int, num_channels: int) -> None:
+            self._recorded_audio = (audio, sample_rate, num_channels)
+
+        return audio_buffer
 
     @staticmethod
     def _extract_turns(context: LLMContext) -> List[str]:

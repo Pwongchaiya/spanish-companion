@@ -50,11 +50,13 @@ from pipecat.transports.local.audio import LocalAudioTransport, LocalAudioTransp
 
 from api.brokers.bot_process.bot_process_broker import SCENARIO_OVERRIDE_FILE_PATH
 from api.brokers.configuration import EnvConfigurationBroker
+from api.brokers.audio_storage import LocalWavAudioStorageBroker
 from api.brokers.flag import JsonFileFlagBroker
 from api.brokers.learner_profile import SqlAlchemyLearnerProfileBroker
 from api.brokers.logging import LoggingBroker, StdlibLoggingBroker
 from api.brokers.mistake_pattern.mistake_pattern_broker import SqlAlchemyMistakePatternBroker
 from api.brokers.prompt import FilePromptBroker
+from api.brokers.session_audio import SqlAlchemySessionAudioBroker
 from api.brokers.session_log import FileSessionLogBroker
 from api.brokers.session_log_entry import SqlAlchemySessionLogEntryBroker
 from api.brokers.persona import SqlAlchemyPersonaBroker
@@ -73,15 +75,18 @@ from api.models.orchestrations.learner_profile.exceptions import (
     LearnerProfileOrchestrationValidationException,
 )
 from api.models.orchestrations.learner_profile.session_scenario import SessionScenario
+from api.services.foundations.audio_storage import AudioStorageService
 from api.services.foundations.flag import FlagService
 from api.services.foundations.learner_profile import LearnerProfileService
 from api.services.foundations.live_transcript import LiveTranscriptService
 from api.services.foundations.mistake_pattern import MistakePatternService
 from api.services.foundations.persona import PersonaService
+from api.services.foundations.session_audio import SessionAudioService
 from api.services.foundations.session_log import SessionLogService
 from api.services.foundations.session_log_entry import SessionLogEntryService
 from api.services.foundations.topic_covered import TopicCoveredService
 from api.services.orchestrations.learner_profile import LearnerProfileOrchestrationService
+from api.services.orchestrations.session_audio_recording import SessionAudioRecordingOrchestrationService
 from api.services.orchestrations.voice_conversation import ConversationOrchestrationService
 from api.services.orchestrations.voice_conversation._difficulty import get_difficulty_block
 from api.services.orchestrations.voice_conversation._pressure import get_pressure_level
@@ -334,6 +339,12 @@ def main() -> None:
         configuration_broker=configuration_broker,
         persona_processing_service=PersonaProcessingService(
             PersonaService(SqlAlchemyPersonaBroker(database_url), logging_broker=logging_broker)
+        ),
+        # E3 opt-in recording: only acted on when AUDIO_RECORD_ENABLED is on.
+        session_audio_recording_service=SessionAudioRecordingOrchestrationService(
+            AudioStorageService(LocalWavAudioStorageBroker(), logging_broker=logging_broker),
+            SessionAudioService(SqlAlchemySessionAudioBroker(database_url), logging_broker=logging_broker),
+            logging_broker=logging_broker,
         ),
     )
     asyncio.run(orchestrator.run())
