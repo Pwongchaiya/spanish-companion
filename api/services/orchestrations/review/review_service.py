@@ -69,6 +69,11 @@ from rag.models.foundations.generation import Explanation
 from rag.services.foundations.generation import GenerationService
 from rag.services.orchestrations.retrieval import HybridRetrievalOrchestrationService
 
+# GenerationService.explain() swallows a rejected grounding verdict (or a broker
+# failure) into this exact string -- the only signal Review gets that the draft
+# was weak. Keep in sync with rag/services/foundations/generation.
+_WEAK_EXPLANATION = "I'm not certain on that one."
+
 
 class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewService):
     """Owns Review Mode's flow across flags, retrieval, generation, practice."""
@@ -161,9 +166,38 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
                 return Explanation(explanation="I'm not certain on that one.", source_url="", source_excerpt="")
 
             # retrieve() returns best-first, so [0] is the top-ranked chunk.
-            return self._generation_service.explain(flag, chunks[0])
+            explanation = self._generation_service.explain(flag, chunks[0])
+            if explanation.explanation == _WEAK_EXPLANATION:
+                explanation = self._second_opinion(flag, retrieval_top_k) or explanation
+            return explanation
 
         return self._try_catch(action)
+
+    def _second_opinion(self, flag: Flag, top_k: int) -> Optional[Explanation]:
+        """F4: one lexical re-retrieve + regenerate after a weak grounding verdict.
+
+        Returns the new explanation only if it passed grounding; None (caller
+        keeps the original fallback) when disabled, nothing found, still weak,
+        or the pass itself failed. Capped at one attempt.
+        """
+        if self._configuration_broker.get("SECOND_OPINION_ENABLED", "false").lower() != "true":
+            return None
+        try:
+            chunks = self._retrieval_service.retrieve(
+                query=flag.corrected, top_k=top_k, category=flag.category, alternate=True
+            )
+            if not chunks:
+                self._logging_broker.log_info("second opinion found no chunks for flag_id=%s", flag.id)
+                return None
+            second = self._generation_service.explain(flag, chunks[0])
+        except Exception as e:  # ponytail: best-effort -- any failure degrades to the original explanation
+            self._logging_broker.log_info("second opinion failed for flag_id=%s: %s", flag.id, e)
+            return None
+        if second.explanation == _WEAK_EXPLANATION:
+            self._logging_broker.log_info("second opinion still weak for flag_id=%s", flag.id)
+            return None
+        self._logging_broker.log_info("second opinion recovered flag_id=%s", flag.id)
+        return second
 
     def get_task_outcome(self) -> Optional[TaskOutcome]:
         def action() -> Optional[TaskOutcome]:
