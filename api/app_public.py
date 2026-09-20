@@ -19,6 +19,9 @@ from flask import Flask, jsonify, request, send_from_directory
 
 from api.app import ALLOWED_ORIGINS, FRONTEND_DIST, _is_allowed_origin
 from api.brokers.flag import JsonFileFlagBroker
+from api.brokers.ingestion_queue import SqlAlchemyIngestionQueueBroker
+from api.services.foundations.ingestion_queue import IngestionQueueService
+from api.services.processings.ingestion_queue import IngestionQueueProcessingService
 from api.brokers.learner_profile import SqlAlchemyLearnerProfileBroker
 from api.brokers.logging import StdlibLoggingBroker
 from api.brokers.mistake_pattern.mistake_pattern_broker import SqlAlchemyMistakePatternBroker
@@ -112,6 +115,9 @@ def create_public_app() -> Flask:
             SqlAlchemySessionLogEntryBroker(database_url), logging_broker=logging_broker
         ),
         live_transcript_service=LiveTranscriptService(FileSessionLogBroker(), logging_broker=logging_broker),
+        ingestion_queue_processing_service=IngestionQueueProcessingService(
+            IngestionQueueService(SqlAlchemyIngestionQueueBroker(database_url), logging_broker=logging_broker)
+        ),
         logging_broker=logging_broker,
     )
     app.register_blueprint(make_review_blueprint(review_orchestrator))

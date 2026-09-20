@@ -34,6 +34,7 @@ from api.services.foundations.live_transcript import ILiveTranscriptService
 from api.services.foundations.session_log_entry import ISessionLogEntryService
 from api.services.foundations.practice_log import PracticeLogService
 from api.services.orchestrations.review import ReviewOrchestrationService
+from api.services.processings.ingestion_queue import IIngestionQueueProcessingService
 from api.services.processings.learner_profile import ILearnerProfileProcessingService
 from api.services.processings.mistake_pattern import IMistakePatternProcessingService
 from rag.models.foundations.generation import Explanation
@@ -130,6 +131,7 @@ def service(
         mistake_pattern_processing_service=mock_mistake_pattern_processing_service,
         session_log_entry_service=Mock(spec=ISessionLogEntryService),
         live_transcript_service=Mock(spec=ILiveTranscriptService),
+        ingestion_queue_processing_service=Mock(spec=IIngestionQueueProcessingService),
         clock=lambda: FIXED_NOW,
         logging_broker=StdlibLoggingBroker(),
         configuration_broker=FakeConfigurationBroker({"RETRIEVAL_TOP_K": str(RETRIEVAL_TOP_K)}),
