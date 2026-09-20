@@ -9,9 +9,9 @@ weak grounding verdicts against it. Lives in api/ because the queue table is
 api's; it reuses rag's fetch_page_text + IngestionOrchestrationService
 (api -> rag, never the reverse).
 
-Known limitation, inherited from rag/exposers/ingestion.py: ChunkRepositoryBroker
-has no exists/delete method, so re-ingesting a topic that already has chunks
-inserts duplicate rows.
+Re-ingesting is safe: IngestionOrchestrationService skips any source_url that
+already has chunks (count_chunks_by_source_url), so only genuinely new TOPICS
+URLs add rows. A changed page needs a delete path, which does not exist.
 """
 
 import sys
