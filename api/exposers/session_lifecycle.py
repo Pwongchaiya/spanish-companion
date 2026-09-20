@@ -53,6 +53,7 @@ from api.models.orchestrations.learner_profile.exceptions import (
     LearnerProfileOrchestrationValidationException,
 )
 from api.data.roleplay_scenarios import get_roleplay_scenario
+from api.data.personas import PERSONAS
 from api.data.spanish_variants import VARIANT_KEYS
 from api.exposers.learner_profile import LearnerProfileController
 from api.services.foundations.session_lifecycle import SessionLifecycleService
@@ -82,6 +83,10 @@ def make_session_lifecycle_blueprint(
         except LearnerProfileOrchestrationServiceException as e:
             return jsonify({"error": str(e.inner_exception)}), 500
 
+    @session_lifecycle_blueprint.route("/personas", methods=["GET"])
+    def personas():
+        return jsonify([{"slug": p.slug, "name": p.name} for p in PERSONAS.values()]), 200
+
     @session_lifecycle_blueprint.route("/start", methods=["POST"])
     def start():
         body = request.get_json(silent=True) or {}
@@ -104,8 +109,11 @@ def make_session_lifecycle_blueprint(
         scenario_slug = body.get("scenario_slug")
         if scenario_slug is not None and get_roleplay_scenario(scenario_slug) is None:
             return jsonify({"error": f"Invalid scenario_slug: {scenario_slug!r}"}), 400
+        persona = body.get("persona")
+        if persona is not None and persona not in PERSONAS:
+            return jsonify({"error": f"Invalid persona: {persona!r}"}), 400
         try:
-            service.start(scenario_text, pressure_level, variant, scenario_slug)
+            service.start(scenario_text, pressure_level, variant, scenario_slug, persona)
             return jsonify(asdict(service.get_status())), 200
         except SessionValidationException as e:
             if isinstance(e.inner_exception, AlreadyRunningSessionException):

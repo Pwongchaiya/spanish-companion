@@ -59,7 +59,7 @@ class TestSessionLifecycleRoutesStart:
         # then
         assert response.status_code == 200
         assert response.get_json() == {"running": True, "ready": False, "graceful": None}
-        mock_service.start.assert_called_once_with(None, None, None, None)
+        mock_service.start.assert_called_once_with(None, None, None, None, None)
         mock_service.get_status.assert_called_once_with()
 
     def test_should_pass_scenario_text_from_body_through_to_service(self, client, mock_service):
@@ -70,7 +70,7 @@ class TestSessionLifecycleRoutesStart:
         client.post("/start", json={"scenario_text": "practice ordering coffee"})
 
         # then
-        mock_service.start.assert_called_once_with("practice ordering coffee", None, None, None)
+        mock_service.start.assert_called_once_with("practice ordering coffee", None, None, None, None)
 
     def test_should_fold_session_length_hint_into_scenario_text(self, client, mock_service):
         # given
@@ -84,7 +84,7 @@ class TestSessionLifecycleRoutesStart:
 
         # then
         mock_service.start.assert_called_once_with(
-            "practice ordering coffee Aim for about a 5-minute conversation.", None, None, None
+            "practice ordering coffee Aim for about a 5-minute conversation.", None, None, None, None
         )
 
     def test_should_pass_session_length_hint_alone_when_no_scenario_text(self, client, mock_service):
@@ -95,7 +95,7 @@ class TestSessionLifecycleRoutesStart:
         client.post("/start", json={"session_length_hint": "20"})
 
         # then
-        mock_service.start.assert_called_once_with("Aim for about a 20-minute conversation.", None, None, None)
+        mock_service.start.assert_called_once_with("Aim for about a 20-minute conversation.", None, None, None, None)
 
     def test_should_pass_pressure_level_from_body_through_to_service(self, client, mock_service):
         # given
@@ -105,7 +105,7 @@ class TestSessionLifecycleRoutesStart:
         client.post("/start", json={"pressure_level": "push"})
 
         # then
-        mock_service.start.assert_called_once_with(None, "push", None, None)
+        mock_service.start.assert_called_once_with(None, "push", None, None, None)
 
     def test_should_return_400_when_pressure_level_is_invalid(self, client, mock_service):
         # when
@@ -124,7 +124,7 @@ class TestSessionLifecycleRoutesStart:
         client.post("/start", json={"variant": "rioplatense"})
 
         # then
-        mock_service.start.assert_called_once_with(None, None, "rioplatense", None)
+        mock_service.start.assert_called_once_with(None, None, "rioplatense", None, None)
 
     def test_should_return_400_when_variant_is_invalid(self, client, mock_service):
         # when
@@ -145,7 +145,7 @@ class TestSessionLifecycleRoutesStart:
         # then
         assert response.status_code == 409
         assert response.get_json() == {"error": "A conversation session is already running"}
-        mock_service.start.assert_called_once_with(None, None, None, None)
+        mock_service.start.assert_called_once_with(None, None, None, None, None)
         mock_service.get_status.assert_not_called()
 
 
@@ -264,7 +264,7 @@ class TestSessionLifecycleRoutesStatus:
         client.post("/start", json={"scenario_slug": "ordering_coffee"})
 
         # then
-        mock_service.start.assert_called_once_with(None, None, None, "ordering_coffee")
+        mock_service.start.assert_called_once_with(None, None, None, "ordering_coffee", None)
 
     def test_should_return_400_when_scenario_slug_is_unknown(self, client, mock_service):
         # when
@@ -273,4 +273,32 @@ class TestSessionLifecycleRoutesStatus:
         # then
         assert response.status_code == 400
         assert response.get_json() == {"error": "Invalid scenario_slug: 'nope'"}
+        mock_service.start.assert_not_called()
+
+    def test_should_pass_persona_from_body_through_to_service(self, client, mock_service):
+        # given
+        mock_service.get_status.return_value = SessionStatus(running=True, ready=False, graceful=None)
+
+        # when
+        client.post("/start", json={"persona": "marta"})
+
+        # then
+        mock_service.start.assert_called_once_with(None, None, None, None, "marta")
+
+    def test_should_return_400_when_persona_is_invalid(self, client, mock_service):
+        # when
+        response = client.post("/start", json={"persona": "nobody"})
+
+        # then
+        assert response.status_code == 400
+        assert response.get_json() == {"error": "Invalid persona: 'nobody'"}
+        mock_service.start.assert_not_called()
+
+    def test_should_list_static_personas(self, client, mock_service):
+        # when
+        response = client.get("/personas")
+
+        # then
+        assert response.status_code == 200
+        assert response.get_json() == [{"slug": "marta", "name": "Marta"}, {"slug": "don_luis", "name": "Don Luis"}]
         mock_service.start.assert_not_called()
