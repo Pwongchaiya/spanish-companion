@@ -29,7 +29,11 @@ def _normalize(text: str) -> str:
     category like "concordancia de género" normalizes to itself, not to
     "concordancia de g nero".
     """
-    return re.sub(r"[\W_]+", " ", text.casefold()).strip()
+    words = re.sub(r"[\W_]+", " ", text.casefold()).split()
+    # ponytail: drop a trailing plural "s" on words over 3 chars so "article"
+    # matches "articles". Applied to both sides, so a false stem ("analysis" ->
+    # "analysi") still compares equal to itself. Not real stemming.
+    return " ".join(w[:-1] if len(w) > 3 and w.endswith("s") else w for w in words)
 
 
 def _matches(topic: str, category: str) -> bool:
