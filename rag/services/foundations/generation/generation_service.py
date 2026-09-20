@@ -158,6 +158,17 @@ class GenerationService(GenerationServiceExceptions, IGenerationService):
 
         return self._try_catch(action)
 
+    def generate_text(self, prompt: str) -> str | None:
+        def action() -> str | None:
+            try:
+                text = self._broker.generate(prompt)
+            except GenerationError as e:
+                self._logging_broker.log_info("generate_text call failed, skipping: %s", e)
+                return None
+            return text.strip() or None
+
+        return self._try_catch(action)
+
     def judge_task_outcome(self, transcript_text: str, success_condition: str) -> str | None:
         def action() -> str | None:
             prompt = _TASK_OUTCOME_PROMPT.format(success_condition=success_condition, transcript=transcript_text)

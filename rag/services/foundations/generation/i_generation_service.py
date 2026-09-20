@@ -103,3 +103,10 @@ class IGenerationService(Protocol):
         May raise GenerationServiceException for anything else unexpected.
         """
         ...
+
+    def generate_text(self, prompt: str) -> str | None:
+        """Run a caller-built prompt (api owns its text; rag must not import
+        api/data) and return the stripped answer, or None when the broker
+        fails or answers empty -- never raises GenerationError. Best-effort,
+        for teardown work such as the persona memory summary."""
+        ...
