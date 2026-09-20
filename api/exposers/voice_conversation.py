@@ -57,6 +57,7 @@ from api.brokers.mistake_pattern.mistake_pattern_broker import SqlAlchemyMistake
 from api.brokers.prompt import FilePromptBroker
 from api.brokers.session_log import FileSessionLogBroker
 from api.brokers.session_log_entry import SqlAlchemySessionLogEntryBroker
+from api.brokers.persona import SqlAlchemyPersonaBroker
 from api.brokers.stt import AzureSttBroker
 from api.brokers.topic_covered import SqlAlchemyTopicCoveredBroker
 from api.data.spanish_variants import get_variant
@@ -76,6 +77,7 @@ from api.services.foundations.flag import FlagService
 from api.services.foundations.learner_profile import LearnerProfileService
 from api.services.foundations.live_transcript import LiveTranscriptService
 from api.services.foundations.mistake_pattern import MistakePatternService
+from api.services.foundations.persona import PersonaService
 from api.services.foundations.session_log import SessionLogService
 from api.services.foundations.session_log_entry import SessionLogEntryService
 from api.services.foundations.topic_covered import TopicCoveredService
@@ -86,6 +88,7 @@ from api.services.orchestrations.voice_conversation._pressure import get_pressur
 from api.services.orchestrations.voice_conversation._priming import format_priming_brief
 from api.services.processings.learner_profile import LearnerProfileProcessingService
 from api.services.processings.mistake_pattern import MistakePatternProcessingService
+from api.services.processings.persona import PersonaProcessingService
 from rag.brokers.generation import GeminiGenerationBroker
 from rag.services.foundations.generation import GenerationService
 
@@ -193,7 +196,7 @@ def _read_cefr_estimate(logging_broker: LoggingBroker) -> Optional[str]:
 
 
 def _compose_system_prompt(
-    logging_broker: LoggingBroker, pressure_prompt_block: str, variant_prompt_block: str = ""
+    logging_broker: LoggingBroker, pressure_prompt_block: str, variant_prompt_block: str = "", persona_brief: str = ""
 ) -> str:
     base_rules = FilePromptBroker().get_system_prompt()
     override = _read_and_clear_scenario_override()
@@ -209,10 +212,25 @@ def _compose_system_prompt(
     prompt = f"{base_rules}\n\nFor this session, practice: {scenario_text}\n\n{pressure_prompt_block}"
     # D2: regional register guidance (empty for neutral, so the prompt is
     # unchanged from before D2 in the default case).
-    for block in (variant_prompt_block, difficulty_block, _priming_block(scenario, logging_broker)):
+    for block in (variant_prompt_block, persona_brief, difficulty_block, _priming_block(scenario, logging_broker)):
         if block:
             prompt = f"{prompt}\n\n{block}"
     return prompt
+
+
+def _load_persona_brief(slug: Optional[str], database_url: Optional[str], logging_broker: LoggingBroker) -> str:
+    """Fetch the persona brief ONCE at startup (never per turn). "" when no
+    persona is set or it can't be loaded -- the conversation must still start."""
+    if not slug:
+        return ""
+    try:
+        service = PersonaProcessingService(
+            PersonaService(SqlAlchemyPersonaBroker(database_url), logging_broker=logging_broker)
+        )
+        return service.get_persona_brief(slug)
+    except Exception as e:  # noqa: BLE001 -- degrade, don't crash
+        logging_broker.log_warning("Persona brief load failed (%s): %s", slug, e)
+        return ""
 
 
 def main() -> None:
@@ -231,6 +249,9 @@ def main() -> None:
 
     pressure = get_pressure_level(configuration_broker.get("SESSION_PRESSURE"))
     variant = get_variant(configuration_broker.get("SESSION_VARIANT"))
+    persona_brief = _load_persona_brief(
+        configuration_broker.get("SESSION_PERSONA"), configuration_broker.get("DATABASE_URL"), logging_broker
+    )
 
     try:
         transport = LocalAudioTransport(
@@ -255,7 +276,7 @@ def main() -> None:
             api_key=configuration_broker.require("GEMINI_API_KEY"),
             settings=GoogleLLMService.Settings(
                 model=configuration_broker.get("GEMINI_MODEL", "gemini-flash-lite-latest"),
-                system_instruction=_compose_system_prompt(logging_broker, pressure.prompt_block, variant.prompt_block),
+                system_instruction=_compose_system_prompt(logging_broker, pressure.prompt_block, variant.prompt_block, persona_brief),
             ),
             # A slow first chunk (network blip, API-side latency) otherwise drops
             # the turn silently with no assistant reply ever recorded — the user
