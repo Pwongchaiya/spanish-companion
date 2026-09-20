@@ -79,3 +79,21 @@ def test_delete_should_raise_not_found_when_missing(service, mock_session_audio_
         service.delete_session_audio(9)
 
     assert isinstance(caught.value.inner_exception, NotFoundSessionAudioException)
+
+
+def test_get_latest_should_return_broker_row(service, mock_session_audio_broker, make_session_audio):
+    row = make_session_audio(id=8)
+    mock_session_audio_broker.select_latest_session_audio.return_value = row
+
+    assert service.get_latest_session_audio() is row
+    assert mock_session_audio_broker.select_latest_session_audio.call_count == 1
+    _assert_only(mock_session_audio_broker, "select_latest_session_audio")
+
+
+def test_get_latest_should_raise_not_found_when_nothing_recorded(service, mock_session_audio_broker):
+    mock_session_audio_broker.select_latest_session_audio.return_value = None
+
+    with pytest.raises(SessionAudioValidationException) as caught:
+        service.get_latest_session_audio()
+
+    assert isinstance(caught.value.inner_exception, NotFoundSessionAudioException)

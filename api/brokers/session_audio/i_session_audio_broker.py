@@ -24,6 +24,10 @@ class ISessionAudioBroker(Protocol):
         """The newest row for this session, or None."""
         ...
 
+    def select_latest_session_audio(self) -> Optional[SessionAudio]:
+        """The most recently inserted row across all sessions, or None."""
+        ...
+
     def select_session_audio_older_than(self, cutoff: datetime) -> list[SessionAudio]:
         """Every row with created_at strictly before `cutoff`, id ascending."""
         ...

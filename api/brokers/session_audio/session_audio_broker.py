@@ -58,6 +58,15 @@ class SqlAlchemySessionAudioBroker:
             )
             return None if record is None else _to_dataclass(record)
 
+    def select_latest_session_audio(self) -> Optional[SessionAudio]:
+        with Session(self._engine) as session:
+            record = (
+                session.execute(select(SessionAudioRecord).order_by(SessionAudioRecord.id.desc()))
+                .scalars()
+                .first()
+            )
+            return None if record is None else _to_dataclass(record)
+
     def select_session_audio_older_than(self, cutoff: datetime) -> list[SessionAudio]:
         with Session(self._engine) as session:
             records = (
@@ -102,7 +111,9 @@ if __name__ == "__main__":
     assert a.id is not None and a.duration_seconds == 12.5, a
     assert broker.select_session_audio_by_session_log_id(1) == b
     assert broker.select_session_audio_by_session_log_id(99) is None
+    assert broker.select_latest_session_audio() == c
     assert [r.id for r in broker.select_session_audio_older_than(datetime(2026, 1, 6))] == [a.id, b.id]
     assert broker.select_session_audio_older_than(datetime(2026, 1, 1)) == []
     assert broker.delete_session_audio(c.id) == c and broker.delete_session_audio(c.id) is None
+    assert broker.select_latest_session_audio() == b
     print("session_audio_broker self-check passed")

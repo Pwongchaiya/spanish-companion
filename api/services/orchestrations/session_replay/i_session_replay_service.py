@@ -20,6 +20,11 @@ class ISessionReplayService(Protocol):
         """Audio duration plus this session's flags placed on its timeline."""
         ...
 
+    def get_latest_session_id(self) -> int:
+        """session_log_id of the most recent recorded session (the Review tab's
+        default replay target). NotFound (validation tier) if nothing is recorded."""
+        ...
+
     def get_audio(self, session_log_id: int) -> SessionAudio:
         """The session's audio row (file path for streaming)."""
         ...

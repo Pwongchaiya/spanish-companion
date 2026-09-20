@@ -71,6 +71,12 @@ class SessionReplayOrchestrationService(SessionReplayOrchestrationServiceExcepti
 
         return self._try_catch(action)
 
+    def get_latest_session_id(self) -> int:
+        def action() -> int:
+            return self._session_audio_service.get_latest_session_audio().session_log_id
+
+        return self._try_catch(action)
+
     def get_audio(self, session_log_id: int) -> SessionAudio:
         def action() -> SessionAudio:
             return self._session_audio_service.get_session_audio_by_session_log_id(session_log_id)
