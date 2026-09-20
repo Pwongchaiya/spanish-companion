@@ -22,8 +22,13 @@ from rag.models.orchestrations.retrieval import ScoredChunk
 class RetrievalService(Protocol):
     """External-facing contract for Retrieval's orchestration service."""
 
-    def retrieve(self, query: str, top_k: int, category: Optional[str] = None) -> List[ScoredChunk]:
+    def retrieve(
+        self, query: str, top_k: int, category: Optional[str] = None, alternate: bool = False
+    ) -> List[ScoredChunk]:
         """Return up to top_k chunks grounding `query`, best-first.
+
+        `alternate=True` runs the second-opinion (lexical) search instead of
+        the default dense pipeline; [] if none is configured.
 
         Returns [] when the corpus has no match -- empty is a valid result,
         not an error.

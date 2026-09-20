@@ -18,6 +18,7 @@ from rag.services.foundations.embedding_model import IEmbeddingModelService
 from rag.services.orchestrations.retrieval import HybridRetrievalOrchestrationService
 from rag.services.orchestrations.retrieval.strategies.dense import RetrievalStrategy
 from rag.services.orchestrations.retrieval.strategies.fusion import PassThroughRankFusion
+from rag.services.orchestrations.retrieval.strategies.lexical import TextRetrievalStrategy
 from tests.unit.services._rag_logging_fixture import mock_logging_broker  # noqa: F401
 
 # Deterministic stand-in for a 384-dim embedding. Nothing under test does
@@ -63,6 +64,12 @@ def mock_strategy():
 
 
 @pytest.fixture
+def mock_alternate_strategy():
+    """Stands in for LexicalStrategy at the second-opinion seam."""
+    return Mock(spec=TextRetrievalStrategy)
+
+
+@pytest.fixture
 def service_factory(mock_embedding_model, mock_strategy, mock_logging_broker):
     """Builds the service under test, defaulting every injectable stage.
 
@@ -71,12 +78,13 @@ def service_factory(mock_embedding_model, mock_strategy, mock_logging_broker):
     Tests that need to prove fusion is actually invoked pass a mock.
     """
 
-    def build(strategies=None, fusion=None, filters=None):
+    def build(strategies=None, fusion=None, filters=None, alternate_strategy=None):
         return HybridRetrievalOrchestrationService(
             embedding_model_service=mock_embedding_model,
             strategies=[mock_strategy] if strategies is None else strategies,
             fusion=PassThroughRankFusion(logging_broker=mock_logging_broker) if fusion is None else fusion,
             filters=filters,
+            alternate_strategy=alternate_strategy,
             logging_broker=mock_logging_broker,
         )
 
