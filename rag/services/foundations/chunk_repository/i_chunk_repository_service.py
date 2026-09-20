@@ -58,4 +58,17 @@ class IChunkRepositoryService(Protocol):
         ...
 
 
+    def search_by_text(self, query: str, top_k: int) -> list[ScoredChunk]:
+        """Validate input, then delegate to ChunkRepositoryBroker.search_by_text.
+
+        Raises:
+            ChunkRepositoryValidationException: wrapping
+                InvalidChunkRepositoryInputError -- blank `query` or `top_k < 1`.
+            ChunkRepositoryDependencyException: wrapping
+                ChunkRepositoryUnavailableError -- the broker call failed.
+            ChunkRepositoryServiceException: anything else unexpected.
+        """
+        ...
+
+
 __all__ = ["IChunkRepositoryService"]

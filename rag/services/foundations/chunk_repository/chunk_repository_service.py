@@ -80,3 +80,14 @@ class ChunkRepositoryService(
                 raise ChunkRepositoryUnavailableError(str(e)) from e
 
         return self._try_catch(action)
+
+    def search_by_text(self, query: str, top_k: int) -> list[ScoredChunk]:
+        def action() -> list[ScoredChunk]:
+            self._validate_blank_field(query, "query")
+            self._validate_search_input(top_k)
+            try:
+                return self._chunk_repository.search_by_text(query, top_k)
+            except Exception as e:
+                raise ChunkRepositoryUnavailableError(str(e)) from e
+
+        return self._try_catch(action)
