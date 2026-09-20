@@ -50,6 +50,7 @@ class BotProcessBroker(Protocol):
         pressure_level: Optional[str] = None,
         variant: Optional[str] = None,
         scenario_slug: Optional[str] = None,
+        persona: Optional[str] = None,
     ) -> None:
         """Launch the subprocess. Non-blocking.
 
@@ -70,6 +71,9 @@ class BotProcessBroker(Protocol):
         `scenario_slug` (D4, a slug of api/data/roleplay_scenarios.py), if
         given, is injected as SESSION_SCENARIO_SLUG so the child can record
         it on its session_log row.
+
+        `persona` (a slug of api/data/personas.py), if given, is injected as
+        SESSION_PERSONA. If None, the child runs with no persona.
         """
         ...
 
