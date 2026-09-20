@@ -139,3 +139,20 @@ def test_audio_should_return_404_when_row_exists_but_file_is_gone(client, orches
     )
 
     assert client.get("/review/sessions/4/audio").status_code == 404
+
+
+def test_latest_should_return_the_newest_session_id(client, orchestrator):
+    orchestrator.get_latest_session_id.return_value = 6
+
+    response = client.get("/review/sessions/latest")
+
+    assert response.status_code == 200 and response.get_json() == {"session_log_id": 6}
+    assert orchestrator.get_latest_session_id.call_count == 1
+
+
+def test_latest_should_return_404_when_nothing_recorded(client, orchestrator):
+    orchestrator.get_latest_session_id.side_effect = SessionReplayOrchestrationValidationException(
+        inner_exception=SessionAudioValidationException(inner_exception=NotFoundSessionAudioException())
+    )
+
+    assert client.get("/review/sessions/latest").status_code == 404

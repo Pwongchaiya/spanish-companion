@@ -163,3 +163,19 @@ def test_get_audio_should_return_row_without_touching_flags(service, audio_servi
 
     assert service.get_audio(4) is row
     assert flag_service.list_flags.call_count == 0 and entry_service.list_session_log_entries.call_count == 0
+
+
+def test_get_latest_session_id_should_return_the_newest_recordings_session(service, audio_service):
+    audio_service.get_latest_session_audio.return_value = SessionAudio(9, 6, "p.wav", 60.0, END)
+
+    assert service.get_latest_session_id() == 6
+    assert audio_service.get_latest_session_audio.call_count == 1
+
+
+def test_get_latest_session_id_should_raise_validation_when_nothing_recorded(service, audio_service):
+    audio_service.get_latest_session_audio.side_effect = SessionAudioValidationException(
+        inner_exception=NotFoundSessionAudioException()
+    )
+
+    with pytest.raises(SessionReplayOrchestrationValidationException):
+        service.get_latest_session_id()

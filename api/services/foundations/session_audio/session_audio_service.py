@@ -54,6 +54,15 @@ class SessionAudioService(
 
         return self._try_catch(action)
 
+    def get_latest_session_audio(self) -> SessionAudio:
+        def action() -> SessionAudio:
+            maybe_row = self._session_audio_broker.select_latest_session_audio()
+            if maybe_row is None:
+                raise NotFoundSessionAudioException()
+            return maybe_row
+
+        return self._try_catch(action)
+
     def list_session_audio_older_than(self, cutoff: datetime) -> list[SessionAudio]:
         def action() -> list[SessionAudio]:
             self._validate_cutoff(cutoff)

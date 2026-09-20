@@ -98,6 +98,7 @@ def test_record_then_replay_then_stream_audio(stack):
             }
         ],
     }
+    assert client.get("/review/sessions/latest").get_json() == {"session_log_id": session_id}
     audio = client.get(body["audio_url"])
     assert audio.status_code == 200 and audio.mimetype == "audio/wav"
     assert audio.data[:4] == b"RIFF" and audio.data[8:12] == b"WAVE"

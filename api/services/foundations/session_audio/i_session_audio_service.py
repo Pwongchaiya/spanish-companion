@@ -27,6 +27,10 @@ class ISessionAudioService(Protocol):
         """The newest audio row for this session. NotFound if none."""
         ...
 
+    def get_latest_session_audio(self) -> SessionAudio:
+        """The most recently recorded audio row across all sessions. NotFound if none."""
+        ...
+
     def list_session_audio_older_than(self, cutoff: datetime) -> list[SessionAudio]:
         """Rows created strictly before `cutoff`. Empty list if none."""
         ...

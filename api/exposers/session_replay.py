@@ -7,6 +7,8 @@ here pass through it like every other route; nothing is re-checked here.
 
   GET /review/sessions/<id>/replay -> {session_log_id, duration_seconds,
         audio_url, flags: [{flag_id, offset_seconds, said, corrected, category}]}
+  GET /review/sessions/latest      -> {session_log_id} of the newest recording, 404 if none
+                                      (extra to the pinned contract; see get_latest)
   GET /review/sessions/<id>/audio  -> the WAV (audio/wav, range-capable so the
         <audio> element can seek); 404 when there is no recording.
 
@@ -40,6 +42,19 @@ def _is_not_found(error: Exception) -> bool:
 
 def make_session_replay_blueprint(orchestrator: ISessionReplayService) -> Blueprint:
     blueprint = Blueprint("session_replay", __name__, url_prefix="/review/sessions")
+
+    @blueprint.route("/latest", methods=["GET"])
+    def get_latest():
+        # Not in the pinned E3 contract: the Review tab has no other way to learn
+        # which session_log_id to replay. Additive; the pinned routes are unchanged.
+        try:
+            return jsonify({"session_log_id": orchestrator.get_latest_session_id()}), 200
+        except SessionReplayOrchestrationValidationException as e:
+            return jsonify({"error": str(e.inner_exception)}), 404 if _is_not_found(e) else 400
+        except SessionReplayOrchestrationDependencyException as e:
+            return jsonify({"error": str(e.inner_exception)}), 500
+        except SessionReplayOrchestrationServiceException as e:
+            return jsonify({"error": str(e.inner_exception)}), 500
 
     @blueprint.route("/<int:session_log_id>/replay", methods=["GET"])
     def get_replay(session_log_id: int):
