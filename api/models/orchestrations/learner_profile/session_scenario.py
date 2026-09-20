@@ -35,3 +35,4 @@ class SessionScenario:
     due_patterns: List[DuePattern] = field(default_factory=list)  # A3: next_due_at-ascending, capped
     boss_fight_text: Optional[str] = None  # C4: scene line (<= 80 chars) when boss-eligible patterns exist
     boss_fight_categories: List[str] = field(default_factory=list)  # C4: categories named in boss_fight_text
+    scene_constraints: List[str] = field(default_factory=list)  # A4: one hard scene requirement per capped due pattern

@@ -173,6 +173,7 @@ class TestSessionLifecycleRoutesSessionScenario:
             "due_patterns": [],
             "boss_fight_text": None,
             "boss_fight_categories": [],
+            "scene_constraints": [],
         }
         mock_learner_profile_controller.suggest_session_scenario.assert_called_once_with()
 
