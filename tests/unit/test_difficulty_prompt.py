@@ -145,3 +145,40 @@ class TestReadCefrEstimate:
             config.return_value.require.return_value = "postgresql://x"
             service.return_value.get_learner_profile.return_value.cefr_estimate = "B1"
             assert vc._read_cefr_estimate(Mock(spec=LoggingBroker)) == "B1"
+
+
+class TestComposeSystemPromptPersona:
+
+    def test_should_append_persona_brief_after_variant_before_difficulty(self):
+        with patch.object(vc, "FilePromptBroker") as prompt_broker, patch.object(
+            vc, "_read_and_clear_scenario_override", return_value="SCENARIO"
+        ), patch.object(vc, "_load_scenario", return_value=None), patch.object(
+            vc, "_read_cefr_estimate", return_value="B2"
+        ):
+            prompt_broker.return_value.get_system_prompt.return_value = "BASE"
+            result = vc._compose_system_prompt(Mock(spec=LoggingBroker), "PRESSURE", "VARIANT", "PERSONA")
+        assert result == f"{BASE}\n\nVARIANT\n\nPERSONA\n\n{get_difficulty_block('B2')}"
+
+
+class TestLoadPersonaBrief:
+
+    def test_should_return_empty_and_touch_nothing_when_no_slug(self):
+        with patch.object(vc, "PersonaProcessingService") as processing:
+            assert vc._load_persona_brief(None, "db", Mock(spec=LoggingBroker)) == ""
+        processing.assert_not_called()
+
+    def test_should_fetch_brief_once_for_slug(self):
+        with patch.object(vc, "PersonaProcessingService") as processing, patch.object(
+            vc, "PersonaService"
+        ), patch.object(vc, "SqlAlchemyPersonaBroker"):
+            processing.return_value.get_persona_brief.return_value = "BRIEF"
+            assert vc._load_persona_brief("marta", "db", Mock(spec=LoggingBroker)) == "BRIEF"
+        processing.return_value.get_persona_brief.assert_called_once_with("marta")
+
+    def test_should_degrade_to_empty_and_warn_when_load_fails(self):
+        logging_broker = Mock(spec=LoggingBroker)
+        with patch.object(vc, "PersonaProcessingService", side_effect=RuntimeError("db down")), patch.object(
+            vc, "PersonaService"
+        ), patch.object(vc, "SqlAlchemyPersonaBroker"):
+            assert vc._load_persona_brief("marta", "db", logging_broker) == ""
+        logging_broker.log_warning.assert_called_once()
