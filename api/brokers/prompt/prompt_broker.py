@@ -18,3 +18,6 @@ class FilePromptBroker:
 
     def get_system_prompt(self) -> str:
         return (self._directory / "voice_conversation_system.txt").read_text(encoding="utf-8")
+
+    def get_persona_memory_prompt(self) -> str:
+        return (self._directory / "persona_memory_summary.txt").read_text(encoding="utf-8")

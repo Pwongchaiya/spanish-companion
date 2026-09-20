@@ -17,3 +17,8 @@ class PromptBroker(Protocol):
         """The full text of Voice Conversation's system prompt, read
         as-is from its data file."""
         ...
+
+    def get_persona_memory_prompt(self) -> str:
+        """The persona memory-summary prompt template ({memory},
+        {transcript}, {max_chars} placeholders), read as-is."""
+        ...
