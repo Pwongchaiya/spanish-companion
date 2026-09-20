@@ -124,10 +124,12 @@ function composeSceneText(scenario: SessionScenario): string {
 }
 
 export function ConversationView() {
-  const { status, transcript, turnState, scenario, start, stop } = useSessionState();
+  const { status, transcript, turnState, scenario, personas, start, stop } = useSessionState();
   const mic = useMicPermission();
   const [pressure, setPressure] = useState<(typeof PRESSURE_LEVELS)[number]["key"]>("normal");
   const [variant, setVariant] = useState<(typeof VARIANTS)[number]["key"]>("neutral");
+  // "" = No persona: start() gets undefined and the request omits the field.
+  const [persona, setPersona] = useState("");
   const [sceneText, setSceneText] = useState("");
   const [sceneEdited, setSceneEdited] = useState(false);
   // D4: slug of the picked roleplay; dropped as soon as the scene text is hand-edited.
@@ -332,6 +334,22 @@ export function ConversationView() {
                     </button>
                   ))}
                 </div>
+                <label className="field-label" htmlFor="persona-select">
+                  Persona
+                </label>
+                <select
+                  id="persona-select"
+                  className="scene-input"
+                  value={persona}
+                  onChange={(e) => setPersona(e.target.value)}
+                >
+                  <option value="">No persona</option>
+                  {personas.map((p) => (
+                    <option key={p.slug} value={p.slug}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
                 <div className="more-panel-row">
                   <span className="row-key">Microphone</span>
                   {/* ponytail: WebRTC spike step, standalone mic-permission
@@ -363,7 +381,7 @@ export function ConversationView() {
               } else {
                 setPanelOpen(false);
                 setRecap(null);
-                start(scenarioText || undefined, sessionLength ?? undefined, pressure, variant, scenarioSlug);
+                start(scenarioText || undefined, sessionLength ?? undefined, pressure, variant, scenarioSlug, persona || undefined);
                 setSceneEdited(false);
               }
             }}

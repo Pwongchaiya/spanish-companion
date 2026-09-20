@@ -18,6 +18,7 @@ function mockSession(overrides: Partial<ReturnType<typeof useSessionState>>) {
     turnState: null,
     connectionStatus: "open",
     scenario: null,
+    personas: [],
     start: vi.fn(),
     stop: vi.fn(),
     ...overrides,
@@ -115,7 +116,7 @@ describe("ConversationView scenario picker", () => {
     fireEvent.click(screen.getByRole("button", { name: "Push" }));
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
 
-    expect(startMock).toHaveBeenCalledWith("talk about the weather", undefined, "push", "neutral", undefined);
+    expect(startMock).toHaveBeenCalledWith("talk about the weather", undefined, "push", "neutral", undefined, undefined);
   });
 
   it("passes the selected session length as a hint, and Done/Start both collapse the panel", () => {
@@ -131,7 +132,7 @@ describe("ConversationView scenario picker", () => {
     expect(screen.getByRole("button", { name: "+ More to adjust" })).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
-    expect(startMock).toHaveBeenCalledWith(expect.any(String), "5", "normal", "neutral", undefined);
+    expect(startMock).toHaveBeenCalledWith(expect.any(String), "5", "normal", "neutral", undefined, undefined);
   });
 
   it("passes the selected Spanish variety to start(), defaulting to neutral", () => {
@@ -144,7 +145,33 @@ describe("ConversationView scenario picker", () => {
     fireEvent.click(screen.getByRole("button", { name: "Rioplatense" }));
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
 
-    expect(startMock).toHaveBeenCalledWith(expect.any(String), undefined, "normal", "rioplatense", undefined);
+    expect(startMock).toHaveBeenCalledWith(expect.any(String), undefined, "normal", "rioplatense", undefined, undefined);
+  });
+
+  it("offers only No persona when none loaded, and sends the picked persona slug on Start", () => {
+    const startMock = vi.fn();
+    mockSession({ status: { running: false, ready: false, graceful: null }, scenario: loadedScenario, start: startMock });
+    const { unmount } = render(<ConversationView />);
+    fireEvent.click(screen.getByRole("button", { name: "+ More to adjust" }));
+    expect(screen.getByLabelText("Persona").querySelectorAll("option")).toHaveLength(1);
+    unmount();
+
+    mockSession({
+      status: { running: false, ready: false, graceful: null },
+      scenario: loadedScenario,
+      personas: [{ slug: "marta", name: "Marta" }],
+      start: startMock,
+    });
+    render(<ConversationView />);
+    fireEvent.click(screen.getByRole("button", { name: "+ More to adjust" }));
+    expect((screen.getByLabelText("Persona") as HTMLSelectElement).value).toBe("");
+    fireEvent.click(screen.getByRole("button", { name: "Start" }));
+    expect(startMock).toHaveBeenLastCalledWith(expect.any(String), undefined, "normal", "neutral", undefined, undefined);
+
+    fireEvent.click(screen.getByRole("button", { name: "+ More to adjust" }));
+    fireEvent.change(screen.getByLabelText("Persona"), { target: { value: "marta" } });
+    fireEvent.click(screen.getByRole("button", { name: "Start" }));
+    expect(startMock).toHaveBeenLastCalledWith(expect.any(String), undefined, "normal", "neutral", undefined, "marta");
   });
 });
 
@@ -177,7 +204,7 @@ describe("ConversationView boss fight (C4)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Boss fight" }));
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
 
-    expect(start).toHaveBeenCalledWith("Boss fight: quiz me on ser estar", undefined, "push", "neutral", undefined);
+    expect(start).toHaveBeenCalledWith("Boss fight: quiz me on ser estar", undefined, "push", "neutral", undefined, undefined);
   });
 });
 
@@ -361,6 +388,7 @@ describe("ConversationView roleplay picker (Phase 4)", () => {
       "normal",
       "neutral",
       "job_interview",
+      undefined,
     );
   });
 
@@ -374,7 +402,7 @@ describe("ConversationView roleplay picker (Phase 4)", () => {
     fireEvent.change(screen.getByLabelText("Set the scene — who should I be?"), { target: { value: "my own scene" } });
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
 
-    expect(start).toHaveBeenCalledWith("my own scene", undefined, "normal", "neutral", undefined);
+    expect(start).toHaveBeenCalledWith("my own scene", undefined, "normal", "neutral", undefined, undefined);
   });
 });
 
