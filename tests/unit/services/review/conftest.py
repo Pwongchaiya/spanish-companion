@@ -26,6 +26,7 @@ from api.services.foundations.live_transcript import ILiveTranscriptService
 from api.services.foundations.practice_log import IPracticeLogService
 from api.services.foundations.session_log_entry import ISessionLogEntryService
 from api.services.orchestrations.review import ReviewOrchestrationService
+from api.services.processings.ingestion_queue import IIngestionQueueProcessingService
 from api.services.processings.learner_profile import ILearnerProfileProcessingService
 from api.services.processings.mistake_pattern import IMistakePatternProcessingService
 from rag.models.orchestrations.retrieval import ScoredChunk
@@ -106,6 +107,11 @@ def mock_live_transcript_service():
 
 
 @pytest.fixture
+def mock_ingestion_queue_processing_service():
+    return Mock(spec=IIngestionQueueProcessingService)
+
+
+@pytest.fixture
 def clock():
     return FakeClock()
 
@@ -125,6 +131,7 @@ def service(
     mock_mistake_pattern_processing_service,
     mock_session_log_entry_service,
     mock_live_transcript_service,
+    mock_ingestion_queue_processing_service,
     clock,
     configuration_broker,
     mock_logging_broker,
@@ -138,6 +145,7 @@ def service(
         mistake_pattern_processing_service=mock_mistake_pattern_processing_service,
         session_log_entry_service=mock_session_log_entry_service,
         live_transcript_service=mock_live_transcript_service,
+        ingestion_queue_processing_service=mock_ingestion_queue_processing_service,
         clock=clock,
         configuration_broker=configuration_broker,
         logging_broker=mock_logging_broker,

@@ -43,7 +43,10 @@ from api.brokers.pronunciation_result import SqlAlchemyPronunciationResultBroker
 from api.brokers.session_audio import SqlAlchemySessionAudioBroker
 from api.brokers.session_log import FileSessionLogBroker
 from api.brokers.session_log_entry import SqlAlchemySessionLogEntryBroker
+from api.brokers.ingestion_queue import SqlAlchemyIngestionQueueBroker
 from api.brokers.topic_covered import SqlAlchemyTopicCoveredBroker
+from api.services.foundations.ingestion_queue import IngestionQueueService
+from api.services.processings.ingestion_queue import IngestionQueueProcessingService
 from api.brokers.tts import AzureTtsBroker
 from api.exposers.learner_profile import LearnerProfileController
 from api.exposers.progress import make_progress_blueprint
@@ -270,6 +273,9 @@ def create_app() -> Flask:
         mistake_pattern_processing_service=mistake_pattern_processing_service,
         session_log_entry_service=session_log_entry_service,
         live_transcript_service=LiveTranscriptService(FileSessionLogBroker(), logging_broker=logging_broker),
+        ingestion_queue_processing_service=IngestionQueueProcessingService(
+            IngestionQueueService(SqlAlchemyIngestionQueueBroker(database_url), logging_broker=logging_broker)
+        ),
         logging_broker=logging_broker,
         configuration_broker=configuration_broker,
     )

@@ -25,6 +25,7 @@ def enabled_service(
     mock_mistake_pattern_processing_service,
     mock_session_log_entry_service,
     mock_live_transcript_service,
+    mock_ingestion_queue_processing_service,
     clock,
     mock_logging_broker,
 ):
@@ -37,6 +38,7 @@ def enabled_service(
         mistake_pattern_processing_service=mock_mistake_pattern_processing_service,
         session_log_entry_service=mock_session_log_entry_service,
         live_transcript_service=mock_live_transcript_service,
+        ingestion_queue_processing_service=mock_ingestion_queue_processing_service,
         clock=clock,
         configuration_broker=FakeConfigurationBroker(
             {"RETRIEVAL_TOP_K": str(RETRIEVAL_TOP_K), "SECOND_OPINION_ENABLED": "true"}

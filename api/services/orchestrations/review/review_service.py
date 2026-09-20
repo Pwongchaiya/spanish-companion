@@ -63,6 +63,7 @@ from api.services.foundations.session_log_entry import ISessionLogEntryService
 from api.services.orchestrations.review._dictation import check_dictation
 from api.services.orchestrations.review.i_review_service import ReviewService
 from api.services.orchestrations.review.review_service_exceptions import ReviewOrchestrationServiceExceptions
+from api.services.processings.ingestion_queue import IIngestionQueueProcessingService
 from api.services.processings.learner_profile import ILearnerProfileProcessingService
 from api.services.processings.mistake_pattern import IMistakePatternProcessingService
 from rag.models.foundations.generation import Explanation
@@ -88,6 +89,7 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
         mistake_pattern_processing_service: IMistakePatternProcessingService,
         session_log_entry_service: ISessionLogEntryService,
         live_transcript_service: ILiveTranscriptService,
+        ingestion_queue_processing_service: IIngestionQueueProcessingService,
         clock: Callable[[], datetime] = datetime.now,
         *,
         logging_broker: LoggingBroker,
@@ -107,6 +109,9 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
         # transcript and writes the judged outcome back.
         self._session_log_entry_service = session_log_entry_service
         self._live_transcript_service = live_transcript_service
+        # F2: explain_flag() records a still-weak grounding verdict against
+        # the retrieved topic (Processing-tier, ORC-001 waiver covers the count).
+        self._ingestion_queue_processing_service = ingestion_queue_processing_service
         # Injected for the same reason session_lifecycle injects time_source:
         # CLAUDE.md's unit-test rule forbids live datetime.now().
         self._clock = clock
@@ -169,9 +174,24 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
             explanation = self._generation_service.explain(flag, chunks[0])
             if explanation.explanation == _WEAK_EXPLANATION:
                 explanation = self._second_opinion(flag, retrieval_top_k) or explanation
+            if explanation.explanation == _WEAK_EXPLANATION:
+                self._record_weak_verdict(flag.id, chunks[0].topic)
             return explanation
 
         return self._try_catch(action)
+
+    def _record_weak_verdict(self, flag_id: str, topic: str) -> None:
+        """F2: count a still-weak grounded explanation against the top chunk's
+        RAE topic (a `TOPICS` key -- chunk.topic is written from it at ingest),
+        so the ingestion queue can grow the corpus where it keeps failing.
+
+        Best-effort: any failure is logged and swallowed, never changing the
+        explanation Review returns.
+        """
+        try:
+            self._ingestion_queue_processing_service.record_weak_verdict(topic, self._clock())
+        except Exception as e:  # ponytail: best-effort -- queue bookkeeping must never break Review
+            self._logging_broker.log_info("ingestion queue record failed for flag_id=%s topic=%s: %s", flag_id, topic, e)
 
     def _second_opinion(self, flag: Flag, top_k: int) -> Optional[Explanation]:
         """F4: one lexical re-retrieve + regenerate after a weak grounding verdict.
