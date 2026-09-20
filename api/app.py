@@ -30,6 +30,7 @@ from urllib.parse import urlparse
 from dotenv import load_dotenv
 from flask import Flask, Response, jsonify, request, send_from_directory
 
+from api.brokers.audio_storage import LocalWavAudioStorageBroker
 from api.brokers.bot_process import SubprocessBotProcessBroker
 from api.brokers.configuration import EnvConfigurationBroker
 from api.brokers.flag import JsonFileFlagBroker
@@ -39,6 +40,7 @@ from api.brokers.mistake_pattern.mistake_pattern_broker import SqlAlchemyMistake
 from api.brokers.practice_log import JsonLinesPracticeLogBroker
 from api.brokers.pronunciation_assessment import AzurePronunciationAssessmentBroker
 from api.brokers.pronunciation_result import SqlAlchemyPronunciationResultBroker
+from api.brokers.session_audio import SqlAlchemySessionAudioBroker
 from api.brokers.session_log import FileSessionLogBroker
 from api.brokers.session_log_entry import SqlAlchemySessionLogEntryBroker
 from api.brokers.topic_covered import SqlAlchemyTopicCoveredBroker
@@ -48,7 +50,9 @@ from api.exposers.progress import make_progress_blueprint
 from api.exposers.pronunciation import make_pronunciation_blueprint
 from api.exposers.review import make_review_blueprint
 from api.exposers.session_lifecycle import make_session_lifecycle_blueprint
+from api.exposers.session_replay import make_session_replay_blueprint
 from api.exposers.tts import make_tts_blueprint
+from api.services.foundations.audio_storage import AudioStorageService
 from api.services.foundations.flag import FlagService
 from api.services.foundations.learner_profile import LearnerProfileService
 from api.services.foundations.live_transcript import LiveTranscriptService
@@ -56,6 +60,7 @@ from api.services.foundations.mistake_pattern import MistakePatternService
 from api.services.foundations.practice_log import PracticeLogService
 from api.services.foundations.pronunciation_assessment import PronunciationAssessmentService
 from api.services.foundations.pronunciation_result import PronunciationResultService
+from api.services.foundations.session_audio import SessionAudioService
 from api.services.foundations.session_lifecycle import ConversationSessionService
 from api.services.foundations.session_log_entry import SessionLogEntryService
 from api.services.foundations.topic_covered import TopicCoveredService
@@ -65,6 +70,8 @@ from api.services.aggregations.session_recap import SessionRecapAggregationServi
 from api.services.orchestrations.progress import ProgressOrchestrationService
 from api.services.orchestrations.pronunciation import PronunciationOrchestrationService
 from api.services.orchestrations.review import ReviewOrchestrationService
+from api.services.orchestrations.session_audio_recording import SessionAudioRecordingOrchestrationService
+from api.services.orchestrations.session_replay import SessionReplayOrchestrationService
 from api.services.processings.learner_profile import LearnerProfileProcessingService
 from api.services.processings.mistake_pattern import MistakePatternProcessingService
 from rag.brokers.chunk_repository import SqlAlchemyChunkRepositoryBroker
@@ -267,6 +274,32 @@ def create_app() -> Flask:
         configuration_broker=configuration_broker,
     )
     app.register_blueprint(make_review_blueprint(review_orchestrator))
+
+    # --- Session replay (roadmap E3) -- listen back to a recorded session with
+    # its flags on a timeline. Separate blueprint/orchestrator from Review
+    # (additive; Review's own service is untouched). Retention: recordings
+    # older than AUDIO_RETENTION_DAYS (default 30) are pruned once, here at
+    # startup -- best-effort, a DB/disk hiccup must not stop the app booting. ---
+    session_audio_service = SessionAudioService(
+        SqlAlchemySessionAudioBroker(database_url), logging_broker=logging_broker
+    )
+    app.register_blueprint(
+        make_session_replay_blueprint(
+            SessionReplayOrchestrationService(
+                session_audio_service, flag_service, session_log_entry_service, logging_broker=logging_broker
+            )
+        )
+    )
+    try:
+        removed = SessionAudioRecordingOrchestrationService(
+            AudioStorageService(LocalWavAudioStorageBroker(), logging_broker=logging_broker),
+            session_audio_service,
+            logging_broker=logging_broker,
+        ).prune_expired(int(configuration_broker.get("AUDIO_RETENTION_DAYS", "30")))
+        if removed:
+            logging_broker.log_info("Pruned %s expired session recording(s)", removed)
+    except Exception as e:  # noqa: BLE001 -- startup pruning is best-effort
+        logging_broker.log_warning("Session audio pruning skipped: %s", e)
 
     # --- Progress (roadmap Phase 2: A5 cumulative mistake dashboard, F1
     # corpus coverage map) -- read-only, no new brokers; reuses the
