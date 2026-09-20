@@ -98,6 +98,7 @@ from pipecat.workers.runner import WorkerRunner
 
 from api.brokers.configuration import ConfigurationBroker, EnvConfigurationBroker
 from api.brokers.logging import LoggingBroker
+from api.brokers.prompt import FilePromptBroker, PromptBroker
 from api.brokers.session_log import SessionLogBroker
 from api.brokers.stt import SttBroker
 from api.data.spanish_variants import SpanishVariant, get_variant, is_dialect_legit
@@ -124,6 +125,7 @@ from api.services.foundations.session_log_entry import ISessionLogEntryService
 from api.services.foundations.live_transcript import ILiveTranscriptService
 from api.services.foundations.session_log import ISessionLogService
 from api.services.processings.learner_profile import ILearnerProfileProcessingService
+from api.services.processings.persona import IPersonaProcessingService
 from api.services.orchestrations.voice_conversation._mic_gate import _MicGate
 from api.services.orchestrations.voice_conversation._pressure import get_pressure_level
 from api.services.orchestrations.voice_conversation._turn_state_observer import _TurnStateObserver
@@ -288,6 +290,8 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
         *,
         logging_broker: LoggingBroker,
         configuration_broker: ConfigurationBroker = EnvConfigurationBroker(),
+        persona_processing_service: Optional[IPersonaProcessingService] = None,
+        prompt_broker: PromptBroker = FilePromptBroker(),
     ) -> None:
         self._stt_broker = stt_broker
         self._transport = transport
@@ -309,6 +313,9 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
         # methods (Exceptions mixin) log through it before raising.
         self._logging_broker = logging_broker
         self._configuration_broker = configuration_broker
+        # Persona memory write (teardown only); None = feature not wired.
+        self._persona_processing_service = persona_processing_service
+        self._prompt_broker = prompt_broker
         self._setup_timed_out = False
 
     async def run(self) -> None:
@@ -368,6 +375,7 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
             # for D6's difficulty dial, not something worth losing a
             # graceful /stop over if the LLM or DB is unavailable.
             self._estimate_and_persist_cefr_level()
+            self._update_persona_memory()
 
         if self._setup_timed_out:
             raise VoiceConversationPipelineError(
@@ -461,6 +469,32 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
             self._logging_broker.log_info(f"CEFR estimate for this session: {level}")
         except Exception as e:
             self._logging_broker.log_error(e)
+
+    def _update_persona_memory(self) -> None:
+        """Best-effort rolling persona memory: merge the persona's existing
+        memory with this session's transcript via one LLM call, then persist.
+        Teardown only (never during the live conversation). No persona set,
+        no processing service wired, or an empty transcript skips; any failure
+        logs a warning and is swallowed so flags/session log are never lost."""
+        slug = self._configuration_broker.get("SESSION_PERSONA")
+        if not slug or self._persona_processing_service is None:
+            return
+        try:
+            transcript_text = self._live_transcript_service.read_full_text()
+            if not transcript_text:
+                return
+            max_chars = int(self._configuration_broker.get("PERSONA_MEMORY_MAX_CHARS", "600"))
+            persona = self._persona_processing_service.ensure_persona(slug)
+            prompt = self._prompt_broker.get_persona_memory_prompt().format(
+                memory=persona.memory or "(none)", transcript=transcript_text, max_chars=max_chars
+            )
+            summary = self._generation_service.generate_text(prompt)
+            if not summary:
+                return
+            self._persona_processing_service.update_memory(slug, summary[:max_chars])
+            self._logging_broker.log_info(f"Persona memory updated: {slug}")
+        except Exception as e:  # noqa: BLE001 -- degrade, never crash teardown
+            self._logging_broker.log_warning("Persona memory update failed (%s): %s", slug, e)
 
     async def _setup(self) -> Tuple[WorkerRunner, LLMContext, List[Flag]]:
         """Construct the pipeline and start it running. Returns (runner,

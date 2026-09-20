@@ -329,6 +329,9 @@ def main() -> None:
         learner_profile_service=learner_profile_service,
         logging_broker=logging_broker,
         configuration_broker=configuration_broker,
+        persona_processing_service=PersonaProcessingService(
+            PersonaService(SqlAlchemyPersonaBroker(database_url), logging_broker=logging_broker)
+        ),
     )
     asyncio.run(orchestrator.run())
 
