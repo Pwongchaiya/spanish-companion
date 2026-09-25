@@ -5,8 +5,13 @@ vi.mock("../api/client", () => ({
   apiClient: {
     listFlags: vi.fn(),
     getTaskOutcome: vi.fn(() => Promise.resolve(null)),
+    getSessionRecap: vi.fn(() => Promise.resolve(null)),
+    getLatestReplay: vi.fn(() => Promise.resolve(null)),
+    listMistakeSummary: vi.fn(() => Promise.resolve([])),
     explainFlag: vi.fn(),
     submitPractice: vi.fn(),
+    transcribe: vi.fn(),
+    updateFlagStatus: vi.fn(),
   },
 }));
 
@@ -18,6 +23,10 @@ vi.mock("../api/errorClassification", () => ({
   classifyError: vi.fn(),
 }));
 
+vi.mock("../audio/encodeWav", () => ({
+  blobToWav16k: vi.fn((b: Blob) => Promise.resolve(b)),
+}));
+
 const addToastMock = vi.fn();
 vi.mock("../state/toastStore", () => ({
   useToastStore: (selector: any) => selector({ addToast: addToastMock }),
@@ -25,7 +34,7 @@ vi.mock("../state/toastStore", () => ({
 
 const setDownMock = vi.fn();
 vi.mock("../state/connectionStore", () => ({
-  useConnectionStore: { getState: () => ({ setDown: setDownMock }) },
+  useConnectionStore: { getState: () => ({ setDown: setDownMock, phase: "ok" }) },
 }));
 
 import { useReviewFlow } from "./useReviewFlow";
@@ -66,7 +75,7 @@ describe("useReviewFlow", () => {
 
   it("routes a toast-classified submitPractice error into addToast", async () => {
     // seed a selected flag first
-    (apiClient.explainFlag as any).mockResolvedValue({ explanation: "x", source_url: "y" });
+    (apiClient.explainFlag as any).mockResolvedValue({ explanation: "x", source_url: "y", source_excerpt: "" });
     const err = Object.assign(new Error("Request failed: 400"), { status: 400 });
     (apiClient.submitPractice as any).mockRejectedValue(err);
     (classifyError as any).mockReturnValue({ kind: "toast", message: "Request failed: 400" });
@@ -103,5 +112,67 @@ describe("useReviewFlow", () => {
     expect(subMessage).toBeUndefined();
     expect(retry).toBeInstanceOf(Function);
     expect(addToastMock).not.toHaveBeenCalled();
+  });
+
+  it("submitSpokenPractice logs a practice attempt from the transcribed text", async () => {
+    (apiClient.explainFlag as any).mockResolvedValue({ explanation: "x", source_url: "y", source_excerpt: "" });
+    (apiClient.transcribe as any).mockResolvedValue({ text: "hola", duration_seconds: 2.1 });
+    (apiClient.submitPractice as any).mockResolvedValue({
+      flag_id: "f1",
+      attempt_text: "hola",
+      timestamp: "t",
+      mastered: true,
+      grade: "good",
+    });
+
+    const { result } = renderHook(() => useReviewFlow());
+    await act(async () => {
+      await result.current.selectFlag("f1");
+    });
+    await act(async () => {
+      await result.current.submitSpokenPractice(new Blob(["x"]));
+    });
+
+    expect(apiClient.submitPractice).toHaveBeenCalledWith("f1", "hola", undefined);
+    expect(result.current.attempt?.attempt_text).toBe("hola");
+  });
+
+  it("does not log a practice attempt when transcribe hears no speech", async () => {
+    (apiClient.explainFlag as any).mockResolvedValue({ explanation: "x", source_url: "y", source_excerpt: "" });
+    (apiClient.transcribe as any).mockResolvedValue({ text: "", duration_seconds: 1.5 });
+
+    const { result } = renderHook(() => useReviewFlow());
+    await act(async () => {
+      await result.current.selectFlag("f1");
+    });
+    await act(async () => {
+      await result.current.submitSpokenPractice(new Blob(["x"]));
+    });
+
+    expect(apiClient.submitPractice).not.toHaveBeenCalled();
+    expect(result.current.practicePhase).toBe("nospeech");
+    expect(result.current.lastRecordedSeconds).toBe(1.5);
+  });
+
+  it("typed fallback calls submitPractice directly, never transcribing", async () => {
+    (apiClient.explainFlag as any).mockResolvedValue({ explanation: "x", source_url: "y", source_excerpt: "" });
+    (apiClient.submitPractice as any).mockResolvedValue({
+      flag_id: "f1",
+      attempt_text: "hola",
+      timestamp: "t",
+      mastered: false,
+      grade: "hard",
+    });
+
+    const { result } = renderHook(() => useReviewFlow());
+    await act(async () => {
+      await result.current.selectFlag("f1");
+    });
+    await act(async () => {
+      await result.current.submitPractice("hola");
+    });
+
+    expect(apiClient.transcribe).not.toHaveBeenCalled();
+    expect(apiClient.submitPractice).toHaveBeenCalledWith("f1", "hola", undefined);
   });
 });

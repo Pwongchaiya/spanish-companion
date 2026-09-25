@@ -31,8 +31,6 @@ export async function blobToWav16k(blob: Blob): Promise<Blob> {
   const ctx = new AudioContext();
   try {
     const bytes = await blob.arrayBuffer();
-    // ponytail: diagnostic for "Unable to decode audio data" -- remove once root cause is known.
-    console.warn("blobToWav16k input", { size: bytes.byteLength, type: blob.type });
     const decoded = await ctx.decodeAudioData(bytes);
     const length = Math.ceil(decoded.duration * TARGET_RATE);
     const offline = new OfflineAudioContext(1, length, TARGET_RATE);
