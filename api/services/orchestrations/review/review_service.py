@@ -67,9 +67,17 @@ from api.services.orchestrations.review.review_service_exceptions import ReviewO
 from api.services.processings.ingestion_queue import IIngestionQueueProcessingService
 from api.services.processings.learner_profile import ILearnerProfileProcessingService
 from api.services.processings.mistake_pattern import IMistakePatternProcessingService
+from api.services.processings.topic_covered import ITopicCoveredProcessingService
+from rag.data.topics import TOPICS
 from rag.models.foundations.generation import FALLBACK_EXPLANATION, Explanation
 from rag.services.foundations.generation import GenerationService
 from rag.services.orchestrations.retrieval import HybridRetrievalOrchestrationService
+from rag.services.orchestrations.retrieval.strategies.filters import category_matches_topic
+
+# F1 follow-up: distinct corpus topics, first-appearance order -- same
+# dict.fromkeys dedupe ProgressOrchestrationService.list_topic_coverage()
+# already uses over this same TOPICS list.
+_CORPUS_TOPICS = list(dict.fromkeys(topic for topic, _url in TOPICS))
 
 
 class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewService):
@@ -86,6 +94,7 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
         session_log_entry_service: ISessionLogEntryService,
         live_transcript_service: ILiveTranscriptService,
         ingestion_queue_processing_service: IIngestionQueueProcessingService,
+        topic_covered_processing_service: ITopicCoveredProcessingService,
         clock: Callable[[], datetime] = datetime.now,
         *,
         logging_broker: LoggingBroker,
@@ -108,6 +117,10 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
         # F2: explain_flag() records a still-weak grounding verdict against
         # the retrieved topic (Processing-tier, ORC-001 waiver covers the count).
         self._ingestion_queue_processing_service = ingestion_queue_processing_service
+        # F1 follow-up: corpus-coverage map was always 0/7 because nothing
+        # called record_topic() in production -- explain_flag() and
+        # record_practice() below are the two producers.
+        self._topic_covered_processing_service = topic_covered_processing_service
         # Injected for the same reason session_lifecycle injects time_source:
         # CLAUDE.md's unit-test rule forbids live datetime.now().
         self._clock = clock
@@ -191,9 +204,29 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
                 explanation = self._second_opinion(flag, retrieval_top_k) or explanation
             if explanation.is_fallback:
                 self._record_weak_verdict(flag.id, chunks[0].topic)
+            else:
+                self._record_topic_for_explanation(flag.id, chunks[0].topic)
             return explanation
 
         return self._try_catch(action)
+
+    def _record_topic_for_explanation(self, flag_id: str, topic: str) -> None:
+        """F1 follow-up: a grounded (non-fallback) explanation means the
+        corpus actually covered this topic -- record it so Progress's
+        coverage map reflects it. Uses the top chunk's topic, same source
+        _record_weak_verdict uses for the opposite (weak) outcome.
+
+        Best-effort like _record_weak_verdict: a profile-lookup or write
+        failure here must never change the explanation already produced.
+        """
+        try:
+            default_level = self._configuration_broker.get("DEFAULT_PROFICIENCY_LEVEL", "beginner")
+            profile = self._learner_profile_processing_service.ensure_profile(default_level)
+            self._topic_covered_processing_service.record_topic(profile.id, topic)
+        except Exception as e:  # ponytail: best-effort -- coverage bookkeeping must never break Review
+            self._logging_broker.log_info(
+                "topic_covered record failed for flag_id=%s topic=%s: %s", flag_id, topic, e
+            )
 
     def _record_weak_verdict(self, flag_id: str, topic: str) -> None:
         """F2: count a still-weak grounded explanation against the top chunk's
@@ -322,6 +355,15 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
             default_level = self._configuration_broker.get("DEFAULT_PROFICIENCY_LEVEL", "beginner")
             profile = self._learner_profile_processing_service.ensure_profile(default_level)
             if mastered:
+                # F1 follow-up: a mastered attempt means the learner correctly
+                # used this category -- map it to a corpus topic (first match
+                # wins; no match means nothing worth recording) the same way
+                # CategoryBoostFilter grounds a flag's category at retrieval time.
+                matched_topic = next(
+                    (topic for topic in _CORPUS_TOPICS if category_matches_topic(topic, flag.category)), None
+                )
+                if matched_topic is not None:
+                    self._record_topic_for_practice(flag.id, profile.id, matched_topic)
                 try:
                     self._mistake_pattern_processing_service.resolve(profile.id, flag.category)
                 except NotFoundMistakePatternException:
@@ -352,6 +394,19 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
             return PracticeResult(attempt=attempt, mastered=mastered, grade=grade)
 
         return self._try_catch(action)
+
+    def _record_topic_for_practice(self, flag_id: str, profile_id: int, topic: str) -> None:
+        """F1 follow-up: mirrors _record_topic_for_explanation, but the
+        profile is already in hand here (record_practice fetches it above
+        for the mistake_pattern write), so this only wraps the record_topic
+        call itself.
+        """
+        try:
+            self._topic_covered_processing_service.record_topic(profile_id, topic)
+        except Exception as e:  # ponytail: best-effort -- coverage bookkeeping must never break Review
+            self._logging_broker.log_info(
+                "topic_covered record failed for flag_id=%s topic=%s: %s", flag_id, topic, e
+            )
 
     def get_dictation_exercise(self, exclude_flag_id: Optional[str] = None) -> Optional[DictationExercise]:
         def action() -> Optional[DictationExercise]:
