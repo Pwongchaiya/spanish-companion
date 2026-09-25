@@ -138,6 +138,10 @@ export interface ReplayFlag {
   said: string;
   corrected: string;
   category: string;
+  // Optional: a replay of a session recorded before 2026-09-24 has no
+  // status field yet -- missing is treated as "open" everywhere it's read,
+  // same convention as Flag.status above.
+  status?: FlagStatus;
 }
 
 export interface SessionReplay {

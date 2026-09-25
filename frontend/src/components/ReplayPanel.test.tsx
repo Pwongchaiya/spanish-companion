@@ -16,7 +16,16 @@ const REPLAY = {
   session_log_id: 4,
   duration_seconds: 100,
   audio_url: "/review/sessions/4/audio",
-  flags: [{ flag_id: "f1", offset_seconds: 30, said: "yo tiene", corrected: "yo tengo", category: "conjugation" }],
+  flags: [
+    {
+      flag_id: "f1",
+      offset_seconds: 30,
+      said: "yo tiene",
+      corrected: "yo tengo",
+      category: "conjugation",
+      status: "mastered",
+    },
+  ],
 };
 
 describe("ReplayPanel", () => {
@@ -51,6 +60,7 @@ describe("ReplayPanel", () => {
 
     const marker = await screen.findByRole("button", { name: /jump to 0:30: yo tiene becomes yo tengo/i });
     expect((marker as HTMLElement).style.left).toBe("30%");
+    expect((marker as HTMLElement).getAttribute("data-status")).toBe("mastered");
 
     fireEvent.click(marker);
 
