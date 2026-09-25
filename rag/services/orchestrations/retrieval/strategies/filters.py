@@ -18,7 +18,7 @@ from rag.models.orchestrations.retrieval import ScoredChunk
 
 
 def _normalize(text: str) -> str:
-    """Lowercase, punctuation-to-space, single-spaced.
+    """Lowercase, punctuation-to-space, single-spaced, "vs" tokens dropped.
 
     Bridges the corpus's hyphenated slugs ("ser-vs-estar", from rag/ingest.py's
     TOPICS) and the LLM's free-form flag categories ("ser vs estar", from
@@ -28,12 +28,16 @@ def _normalize(text: str) -> str:
     Splits on [\\W_] rather than [^a-z0-9] so Spanish accents survive: a
     category like "concordancia de género" normalizes to itself, not to
     "concordancia de g nero".
+
+    Dropping standalone "vs" tokens bridges a second spelling gap: the corpus
+    slug "por-vs-para" and the LLM category "por/para" both collapse to "por
+    para", so containment matches them without needing an alias.
     """
     words = re.sub(r"[\W_]+", " ", text.casefold()).split()
     # ponytail: drop a trailing plural "s" on words over 3 chars so "article"
     # matches "articles". Applied to both sides, so a false stem ("analysis" ->
     # "analysi") still compares equal to itself. Not real stemming.
-    return " ".join(w[:-1] if len(w) > 3 and w.endswith("s") else w for w in words)
+    return " ".join(w[:-1] if len(w) > 3 and w.endswith("s") else w for w in words if w != "vs")
 
 
 def _matches(topic: str, category: str) -> bool:
@@ -49,6 +53,34 @@ def _matches(topic: str, category: str) -> bool:
     """
     padded_topic, padded_category = f" {topic} ", f" {category} "
     return padded_category in padded_topic or padded_topic in padded_category
+
+
+# Category phrases that share no word with their intended topic even after
+# _normalize (e.g. "lo vs le" / "object-pronouns" have zero vocabulary
+# overlap — unlike "por/para" / "por-vs-para", vs-stripping alone can't
+# bridge this one). Keys are already in _normalize's output form (casefold,
+# punctuation-to-space, "vs" dropped) so lookup is a plain dict hit.
+_CATEGORY_ALIASES = {
+    "lo le": "object pronoun",
+    "le lo": "object pronoun",
+    "direct object pronoun": "object pronoun",
+    "indirect object pronoun": "object pronoun",
+}
+
+
+def category_matches_topic(topic: str, category: str) -> bool:
+    """True when a flag's category grounds to a corpus topic.
+
+    Normalizes both sides (see _normalize), resolves the category through
+    _CATEGORY_ALIASES when it's one of the pairs with no shared vocabulary,
+    then falls back to word-boundary containment (see _matches) for
+    everything else. This is the one place category-to-topic matching
+    happens — CategoryBoostFilter calls it rather than _matches directly.
+    """
+    normalized_topic = _normalize(topic)
+    normalized_category = _normalize(category)
+    normalized_category = _CATEGORY_ALIASES.get(normalized_category, normalized_category)
+    return _matches(normalized_topic, normalized_category)
 
 
 class ResultFilter(Protocol):
@@ -89,20 +121,29 @@ class CategoryBoostFilter:
     lands. Reordering carries no such assumption, and the boost is
     monotone-safe either way.
 
-    Matching is normalized word-boundary containment (see _normalize /
-    _matches), NOT string equality. Equality was tried and is provably dead
-    code in this repo: corpus topics are hyphenated slugs and flag categories
-    are spaced free-form LLM output, so no pair is ever equal and the boost
-    silently no-ops. Against the real vocabularies this rule fires on all
-    three overlapping pairs — "ser-vs-estar"/"ser vs estar",
-    "preterite-vs-imperfect"/"preterite vs imperfect",
-    "subjunctive-basics"/"subjunctive" — and correctly declines to boost
-    "gender agreement" and "vocabulary", which no corpus topic covers.
+    Matching is `category_matches_topic` (see its docstring): normalized
+    word-boundary containment (see _normalize / _matches), plus a small
+    alias table (_CATEGORY_ALIASES) for the handful of pairs that share no
+    word even after normalization. NOT string equality — equality was tried
+    and is provably dead code in this repo: corpus topics are hyphenated
+    slugs and flag categories are spaced free-form LLM output, so no pair is
+    ever equal and the boost silently no-ops.
 
-    # ponytail: containment on normalized tokens, not fuzzy or semantic
-    # matching. Ceiling: an LLM category that shares no word with any topic
-    # ("word choice" vs "vocabulary") won't match, and a boost is only ever
-    # a reorder, so the cost of a miss is falling back to pure cosine — the
+    Against the current 7-topic corpus (rag/data/topics.py TOPICS) this
+    rule fires on every category the live flagging prompt emits for a
+    covered topic — "ser-vs-estar"/"ser vs estar",
+    "preterite-vs-imperfect"/"preterite vs imperfect",
+    "subjunctive-basics"/"subjunctive", "gender-agreement"/"gender
+    agreement", "por-vs-para"/"por/para" (vs-stripping bridges this one),
+    "object-pronouns"/"lo vs le" or "direct object pronoun" (aliased,
+    below) — and correctly declines to boost "vocabulary", which no corpus
+    topic covers.
+
+    # ponytail: containment on normalized tokens plus a small fixed alias
+    # table, not fuzzy or semantic matching. Ceiling: an LLM category that
+    # shares no word with any topic AND isn't in _CATEGORY_ALIASES ("word
+    # choice" vs "vocabulary") won't match, and a boost is only ever a
+    # reorder, so the cost of a miss is falling back to pure cosine — the
     # status quo, never worse. Upgrade path if categories drift further:
     # constrain voice/bot.py's prompt to emit a topic id from a fixed list,
     # which kills the vocabulary gap at the source rather than here.
@@ -126,9 +167,9 @@ class CategoryBoostFilter:
 
         # Stable sort, False (match) before True (no match) — matching chunks
         # move to the front, everything keeps its fusion-relative order.
-        boosted = sorted(chunks, key=lambda chunk: not _matches(_normalize(chunk.topic), self._category))
+        boosted = sorted(chunks, key=lambda chunk: not category_matches_topic(chunk.topic, self._category))
 
-        matched = [chunk.chunk_id for chunk in boosted if _matches(_normalize(chunk.topic), self._category)]
+        matched = [chunk.chunk_id for chunk in boosted if category_matches_topic(chunk.topic, self._category)]
         self._logging_broker.log_debug(
             "CategoryBoostFilter category=%r boosted=%s (of %d, none dropped) order %s -> %s",
             self._category,
