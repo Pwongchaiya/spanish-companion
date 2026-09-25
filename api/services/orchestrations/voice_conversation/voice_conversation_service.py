@@ -235,7 +235,7 @@ def _record_flag(
         return
     # D2: a form that is correct in the chosen regional variety (voseo,
     # vosotros, ahorita...) is not an error -- same guard point as B3 above.
-    if is_dialect_legit(parsed["said"], variant):
+    if is_dialect_legit(parsed["said"], parsed["corrected"], variant):
         logging_broker.log_info(f"Suppressed dialect-legit flag ({variant.key}): {parsed['said']!r}")
         return
     for existing in session_flags:
