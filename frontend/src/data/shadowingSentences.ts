@@ -24,10 +24,7 @@ export const SHADOWING_SENTENCES: ShadowingSentence[] = [
     es: "Mañana hablaré con el médico sobre el número que me dio.",
     en: "Tomorrow I'll talk to the doctor about the number he gave me.",
   },
-  {
-    es: "La cámara está en la cárcel, no en el cáncer ni en la cama.",
-    en: "The camera is in the jail, not in the cancer or in the bed.",
-  },
+  { es: "Siempre hablo con Marta, pero ayer ella no habló conmigo.", en: "I always talk to Marta, but yesterday she didn't talk to me." },
 ];
 
 export function pickRandomSentence(exclude?: string): ShadowingSentence {
