@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Optional
 
-from sqlalchemy import JSON, DateTime, Float, Index, String, func
+from sqlalchemy import JSON, Boolean, DateTime, Float, Index, String, false, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from api.models.base import Base
@@ -35,6 +35,7 @@ class PronunciationResultRecord(Base):
     prosody_score: Mapped[Optional[float]] = mapped_column(Float(), nullable=True)
     words_json: Mapped[list[dict[str, Any]]] = mapped_column(JSON(), nullable=False)
     locale: Mapped[str] = mapped_column(String(), server_default="es-ES", nullable=False)
+    is_word_drill: Mapped[bool] = mapped_column(Boolean(), server_default=false(), nullable=False)
 
 
 @dataclass
@@ -52,3 +53,4 @@ class PronunciationResult:
     prosody_score: Optional[float]
     words_json: list[dict[str, Any]]
     locale: str
+    is_word_drill: bool = False
