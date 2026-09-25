@@ -1,0 +1,36 @@
+# Golden set for the Review Mode RAG flow (retrieve -> explain). See .claude-toolkit rag-eval-skill.md.
+# Grows over time; never delete an entry silently. Add one for every real retrieval miss.
+#
+# Fields
+#   id               q001, q002, ... (never reuse)
+#   said             what the learner said (the flag)
+#   corrected        the correct version -- retrieve() searches on this
+#   category         the flag's error category
+#   expected_topic   topic a top-k chunk must carry (rag/data/topics.py), or null when no corpus topic covers it
+#   expected_answer  gist the explanation must convey (judged, not string-matched);
+#                    for expected_topic: null, the fallback text is the correct answer
+#
+# Topics: preterite-vs-imperfect, ser-vs-estar, subjunctive-basics, gender-agreement, por-vs-para, articles,
+#         object-pronouns
+# (check rag/data/topics.py for the current list). Target ~3 per topic + 2-3 null cases.
+
+- id: q001
+  said: "Ayer yo comía una pizza"
+  corrected: "Ayer yo comí una pizza"
+  category: "preterite vs imperfect"
+  expected_topic: preterite-vs-imperfect
+  expected_answer: "A single completed action at a specific past time (ayer) takes the preterite"
+
+- id: q002
+  said: "La problema es difícil"
+  corrected: "El problema es difícil"
+  category: "gender agreement"
+  expected_topic: gender-agreement
+  expected_answer: "Problema is masculine despite ending in -a, so it takes el"
+
+- id: q003
+  said: "Estoy embarazada porque olvidé su nombre"
+  corrected: "Me da vergüenza porque olvidé su nombre"
+  category: "vocabulary"
+  expected_topic: null
+  expected_answer: "No corpus topic covers vocabulary; the fallback text is returned, not an invented explanation"
