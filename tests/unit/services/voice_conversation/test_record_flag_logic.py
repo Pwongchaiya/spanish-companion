@@ -62,7 +62,11 @@ class TestRecordFlag:
             )
         ]
 
-        _record_flag(session_flags, _parsed(said="ella es feliz", corrected="ella está feliz", category="ser_estar"), Mock(spec=LoggingBroker))
+        _record_flag(
+            session_flags,
+            _parsed(said="ella es feliz", corrected="ella está feliz", category="ser_estar"),
+            Mock(spec=LoggingBroker),
+        )
 
         assert len(session_flags) == 2
 
@@ -82,6 +86,7 @@ if __name__ == "__main__":
 
     raise SystemExit(subprocess.call([sys.executable, "-m", "pytest", __file__, "-q"]))
 
+
 class TestRecordFlagDialectGuard:
     """D2: a flag whose `said` is a form legit in the session's variant is dropped."""
 
@@ -89,7 +94,12 @@ class TestRecordFlagDialectGuard:
         session_flags: list[Flag] = []
         logging_broker = Mock(spec=LoggingBroker)
 
-        _record_flag(session_flags, _parsed(said="vos tenés razón", corrected="tú tienes razón"), logging_broker, get_variant("rioplatense"))
+        _record_flag(
+            session_flags,
+            _parsed(said="vos tenés razón", corrected="tú tienes razón"),
+            logging_broker,
+            get_variant("rioplatense"),
+        )
 
         assert session_flags == []
         logging_broker.log_info.assert_called_once()
@@ -97,7 +107,12 @@ class TestRecordFlagDialectGuard:
     def test_keeps_same_flag_for_neutral(self):
         session_flags: list[Flag] = []
 
-        _record_flag(session_flags, _parsed(said="vos tenés razón", corrected="tú tienes razón"), Mock(spec=LoggingBroker), get_variant("neutral"))
+        _record_flag(
+            session_flags,
+            _parsed(said="vos tenés razón", corrected="tú tienes razón"),
+            Mock(spec=LoggingBroker),
+            get_variant("neutral"),
+        )
 
         assert len(session_flags) == 1
 

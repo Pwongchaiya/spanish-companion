@@ -10,8 +10,15 @@ GOOD = Explanation(explanation="grounded answer", source_url="https://rae.exampl
 class TestReviewOrchestratorExplainFlagIngestionQueue:
 
     def test_should_record_weak_verdict_against_top_chunk_topic(
-        self, service, mock_flag_service, mock_retrieval_service, mock_generation_service,
-        mock_ingestion_queue_processing_service, make_flag, make_chunk, clock,
+        self,
+        service,
+        mock_flag_service,
+        mock_retrieval_service,
+        mock_generation_service,
+        mock_ingestion_queue_processing_service,
+        make_flag,
+        make_chunk,
+        clock,
     ):
         # given
         mock_flag_service.get_flag.return_value = make_flag()
@@ -28,8 +35,14 @@ class TestReviewOrchestratorExplainFlagIngestionQueue:
         mock_ingestion_queue_processing_service.record_weak_verdict.assert_called_once_with("ser-vs-estar", clock())
 
     def test_should_not_record_when_grounded(
-        self, service, mock_flag_service, mock_retrieval_service, mock_generation_service,
-        mock_ingestion_queue_processing_service, make_flag, make_chunk,
+        self,
+        service,
+        mock_flag_service,
+        mock_retrieval_service,
+        mock_generation_service,
+        mock_ingestion_queue_processing_service,
+        make_flag,
+        make_chunk,
     ):
         mock_flag_service.get_flag.return_value = make_flag()
         mock_retrieval_service.retrieve.return_value = [make_chunk(1)]
@@ -50,8 +63,15 @@ class TestReviewOrchestratorExplainFlagIngestionQueue:
         assert mock_ingestion_queue_processing_service.record_weak_verdict.call_count == 0
 
     def test_should_return_same_explanation_and_not_raise_when_recording_fails(
-        self, service, mock_flag_service, mock_retrieval_service, mock_generation_service,
-        mock_ingestion_queue_processing_service, mock_logging_broker, make_flag, make_chunk,
+        self,
+        service,
+        mock_flag_service,
+        mock_retrieval_service,
+        mock_generation_service,
+        mock_ingestion_queue_processing_service,
+        mock_logging_broker,
+        make_flag,
+        make_chunk,
     ):
         mock_flag_service.get_flag.return_value = make_flag()
         mock_retrieval_service.retrieve.return_value = [make_chunk(1)]

@@ -60,8 +60,6 @@ class ConversationOrchestrationServiceExceptions:
         return config_exception
 
     def _create_and_log_pipeline_exception(self, exception: Exception) -> VoiceConversationPipelineError:
-        pipeline_exception = VoiceConversationPipelineError(
-            f"Audio device initialization failed: {exception}"
-        )
+        pipeline_exception = VoiceConversationPipelineError(f"Audio device initialization failed: {exception}")
         self._logging_broker.log_error(pipeline_exception)
         return pipeline_exception

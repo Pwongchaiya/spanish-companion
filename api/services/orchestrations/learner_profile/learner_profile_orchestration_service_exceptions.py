@@ -86,9 +86,7 @@ class LearnerProfileOrchestrationServiceExceptions:
         self._logging_broker.log_error(dependency_exception)
         return dependency_exception
 
-    def _create_and_log_service_exception(
-        self, exception: Exception
-    ) -> LearnerProfileOrchestrationServiceException:
+    def _create_and_log_service_exception(self, exception: Exception) -> LearnerProfileOrchestrationServiceException:
         service_exception = LearnerProfileOrchestrationServiceException(inner_exception=exception)
         self._logging_broker.log_error(service_exception)
         return service_exception

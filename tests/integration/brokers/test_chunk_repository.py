@@ -126,9 +126,7 @@ class TestSqlAlchemyChunkRepositoryBrokerSearchByVector:
         # then
         assert results == []
 
-    def test_should_return_chunks_nearest_first_by_cosine_distance(
-        self, chunk_repository, three_chunks
-    ):
+    def test_should_return_chunks_nearest_first_by_cosine_distance(self, chunk_repository, three_chunks):
         # given -- query leans hardest on axis 0 (weight 1.0), then 1 (0.5), then 2 (0.25)
         # This produces clear distance ordering: nearest to axis_vector(0), then (1), then (2)
         query = weighted_vector([1.0, 0.5, 0.25])
@@ -143,9 +141,7 @@ class TestSqlAlchemyChunkRepositoryBrokerSearchByVector:
         assert results[1].topic == "topic-1"
         assert results[2].topic == "topic-2"
 
-    def test_should_return_scores_in_ascending_distance_order(
-        self, chunk_repository, three_chunks
-    ):
+    def test_should_return_scores_in_ascending_distance_order(self, chunk_repository, three_chunks):
         # when -- query weighted to clearly distinguish all chunks
         query = weighted_vector([1.0, 0.5, 0.25])
         results = chunk_repository.search_by_vector(embedding=query, top_k=3)
@@ -165,9 +161,7 @@ class TestSqlAlchemyChunkRepositoryBrokerSearchByVector:
         assert len(results) == 2
         assert [r.chunk_id for r in results] == three_chunks[:2]
 
-    def test_should_return_full_scored_chunk_with_all_fields(
-        self, chunk_repository, three_chunks
-    ):
+    def test_should_return_full_scored_chunk_with_all_fields(self, chunk_repository, three_chunks):
         # when
         query = weighted_vector([1.0, 0.5, 0.25])
         results = chunk_repository.search_by_vector(embedding=query, top_k=1)
@@ -182,9 +176,7 @@ class TestSqlAlchemyChunkRepositoryBrokerSearchByVector:
         assert result.content == "Content for topic 0"
         assert isinstance(result.score, float)
 
-    def test_should_return_chunks_up_to_top_k_when_fewer_exist(
-        self, chunk_repository, three_chunks
-    ):
+    def test_should_return_chunks_up_to_top_k_when_fewer_exist(self, chunk_repository, three_chunks):
         # when -- request top_k=10 but only 3 chunks exist
         query = weighted_vector([1.0, 0.5, 0.25])
         results = chunk_repository.search_by_vector(embedding=query, top_k=10)
@@ -200,9 +192,7 @@ class TestSqlAlchemyChunkRepositoryBrokerSearchByVector:
         # then
         assert results == []
 
-    def test_should_return_deterministic_order_for_same_query(
-        self, chunk_repository, three_chunks
-    ):
+    def test_should_return_deterministic_order_for_same_query(self, chunk_repository, three_chunks):
         # given
         query = weighted_vector([1.0, 0.5, 0.25])
 

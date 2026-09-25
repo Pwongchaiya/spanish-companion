@@ -35,7 +35,12 @@ def test_mistake_pattern_processing_service():
     foundation = Mock()
     foundation.list_mistake_patterns_by_profile.return_value = []
     created = MistakePattern(
-        id=2, profile_id=1, category="gender agreement", occurrence_count=1, last_seen_at=datetime.now(), status="active"
+        id=2,
+        profile_id=1,
+        category="gender agreement",
+        occurrence_count=1,
+        last_seen_at=datetime.now(),
+        status="active",
     )
     foundation.create_mistake_pattern.return_value = created
     service = MistakePatternProcessingService(foundation)

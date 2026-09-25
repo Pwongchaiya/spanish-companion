@@ -50,7 +50,9 @@ class TestGenerationServiceExplainExceptions:
         )
         assert mock_broker.generate.call_count == 2
 
-    def test_should_log_judge_verdict_when_draft_not_grounded(self, service, mock_broker, mock_logging_broker, flag, chunk):
+    def test_should_log_judge_verdict_when_draft_not_grounded(
+        self, service, mock_broker, mock_logging_broker, flag, chunk
+    ):
         # given
         mock_broker.generate.side_effect = [
             "The corrected form is right because reasons unrelated to the source.",

@@ -49,9 +49,7 @@ class ISessionLogEntryBroker(Protocol):
         """
         ...
 
-    def update_session_log_entry(
-        self, entry_id: int, ended_at: datetime, flag_count: int
-    ) -> Optional[SessionLogEntry]:
+    def update_session_log_entry(self, entry_id: int, ended_at: datetime, flag_count: int) -> Optional[SessionLogEntry]:
         """Complete an in-flight row: set `ended_at` and `flag_count`.
 
         Returns None if entry_id doesn't exist -- Foundation maps that to

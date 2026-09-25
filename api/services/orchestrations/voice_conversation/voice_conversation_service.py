@@ -166,9 +166,7 @@ def _message_text(content) -> str:
         return content
     if isinstance(content, list):
         return " ".join(
-            block.get("text", "")
-            for block in content
-            if isinstance(block, dict) and block.get("type") == "text"
+            block.get("text", "") for block in content if isinstance(block, dict) and block.get("type") == "text"
         )
     return str(content)
 
@@ -592,9 +590,7 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
             # speakers, Azure STT transcribes it, and the bot ends up replying to
             # itself in a loop.
             user_params=LLMUserAggregatorParams(
-                vad_analyzer=SileroVADAnalyzer(
-                    params=VADParams(stop_secs=vad_stop_secs, confidence=vad_confidence)
-                ),
+                vad_analyzer=SileroVADAnalyzer(params=VADParams(stop_secs=vad_stop_secs, confidence=vad_confidence)),
                 user_mute_strategies=[AlwaysUserMuteStrategy()],
                 user_idle_timeout=pressure.user_idle_timeout,
             ),
@@ -605,6 +601,7 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
         # see LLMUserAggregatorParams' docstring -- so this handler is simply
         # never called at push level, by design).
         if pressure.rescue_line:
+
             @user_aggregator.event_handler("on_user_turn_idle")
             async def on_user_turn_idle(aggregator) -> None:
                 await aggregator.push_frame(TTSSpeakFrame(pressure.rescue_line))
@@ -647,9 +644,7 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
         processors = [
             self._transport.input(),
             FunctionFilter(filter=_MicGate(), filter_system_frames=True),
-            FunctionFilter(
-                filter=_TurnStateObserver(self._session_log_broker), filter_system_frames=True
-            ),
+            FunctionFilter(filter=_TurnStateObserver(self._session_log_broker), filter_system_frames=True),
             stt,
             user_aggregator,
             self._llm,
@@ -778,8 +773,7 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
         broker failure mid-flush (break below) doesn't also nest inside the
         polling loop's own try/except for the flag re-save."""
         current_turns = [
-            msg for msg in context.messages
-            if isinstance(msg, dict) and msg["role"] in ("user", "assistant")
+            msg for msg in context.messages if isinstance(msg, dict) and msg["role"] in ("user", "assistant")
         ]
         for turn in current_turns[written_turn_count:]:
             try:

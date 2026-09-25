@@ -26,9 +26,7 @@ class TestSessionLogServiceSave:
 
         # then
         assert result == Path("/tmp/log.log")
-        mock_session_log_broker.write_session_log.assert_called_once_with(
-            "[user] hola\n[assistant] hola, como estas\n"
-        )
+        mock_session_log_broker.write_session_log.assert_called_once_with("[user] hola\n[assistant] hola, como estas\n")
 
     def test_should_append_flags_section_when_flags_exist(self, service, mock_session_log_broker, make_flag):
         # given

@@ -19,9 +19,7 @@ class TestPronunciationAssessmentServiceAssessLogic:
         mock_broker.assess.assert_called_once_with(VALID_WAV, VALID_TEXT)
         mock_logging_broker.log_error.assert_not_called()
 
-    def test_should_pass_reference_text_through_unmodified(
-        self, service, mock_broker, assessment, mock_logging_broker
-    ):
+    def test_should_pass_reference_text_through_unmodified(self, service, mock_broker, assessment, mock_logging_broker):
         # given
         mock_broker.assess.return_value = assessment
 

@@ -44,9 +44,11 @@ class SqlAlchemyMistakePatternBroker:
 
     def select_mistake_patterns_by_profile(self, profile_id: int) -> list[MistakePattern]:
         with Session(self._engine) as session:
-            records = session.execute(
-                select(MistakePatternRecord).where(MistakePatternRecord.profile_id == profile_id)
-            ).scalars().all()
+            records = (
+                session.execute(select(MistakePatternRecord).where(MistakePatternRecord.profile_id == profile_id))
+                .scalars()
+                .all()
+            )
             return [_to_dataclass(record) for record in records]
 
     def insert_mistake_pattern(self, profile_id: int, category: str) -> MistakePattern:

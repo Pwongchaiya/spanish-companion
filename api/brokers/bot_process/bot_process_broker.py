@@ -60,7 +60,12 @@ class SubprocessBotProcessBroker:
         # D2 regional variant travels the same way (SESSION_VARIANT).
         injected = {
             name: value
-            for name, value in (("SESSION_PRESSURE", pressure_level), ("SESSION_VARIANT", variant), ("SESSION_SCENARIO_SLUG", scenario_slug), ("SESSION_PERSONA", persona))
+            for name, value in (
+                ("SESSION_PRESSURE", pressure_level),
+                ("SESSION_VARIANT", variant),
+                ("SESSION_SCENARIO_SLUG", scenario_slug),
+                ("SESSION_PERSONA", persona),
+            )
             if value is not None
         }
         env = {**os.environ, **injected} if injected else None

@@ -48,9 +48,10 @@ def test_learner_profile_service():
         raise AssertionError("expected rejection for all-fields-bad update")
     except LearnerProfileValidationException as e:
         leaf = e.inner_exception
-        assert set(leaf.errors) == {"profile_id", "proficiency_level"}, (
-            f"expected both fields reported together, got {set(leaf.errors)!r}"
-        )
+        assert set(leaf.errors) == {
+            "profile_id",
+            "proficiency_level",
+        }, f"expected both fields reported together, got {set(leaf.errors)!r}"
 
     broker.insert_learner_profile.return_value = LearnerProfile(id=1, proficiency_level="A2", updated_at=None)
     created = service.create_learner_profile("A2")

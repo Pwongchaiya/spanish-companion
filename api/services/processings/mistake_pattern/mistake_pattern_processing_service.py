@@ -8,7 +8,8 @@ mistake_pattern_service.py's docstring) -- this is exactly the composition
 the Processing tier exists for per CLAUDE.md's Processing-row reversal and
 the entity doc (Projects/spanish-companion/entities/mistake-pattern.md).
 
-Four methods (record_review, list_due, record_occurrence, resolve), all do-or-delegate: each decides which Foundation call(s) to
+Four methods (record_review, list_due, record_occurrence, resolve), all do-or-delegate:
+each decides which Foundation call(s) to
 make from the find-by-category result, then delegates entirely -- neither
 transforms a Foundation response afterward. No base/validations/exceptions
 mixin split (that split earns its keep once there's per-method noise to
@@ -70,9 +71,7 @@ class MistakePatternProcessingService:
     def list_due(self, profile_id: int, now: datetime) -> list[MistakePattern]:
         rows = self._mistake_pattern_service.list_mistake_patterns_by_profile(profile_id)
         due = [
-            row
-            for row in rows
-            if row.next_due_at is not None and row.next_due_at <= now and not self._is_retired(row)
+            row for row in rows if row.next_due_at is not None and row.next_due_at <= now and not self._is_retired(row)
         ]
         return sorted(due, key=lambda row: row.next_due_at)
 

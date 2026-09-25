@@ -53,9 +53,11 @@ def test_mistake_pattern_service():
         raise AssertionError("expected rejection for all-three-fields-bad update")
     except MistakePatternValidationException as e:
         leaf = e.inner_exception
-        assert set(leaf.errors) == {"pattern_id", "occurrence_count", "status"}, (
-            f"expected all 3 fields reported together, got {set(leaf.errors)!r}"
-        )
+        assert set(leaf.errors) == {
+            "pattern_id",
+            "occurrence_count",
+            "status",
+        }, f"expected all 3 fields reported together, got {set(leaf.errors)!r}"
 
     broker.insert_mistake_pattern.return_value = MistakePattern(
         id=1, profile_id=1, category="ser vs estar", occurrence_count=1, last_seen_at=None, status="active"
@@ -76,7 +78,9 @@ def test_mistake_pattern_service():
     # check and create() actually inserting.
     broker2 = Mock()
     broker2.insert_mistake_pattern.side_effect = IntegrityError(
-        "INSERT", {}, Exception('duplicate key value violates unique constraint "mistake_pattern_profile_id_category_key"')
+        "INSERT",
+        {},
+        Exception('duplicate key value violates unique constraint "mistake_pattern_profile_id_category_key"'),
     )
     service2 = MistakePatternService(broker2, logging_broker=Mock())
     try:
@@ -88,7 +92,9 @@ def test_mistake_pattern_service():
     # a non-unique integrity failure still falls through to the generic
     # dependency path, not AlreadyExists.
     broker3 = Mock()
-    broker3.insert_mistake_pattern.side_effect = IntegrityError("INSERT", {}, Exception("NOT NULL constraint failed: category"))
+    broker3.insert_mistake_pattern.side_effect = IntegrityError(
+        "INSERT", {}, Exception("NOT NULL constraint failed: category")
+    )
     service3 = MistakePatternService(broker3, logging_broker=Mock())
     try:
         service3.create_mistake_pattern(1, "ser vs estar")
@@ -102,7 +108,9 @@ def test_mistake_pattern_service():
     # dependency failure, not the catch-all service exception -- the broker
     # does no wrapping of its own, so this has to be _try_catch's job.
     broker4 = Mock()
-    broker4.select_mistake_patterns_by_profile.side_effect = OperationalError("SELECT", {}, Exception("connection refused"))
+    broker4.select_mistake_patterns_by_profile.side_effect = OperationalError(
+        "SELECT", {}, Exception("connection refused")
+    )
     service4 = MistakePatternService(broker4, logging_broker=Mock())
     try:
         service4.list_mistake_patterns_by_profile(1)

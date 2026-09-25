@@ -85,9 +85,7 @@ class TestGetRecap:
         assert response.status_code == 200
         assert response.get_json() is None
 
-    def test_returns_the_latest_completed_sessions_recap(
-        self, client, session_log_entry_service, mock_review_service
-    ):
+    def test_returns_the_latest_completed_sessions_recap(self, client, session_log_entry_service, mock_review_service):
         _log_session(session_log_entry_service, minutes=20, flag_count=2)
         mock_review_service.list_flags.return_value = [
             Mock(category="ser-vs-estar"),
@@ -104,9 +102,7 @@ class TestGetRecap:
             "session_ended_at": (SESSION_START + timedelta(minutes=20)).isoformat(),
         }
 
-    def test_ignores_a_still_running_session_and_falls_back_to_null(
-        self, client, session_log_entry_service
-    ):
+    def test_ignores_a_still_running_session_and_falls_back_to_null(self, client, session_log_entry_service):
         _log_session(session_log_entry_service, minutes=None)
 
         response = client.get("/progress/recap")

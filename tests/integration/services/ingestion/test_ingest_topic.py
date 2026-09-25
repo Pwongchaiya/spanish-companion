@@ -73,9 +73,7 @@ def service(chunk_repository, mock_embedding_model, mock_configuration_broker):
 
 class TestIngestionServiceIngestTopicIntegration:
 
-    def test_should_persist_every_chunk_when_ingesting_a_topic(
-        self, service, chunk_repository, mock_embedding_model
-    ):
+    def test_should_persist_every_chunk_when_ingesting_a_topic(self, service, chunk_repository, mock_embedding_model):
         # given
         text = FIRST_CHUNK + SECOND_CHUNK
 

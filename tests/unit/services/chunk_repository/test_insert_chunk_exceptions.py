@@ -43,9 +43,7 @@ class TestChunkRepositoryServiceInsertChunkExceptions:
             TOPIC, SOURCE_URL, CONTENT, EMBEDDING, EMBEDDING_MODEL_VERSION, CHUNKING_STRATEGY_VERSION
         )
 
-    def test_should_raise_service_exception_when_an_unrecognised_error_occurs(
-        self, service, mock_broker
-    ):
+    def test_should_raise_service_exception_when_an_unrecognised_error_occurs(self, service, mock_broker):
         # given -- a non-string topic reaches `.strip()` in validation and
         # raises AttributeError, a type _try_catch has no named handler for
         with pytest.raises(ChunkRepositoryServiceException) as exc_info:

@@ -55,7 +55,9 @@ def stack(tmp_path, test_database_url, truncate_tables):
             Flag("f-other-session", "el mesa", "la mesa", "gender", datetime(2026, 2, 1, 9, 0, 0)),
         ]
     )
-    recording = SessionAudioRecordingOrchestrationService(storage, session_audio, lambda: NOW, logging_broker=logging_broker)
+    recording = SessionAudioRecordingOrchestrationService(
+        storage, session_audio, lambda: NOW, logging_broker=logging_broker
+    )
     replay = SessionReplayOrchestrationService(
         session_audio, FlagService(flag_broker, logging_broker=logging_broker), entries, logging_broker=logging_broker
     )

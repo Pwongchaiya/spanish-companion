@@ -61,9 +61,7 @@ class SqlAlchemySessionAudioBroker:
     def select_latest_session_audio(self) -> Optional[SessionAudio]:
         with Session(self._engine) as session:
             record = (
-                session.execute(select(SessionAudioRecord).order_by(SessionAudioRecord.id.desc()))
-                .scalars()
-                .first()
+                session.execute(select(SessionAudioRecord).order_by(SessionAudioRecord.id.desc())).scalars().first()
             )
             return None if record is None else _to_dataclass(record)
 

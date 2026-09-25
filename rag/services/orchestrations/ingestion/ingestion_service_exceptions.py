@@ -61,17 +61,13 @@ class IngestionOrchestrationServiceExceptions:
         except Exception as e:
             raise self._create_and_log_service_exception(e) from e
 
-    def _create_and_log_validation_exception(
-        self, exception: Exception
-    ) -> IngestionOrchestrationValidationException:
+    def _create_and_log_validation_exception(self, exception: Exception) -> IngestionOrchestrationValidationException:
         """Mirrors CreateAndLogValidationException, Exeptions.cs:88-98."""
         validation_exception = IngestionOrchestrationValidationException(inner_exception=exception)
         self._logging_broker.log_error(validation_exception)
         return validation_exception
 
-    def _create_and_log_dependency_exception(
-        self, exception: Exception
-    ) -> IngestionOrchestrationDependencyException:
+    def _create_and_log_dependency_exception(self, exception: Exception) -> IngestionOrchestrationDependencyException:
         """Mirrors CreateAndLogDependencyException, Exeptions.cs:112-122.
 
         What arrives here is ChunkRepositoryDependencyException or
@@ -93,9 +89,7 @@ class IngestionOrchestrationServiceExceptions:
         self._logging_broker.log_error(dependency_exception)
         return dependency_exception
 
-    def _create_and_log_service_exception(
-        self, exception: Exception
-    ) -> IngestionOrchestrationServiceException:
+    def _create_and_log_service_exception(self, exception: Exception) -> IngestionOrchestrationServiceException:
         """Mirrors CreateAndLogServiceException, Exeptions.cs:124-134.
 
         Fed the raw Exception rather than a Failed*ServiceException wrapping

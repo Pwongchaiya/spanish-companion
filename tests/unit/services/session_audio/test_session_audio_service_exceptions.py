@@ -51,9 +51,7 @@ def test_create_should_wrap_sqlalchemy_error_as_dependency_exception(
     assert mock_logging_broker.log_error.call_count == 1
 
 
-def test_should_wrap_unexpected_error_as_service_exception(
-    service, mock_session_audio_broker, mock_logging_broker
-):
+def test_should_wrap_unexpected_error_as_service_exception(service, mock_session_audio_broker, mock_logging_broker):
     boom = RuntimeError("boom")
     mock_session_audio_broker.delete_session_audio.side_effect = boom
 

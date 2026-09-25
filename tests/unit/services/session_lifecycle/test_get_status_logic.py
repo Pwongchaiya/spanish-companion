@@ -22,9 +22,7 @@ class TestConversationSessionServiceGetStatus:
         assert status.graceful is None
         mock_broker.is_running.assert_called_once_with()
 
-    def test_should_report_running_and_not_ready_immediately_after_start(
-        self, service, mock_broker
-    ):
+    def test_should_report_running_and_not_ready_immediately_after_start(self, service, mock_broker):
         # given
         mock_broker.is_running.return_value = False
         service.start()
@@ -54,9 +52,7 @@ class TestConversationSessionServiceGetStatus:
         assert status.ready is True
         mock_broker.is_running.assert_called_once_with()
 
-    def test_should_report_not_ready_just_before_warmup_duration_elapses(
-        self, service, mock_broker, clock
-    ):
+    def test_should_report_not_ready_just_before_warmup_duration_elapses(self, service, mock_broker, clock):
         # given
         mock_broker.is_running.return_value = False
         service.start()
@@ -71,9 +67,7 @@ class TestConversationSessionServiceGetStatus:
         assert status.ready is False
         mock_broker.is_running.assert_called_once_with()
 
-    def test_should_report_not_ready_when_process_exited_after_being_warm(
-        self, service, mock_broker, clock
-    ):
+    def test_should_report_not_ready_when_process_exited_after_being_warm(self, service, mock_broker, clock):
         # given -- process was warm, then died; running flips ready off too
         mock_broker.is_running.return_value = False
         service.start()

@@ -17,9 +17,7 @@ from tests.unit.services.session_log_entry.conftest import FIXED_END, FIXED_STAR
 class TestCreateValidation:
 
     @pytest.mark.parametrize("bad_started_at", [None, "2026-01-02", 1767348000, object()])
-    def test_should_reject_non_datetime_started_at(
-        self, service, mock_session_log_entry_broker, bad_started_at
-    ):
+    def test_should_reject_non_datetime_started_at(self, service, mock_session_log_entry_broker, bad_started_at):
         with pytest.raises(SessionLogEntryValidationException) as caught:
             service.create_session_log_entry(bad_started_at)
 

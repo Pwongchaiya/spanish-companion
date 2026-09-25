@@ -262,9 +262,7 @@ def main() -> None:
     )
 
     try:
-        transport = LocalAudioTransport(
-            LocalAudioTransportParams(audio_in_enabled=True, audio_out_enabled=True)
-        )
+        transport = LocalAudioTransport(LocalAudioTransportParams(audio_in_enabled=True, audio_out_enabled=True))
         tts = AzureTTSService(
             api_key=configuration_broker.require("AZURE_SPEECH_KEY"),
             region=configuration_broker.require("AZURE_SPEECH_REGION"),
@@ -284,7 +282,9 @@ def main() -> None:
             api_key=configuration_broker.require("GEMINI_API_KEY"),
             settings=GoogleLLMService.Settings(
                 model=configuration_broker.get("GEMINI_MODEL", "gemini-flash-lite-latest"),
-                system_instruction=_compose_system_prompt(logging_broker, pressure.prompt_block, variant.prompt_block, persona_brief),
+                system_instruction=_compose_system_prompt(
+                    logging_broker, pressure.prompt_block, variant.prompt_block, persona_brief
+                ),
             ),
             # A slow first chunk (network blip, API-side latency) otherwise drops
             # the turn silently with no assistant reply ever recorded — the user

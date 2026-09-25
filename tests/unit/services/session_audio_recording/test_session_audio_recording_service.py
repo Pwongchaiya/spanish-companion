@@ -36,9 +36,7 @@ def logging_broker():
 
 @pytest.fixture
 def service(storage, audio_service, logging_broker):
-    return SessionAudioRecordingOrchestrationService(
-        storage, audio_service, lambda: NOW, logging_broker=logging_broker
-    )
+    return SessionAudioRecordingOrchestrationService(storage, audio_service, lambda: NOW, logging_broker=logging_broker)
 
 
 def test_save_recording_should_write_file_then_insert_row_with_computed_duration(service, storage, audio_service):
@@ -78,7 +76,10 @@ def test_save_recording_should_not_insert_when_file_write_fails(service, storage
 
 
 def test_prune_expired_should_delete_file_and_row_for_each_old_recording(service, storage, audio_service):
-    old = [SessionAudio(1, 1, "a.wav", 5.0, datetime(2026, 1, 1)), SessionAudio(2, 2, "b.wav", 5.0, datetime(2026, 2, 1))]
+    old = [
+        SessionAudio(1, 1, "a.wav", 5.0, datetime(2026, 1, 1)),
+        SessionAudio(2, 2, "b.wav", 5.0, datetime(2026, 2, 1)),
+    ]
     audio_service.list_session_audio_older_than.return_value = old
 
     assert service.prune_expired(30) == 2
@@ -91,7 +92,10 @@ def test_prune_expired_should_delete_file_and_row_for_each_old_recording(service
 def test_prune_expired_should_continue_past_a_failing_row_and_keep_its_row_for_retry(
     service, storage, audio_service, logging_broker
 ):
-    old = [SessionAudio(1, 1, "a.wav", 5.0, datetime(2026, 1, 1)), SessionAudio(2, 2, "b.wav", 5.0, datetime(2026, 1, 2))]
+    old = [
+        SessionAudio(1, 1, "a.wav", 5.0, datetime(2026, 1, 1)),
+        SessionAudio(2, 2, "b.wav", 5.0, datetime(2026, 1, 2)),
+    ]
     audio_service.list_session_audio_older_than.return_value = old
     storage.remove_file.side_effect = [AudioStorageDependencyException(inner_exception=OSError("locked")), None]
 

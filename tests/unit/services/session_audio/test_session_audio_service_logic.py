@@ -42,9 +42,7 @@ def test_get_by_session_log_id_should_return_row(service, mock_session_audio_bro
     _assert_only(mock_session_audio_broker, "select_session_audio_by_session_log_id")
 
 
-def test_get_by_session_log_id_should_raise_not_found_when_broker_returns_none(
-    service, mock_session_audio_broker
-):
+def test_get_by_session_log_id_should_raise_not_found_when_broker_returns_none(service, mock_session_audio_broker):
     mock_session_audio_broker.select_session_audio_by_session_log_id.return_value = None
 
     with pytest.raises(SessionAudioValidationException) as caught:

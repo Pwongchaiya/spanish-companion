@@ -106,12 +106,8 @@ class ConversationSessionService(
         def action() -> None:
             self._validate_currently_running()
 
-            graceful_timeout_seconds = float(
-                self._configuration_broker.get("SESSION_GRACEFUL_TIMEOUT_SECONDS", "5")
-            )
-            terminate_timeout_seconds = float(
-                self._configuration_broker.get("SESSION_TERMINATE_TIMEOUT_SECONDS", "2")
-            )
+            graceful_timeout_seconds = float(self._configuration_broker.get("SESSION_GRACEFUL_TIMEOUT_SECONDS", "5"))
+            terminate_timeout_seconds = float(self._configuration_broker.get("SESSION_TERMINATE_TIMEOUT_SECONDS", "2"))
 
             self._broker.send_graceful_signal()
             if self._wait_quietly(graceful_timeout_seconds):
@@ -141,9 +137,7 @@ class ConversationSessionService(
         ready_warmup_seconds = float(self._configuration_broker.get("SESSION_READY_WARMUP_SECONDS", "16"))
         running = self._broker.is_running()
         ready = bool(
-            running
-            and self._started_at is not None
-            and self._time_source() - self._started_at >= ready_warmup_seconds
+            running and self._started_at is not None and self._time_source() - self._started_at >= ready_warmup_seconds
         )
         # If process was started but is no longer running and stop() wasn't called,
         # it crashed unexpectedly. If never started, graceful remains None.

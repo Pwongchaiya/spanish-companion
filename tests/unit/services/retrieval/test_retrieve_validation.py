@@ -59,9 +59,7 @@ class TestHybridRetrievalServiceRetrieveValidation:
 
         mock_logging_broker.log_error.assert_called_once()
 
-    def test_should_reject_blank_query_before_checking_top_k(
-        self, service, mock_embedding_model, mock_strategy
-    ):
+    def test_should_reject_blank_query_before_checking_top_k(self, service, mock_embedding_model, mock_strategy):
         # given -- both guards fail; the query guard is first, so its message
         # is the one the caller sees.
         with pytest.raises(RetrievalOrchestrationValidationException) as exc_info:

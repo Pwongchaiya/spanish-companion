@@ -59,9 +59,7 @@ class SqlAlchemySessionLogEntryBroker:
             )
             return [_to_dataclass(record) for record in records]
 
-    def update_session_log_entry(
-        self, entry_id: int, ended_at: datetime, flag_count: int
-    ) -> Optional[SessionLogEntry]:
+    def update_session_log_entry(self, entry_id: int, ended_at: datetime, flag_count: int) -> Optional[SessionLogEntry]:
         with Session(self._engine) as session:
             record = session.get(SessionLogEntryRecord, entry_id)
             if record is None:

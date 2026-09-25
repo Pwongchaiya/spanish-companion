@@ -29,9 +29,7 @@ class TestHybridRetrievalServiceRetrieveLogic:
         mock_embedding_model.embed.assert_called_once_with(["ser vs estar"])
         mock_strategy.search.assert_called_once_with(query_embedding, 3)
 
-    def test_should_return_fused_candidates_best_first(
-        self, service, mock_strategy, make_chunk, query_embedding
-    ):
+    def test_should_return_fused_candidates_best_first(self, service, mock_strategy, make_chunk, query_embedding):
         # given
         mock_strategy.search.return_value = [
             make_chunk(1, score=0.05),
@@ -46,9 +44,7 @@ class TestHybridRetrievalServiceRetrieveLogic:
         assert [result.chunk_id for result in results] == [1, 2, 3]
         mock_strategy.search.assert_called_once_with(query_embedding, 3)
 
-    def test_should_slice_results_to_top_k(
-        self, service, mock_strategy, make_chunk, query_embedding
-    ):
+    def test_should_slice_results_to_top_k(self, service, mock_strategy, make_chunk, query_embedding):
         # given -- a strategy that over-returns (a lexical strategy legitimately
         # might); the service's own [:top_k] slice is the last word on length.
         mock_strategy.search.return_value = [make_chunk(1), make_chunk(2), make_chunk(3)]
@@ -60,9 +56,7 @@ class TestHybridRetrievalServiceRetrieveLogic:
         assert [result.chunk_id for result in results] == [1, 2]
         mock_strategy.search.assert_called_once_with(query_embedding, 2)
 
-    def test_should_return_empty_list_when_corpus_has_no_match(
-        self, service, mock_strategy, query_embedding
-    ):
+    def test_should_return_empty_list_when_corpus_has_no_match(self, service, mock_strategy, query_embedding):
         # given -- empty is a valid result, not an error: Review short-circuits
         # on it before calling Generation.
         mock_strategy.search.return_value = []
@@ -98,9 +92,7 @@ class TestHybridRetrievalServiceRetrieveLogic:
         mock_fusion.fuse.assert_called_once_with([[make_chunk(1)], [make_chunk(2)]])
         assert [result.chunk_id for result in results] == [2, 1]
 
-    def test_should_apply_configured_filters_to_fused_results(
-        self, service_factory, mock_strategy, make_chunk
-    ):
+    def test_should_apply_configured_filters_to_fused_results(self, service_factory, mock_strategy, make_chunk):
         # given
         mock_strategy.search.return_value = [make_chunk(1), make_chunk(2)]
         mock_filter = Mock(spec=ResultFilter)
@@ -131,9 +123,7 @@ class TestHybridRetrievalServiceRetrieveLogic:
         assert [result.chunk_id for result in results] == [1, 2]
         mock_strategy.search.assert_called_once_with(query_embedding, 3)
 
-    def test_should_boost_matching_topic_to_front_when_category_is_given(
-        self, service, mock_strategy, make_chunk
-    ):
+    def test_should_boost_matching_topic_to_front_when_category_is_given(self, service, mock_strategy, make_chunk):
         # given
         mock_strategy.search.return_value = [
             make_chunk(1, topic="vocabulary"),
@@ -146,9 +136,7 @@ class TestHybridRetrievalServiceRetrieveLogic:
         # then -- matching chunk floated, nothing dropped.
         assert [result.chunk_id for result in results] == [2, 1]
 
-    def test_should_not_carry_category_boost_between_calls(
-        self, service, mock_strategy, make_chunk
-    ):
+    def test_should_not_carry_category_boost_between_calls(self, service, mock_strategy, make_chunk):
         # given -- the boost filter is built per call rather than appended to
         # the service's configured filters; a leak would make call two behave
         # like call one.
@@ -166,9 +154,7 @@ class TestHybridRetrievalServiceRetrieveLogic:
         assert [result.chunk_id for result in unboosted] == [1, 2]
         assert mock_strategy.search.call_count == 2
 
-    def test_should_apply_category_boost_after_configured_filters(
-        self, service_factory, mock_strategy, make_chunk
-    ):
+    def test_should_apply_category_boost_after_configured_filters(self, service_factory, mock_strategy, make_chunk):
         # given -- the per-call category hint gets the final say on order, so a
         # configured filter's ranking is what the boost partitions.
         mock_strategy.search.return_value = [

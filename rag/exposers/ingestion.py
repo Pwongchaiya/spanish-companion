@@ -67,7 +67,9 @@ def main(refresh: bool = False) -> None:
     embedding_model_service = EmbeddingModelService(
         SentenceTransformerEmbeddingModelBroker(), logging_broker=logging_broker
     )
-    service = IngestionOrchestrationService(chunk_repository_service, embedding_model_service, logging_broker=logging_broker)
+    service = IngestionOrchestrationService(
+        chunk_repository_service, embedding_model_service, logging_broker=logging_broker
+    )
 
     for topic, url in TOPICS:
         try:

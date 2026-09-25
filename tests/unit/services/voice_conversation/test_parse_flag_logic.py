@@ -18,7 +18,9 @@ def _logging_broker():
 
 class TestParseFlag:
     def test_extracts_valid_channel(self):
-        content = '{"said": "yo soy tener", "corrected": "yo tengo", "category": "verb_conjugation", "channel": "lexis"}'
+        content = (
+            '{"said": "yo soy tener", "corrected": "yo tengo", "category": "verb_conjugation", "channel": "lexis"}'
+        )
 
         parsed = parse_flag(content, _logging_broker())
 

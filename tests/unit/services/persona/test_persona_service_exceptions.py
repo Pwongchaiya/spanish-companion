@@ -93,9 +93,7 @@ class TestDependencyValidationTier:
 
 class TestServiceTier:
 
-    def test_should_wrap_unexpected_error_as_service_exception(
-        self, service, mock_persona_broker, mock_logging_broker
-    ):
+    def test_should_wrap_unexpected_error_as_service_exception(self, service, mock_persona_broker, mock_logging_broker):
         mock_persona_broker.select_all_personas.side_effect = ValueError("boom")
 
         with pytest.raises(PersonaServiceException) as caught:

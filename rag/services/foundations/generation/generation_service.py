@@ -136,7 +136,9 @@ class GenerationService(GenerationServiceExceptions, IGenerationService):
         first_word = verdict.strip().split(maxsplit=1)[0] if verdict.strip() else ""
         grade = first_word.strip(".,!:;\"'").lower()
         if grade not in _PRACTICE_GRADES:
-            self._logging_broker.log_info("practice judge verdict unparseable, falling back to %r: %r", _FALLBACK_GRADE, verdict)
+            self._logging_broker.log_info(
+                "practice judge verdict unparseable, falling back to %r: %r", _FALLBACK_GRADE, verdict
+            )
             return _FALLBACK_GRADE
         return grade
 

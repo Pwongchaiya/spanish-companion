@@ -54,9 +54,10 @@ def test_topic_covered_service():
         raise AssertionError("expected rejection for all-fields-bad create")
     except TopicCoveredValidationException as e:
         leaf = e.inner_exception
-        assert set(leaf.errors) == {"profile_id", "topic"}, (
-            f"expected both fields reported together, got {set(leaf.errors)!r}"
-        )
+        assert set(leaf.errors) == {
+            "profile_id",
+            "topic",
+        }, f"expected both fields reported together, got {set(leaf.errors)!r}"
 
     broker.insert_topic_covered.return_value = TopicCovered(
         id=1, profile_id=1, topic="preterite-vs-imperfect", first_covered_at=None, last_practiced_at=None
@@ -97,7 +98,9 @@ def test_topic_covered_service():
     # a non-unique integrity failure still falls through to the generic
     # dependency path, not AlreadyExists.
     broker3 = Mock()
-    broker3.insert_topic_covered.side_effect = IntegrityError("INSERT", {}, Exception("NOT NULL constraint failed: topic"))
+    broker3.insert_topic_covered.side_effect = IntegrityError(
+        "INSERT", {}, Exception("NOT NULL constraint failed: topic")
+    )
     service3 = TopicCoveredService(broker3, logging_broker=Mock())
     try:
         service3.create_topic_covered(1, "preterite-vs-imperfect")
@@ -111,7 +114,9 @@ def test_topic_covered_service():
     # dependency failure, not the catch-all service exception -- the broker
     # does no wrapping of its own, so this has to be _try_catch's job.
     broker4 = Mock()
-    broker4.select_topic_covered_by_profile.side_effect = OperationalError("SELECT", {}, Exception("connection refused"))
+    broker4.select_topic_covered_by_profile.side_effect = OperationalError(
+        "SELECT", {}, Exception("connection refused")
+    )
     service4 = TopicCoveredService(broker4, logging_broker=Mock())
     try:
         service4.list_topic_covered_by_profile(1)

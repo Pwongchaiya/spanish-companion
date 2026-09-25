@@ -46,9 +46,7 @@ class BilingualAzureSTTService(AzureSTTService):
             return
 
         try:
-            self._speech_config.set_property(
-                PropertyId.SpeechServiceConnection_LanguageIdMode, "Continuous"
-            )
+            self._speech_config.set_property(PropertyId.SpeechServiceConnection_LanguageIdMode, "Continuous")
 
             stream_format = AudioStreamFormat(samples_per_second=self.sample_rate, channels=1)
             self._audio_stream = PushAudioInputStream(stream_format)
@@ -65,9 +63,7 @@ class BilingualAzureSTTService(AzureSTTService):
             self._speech_recognizer.canceled.connect(self._on_handle_canceled)
             self._speech_recognizer.start_continuous_recognition_async()
         except Exception as e:
-            await self.push_error(
-                error_msg=f"Uncaught exception during initialization: {e}", exception=e
-            )
+            await self.push_error(error_msg=f"Uncaught exception during initialization: {e}", exception=e)
 
 
 class AzureSttBroker:

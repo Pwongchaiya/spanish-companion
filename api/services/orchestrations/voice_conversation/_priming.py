@@ -10,7 +10,7 @@ from api.models.orchestrations.learner_profile.session_scenario import DuePatter
 
 
 def format_priming_brief(due: List[DuePattern]) -> str:
-    """"" when nothing is due; otherwise a one-line priority-review block."""
+    """ "" when nothing is due; otherwise a one-line priority-review block."""
     if not due:
         return ""
     items = ", ".join(f"{p.category.replace('_', ' ')} (due {round(p.days_overdue)}d)" for p in due)

@@ -31,9 +31,7 @@ class TestEmbeddingModelServiceEmbedExceptions:
         assert "model failed to load" in str(exc_info.value.inner_exception)
         mock_broker.embed.assert_called_once_with(["ser vs estar"])
 
-    def test_should_raise_service_exception_when_an_unrecognised_error_occurs(
-        self, service, mock_broker
-    ):
+    def test_should_raise_service_exception_when_an_unrecognised_error_occurs(self, service, mock_broker):
         # given -- a non-string element reaches `.strip()` in validation and
         # raises AttributeError, a type _try_catch has no named handler for
         with pytest.raises(EmbeddingModelServiceException) as exc_info:

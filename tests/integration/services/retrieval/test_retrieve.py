@@ -114,9 +114,7 @@ class TestHybridRetrievalServiceRetrieveIntegration:
         assert [result.chunk_id for result in results] == seeded_chunk_ids
         assert [result.topic for result in results] == TOPICS_BY_AXIS
 
-    def test_should_return_ascending_distances_with_content_and_source_url(
-        self, service, seeded_chunk_ids
-    ):
+    def test_should_return_ascending_distances_with_content_and_source_url(self, service, seeded_chunk_ids):
         # when
         results = service.retrieve(query="ella es feliz", top_k=3)
 
@@ -134,9 +132,7 @@ class TestHybridRetrievalServiceRetrieveIntegration:
         # then
         assert [result.chunk_id for result in results] == seeded_chunk_ids[:2]
 
-    def test_should_float_category_matching_chunk_ahead_of_nearer_chunks(
-        self, service, seeded_chunk_ids
-    ):
+    def test_should_float_category_matching_chunk_ahead_of_nearer_chunks(self, service, seeded_chunk_ids):
         # given -- axis 2 is the FURTHEST chunk by cosine distance, so a
         # changed order can only come from the category boost.
         # when

@@ -52,7 +52,12 @@ if __name__ == "__main__":
 
         columns = {c["name"]: c for c in inspect(conn).get_columns("ingestion_queue")}
         assert set(columns) == {
-            "id", "topic", "weak_verdict_count", "status", "first_flagged_at", "last_flagged_at"
+            "id",
+            "topic",
+            "weak_verdict_count",
+            "status",
+            "first_flagged_at",
+            "last_flagged_at",
         }, columns
         for name in columns.keys() - {"id"}:
             assert columns[name]["nullable"] is False, name

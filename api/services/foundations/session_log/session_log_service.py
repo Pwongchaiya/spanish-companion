@@ -69,9 +69,7 @@ class SessionLogService(SessionLogServiceExceptions, ISessionLogService):
             if flags:
                 output_lines.append("--- flags ---")
                 for flag in flags:
-                    output_lines.append(
-                        f'[{flag.category}] said: "{flag.said}" -> corrected: "{flag.corrected}"'
-                    )
+                    output_lines.append(f'[{flag.category}] said: "{flag.said}" -> corrected: "{flag.corrected}"')
 
             content = "\n".join(output_lines) + "\n"
             try:

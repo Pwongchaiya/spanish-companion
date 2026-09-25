@@ -185,9 +185,7 @@ class TestGetSpeaking:
 
     def test_should_return_200_with_total_seconds_and_session_count(self, client, mock_orchestrator):
         # given
-        mock_orchestrator.get_speaking_total.return_value = SpeakingTotal(
-            total_seconds=5400.0, session_count=3
-        )
+        mock_orchestrator.get_speaking_total.return_value = SpeakingTotal(total_seconds=5400.0, session_count=3)
 
         # when
         response = client.get("/progress/speaking")

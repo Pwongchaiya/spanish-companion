@@ -88,9 +88,7 @@ class ReviewService(Protocol):
         """
         ...
 
-    def record_practice(
-        self, flag_id: str, attempt_text: str, roleplay_slug: Optional[str] = None
-    ) -> PracticeResult:
+    def record_practice(self, flag_id: str, attempt_text: str, roleplay_slug: Optional[str] = None) -> PracticeResult:
         """Log the learner's practice attempt, then judge it against the
         flag's correction and update learner memory (LearnerProfile Phase 2).
 

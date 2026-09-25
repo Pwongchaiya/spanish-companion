@@ -33,9 +33,7 @@ class TestCreateValidation:
     def test_should_reject_blank_locale(self, service, mock_pronunciation_result_broker, make_result, bad_locale):
         _assert_rejected(service, mock_pronunciation_result_broker, make_result(locale=bad_locale), "locale")
 
-    @pytest.mark.parametrize(
-        "field", ["accuracy_score", "fluency_score", "completeness_score", "pronunciation_score"]
-    )
+    @pytest.mark.parametrize("field", ["accuracy_score", "fluency_score", "completeness_score", "pronunciation_score"])
     @pytest.mark.parametrize("bad_score", [None, -0.1, 100.1, float("nan"), float("inf"), "90", True])
     def test_should_reject_invalid_required_score(
         self, service, mock_pronunciation_result_broker, make_result, field, bad_score

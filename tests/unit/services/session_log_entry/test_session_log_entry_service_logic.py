@@ -11,9 +11,7 @@ from tests.unit.services.session_log_entry.conftest import FIXED_END, FIXED_STAR
 
 class TestCreateSessionLogEntry:
 
-    def test_should_insert_in_flight_row_and_return_it(
-        self, service, mock_session_log_entry_broker, make_entry
-    ):
+    def test_should_insert_in_flight_row_and_return_it(self, service, mock_session_log_entry_broker, make_entry):
         # given
         entry = make_entry(entry_id=7)
         mock_session_log_entry_broker.insert_session_log_entry.return_value = entry

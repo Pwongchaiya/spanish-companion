@@ -92,14 +92,10 @@ class TestListFlags:
 
     # H7: this route had no try/except at all, so a failure below reached
     # Flask raw and answered with an unmapped 500 plus a traceback.
-    def test_should_return_500_when_orchestrator_raises_service_exception(
-        self, client, mock_orchestrator
-    ):
+    def test_should_return_500_when_orchestrator_raises_service_exception(self, client, mock_orchestrator):
         # given
         leaf = OSError("disk read failed")
-        mock_orchestrator.list_flags.side_effect = ReviewOrchestrationServiceException(
-            inner_exception=leaf
-        )
+        mock_orchestrator.list_flags.side_effect = ReviewOrchestrationServiceException(inner_exception=leaf)
 
         # when
         response = client.get("/review/flags")
@@ -108,14 +104,10 @@ class TestListFlags:
         assert response.status_code == 500
         assert response.get_json() == {"error": str(leaf)}
 
-    def test_should_return_500_when_orchestrator_raises_dependency_exception(
-        self, client, mock_orchestrator
-    ):
+    def test_should_return_500_when_orchestrator_raises_dependency_exception(self, client, mock_orchestrator):
         # given
         leaf = OSError("disk read failed")
-        mock_orchestrator.list_flags.side_effect = ReviewOrchestrationDependencyException(
-            inner_exception=leaf
-        )
+        mock_orchestrator.list_flags.side_effect = ReviewOrchestrationDependencyException(inner_exception=leaf)
 
         # when
         response = client.get("/review/flags")
@@ -218,9 +210,7 @@ class TestRecordPractice:
         assert response.status_code == 201
         mock_orchestrator.record_practice.assert_called_once_with("flag-1", "yo tengo", "ordering_coffee")
 
-    def test_should_return_400_without_calling_orchestrator_when_roleplay_slug_unknown(
-        self, client, mock_orchestrator
-    ):
+    def test_should_return_400_without_calling_orchestrator_when_roleplay_slug_unknown(self, client, mock_orchestrator):
         # when
         response = client.post(
             "/review/flags/flag-1/practice",

@@ -35,9 +35,7 @@ class TestReviewOrchestratorExplainFlagRetrievalValidation:
         # given
         mock_flag_service.get_flag.return_value = make_flag("flag-1")
         leaf = RetrievalValidationError("query is required")
-        mock_retrieval_service.retrieve.side_effect = RetrievalOrchestrationValidationException(
-            inner_exception=leaf
-        )
+        mock_retrieval_service.retrieve.side_effect = RetrievalOrchestrationValidationException(inner_exception=leaf)
 
         # when
         with pytest.raises(ReviewOrchestrationValidationException) as exc_info:

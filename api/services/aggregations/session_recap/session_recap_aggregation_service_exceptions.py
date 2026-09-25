@@ -37,16 +37,12 @@ class SessionRecapAggregationServiceExceptions:
             failed = FailedSessionRecapAggregationServiceException(inner_exception=e)
             raise self._create_and_log_service_exception(failed) from e
 
-    def _create_and_log_validation_exception(
-        self, exception: Exception
-    ) -> SessionRecapAggregationValidationException:
+    def _create_and_log_validation_exception(self, exception: Exception) -> SessionRecapAggregationValidationException:
         validation_exception = SessionRecapAggregationValidationException(inner_exception=exception)
         self._logging_broker.log_error(validation_exception)
         return validation_exception
 
-    def _create_and_log_dependency_exception(
-        self, exception: Exception
-    ) -> SessionRecapAggregationDependencyException:
+    def _create_and_log_dependency_exception(self, exception: Exception) -> SessionRecapAggregationDependencyException:
         dependency_exception = SessionRecapAggregationDependencyException(inner_exception=exception)
         self._logging_broker.log_error(dependency_exception)
         return dependency_exception
