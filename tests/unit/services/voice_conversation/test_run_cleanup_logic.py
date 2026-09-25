@@ -28,6 +28,7 @@ from api.brokers.configuration import ConfigurationBroker
 from api.brokers.logging import LoggingBroker
 from api.brokers.session_log import SessionLogBroker
 from api.brokers.stt import SttBroker
+from api.models.foundations.flag.exceptions import FlagDependencyException
 from api.models.foundations.session_log.exceptions import SessionLogDependencyException
 from api.models.foundations.session_log_entry.exceptions import SessionLogEntryDependencyException
 from api.models.foundations.session_log_entry.session_log_entry import SessionLogEntry
@@ -197,5 +198,55 @@ class TestSessionLogEntry:
 
         assert mocks["session_log_service"].save.call_count == 1
         assert mocks["flag_service"].save_flags.call_count == 1
+        assert mocks["session_log_broker"].write_turn_state.call_count == 1
+        assert mocks["logging_broker"].log_error.call_count == 1
+
+
+class TestSessionFlagSnapshot:
+    """Roadmap E3: save_session_flags() is called once per teardown, in
+    addition to save_flags(), so Session Replay can recover this session's
+    flags after a later session overwrites flags.json."""
+
+    def test_snapshots_this_sessions_flags_under_the_opened_rows_id(self, orchestrator, mocks):
+        entry = SessionLogEntry(id=42, started_at=datetime(2026, 1, 2, 10, 0), ended_at=None, flag_count=0)
+        mocks["session_log_entry_service"].create_session_log_entry.return_value = entry
+        flags = [Mock(), Mock()]
+        runner = Mock()
+        runner.run = AsyncMock()
+        context = Mock()
+        context.messages = []
+
+        async def _setup():
+            return runner, context, flags
+
+        orchestrator._setup = _setup
+
+        asyncio.run(orchestrator.run())
+
+        mocks["flag_service"].save_session_flags.assert_called_once_with(42, flags)
+
+    def test_skips_the_snapshot_when_the_session_log_row_never_opened(self, orchestrator, mocks):
+        mocks["session_log_entry_service"].create_session_log_entry.side_effect = (
+            SessionLogEntryDependencyException(OSError("db down"))
+        )
+
+        asyncio.run(orchestrator.run())
+
+        assert mocks["flag_service"].save_session_flags.call_count == 0
+        # The session's own data (log + shared flags) still gets saved.
+        assert mocks["flag_service"].save_flags.call_count == 1
+
+    def test_a_failed_snapshot_write_is_logged_and_does_not_break_teardown(self, orchestrator, mocks):
+        mocks["session_log_entry_service"].create_session_log_entry.return_value = SessionLogEntry(
+            id=1, started_at=datetime(2026, 1, 2, 10, 0), ended_at=None, flag_count=0
+        )
+        mocks["flag_service"].save_session_flags.side_effect = FlagDependencyException(OSError("disk full"))
+
+        asyncio.run(orchestrator.run())
+
+        # Teardown still completes: shared flags, session log, and turn state
+        # all still get written despite the snapshot write failing.
+        assert mocks["flag_service"].save_flags.call_count == 1
+        assert mocks["session_log_service"].save.call_count == 1
         assert mocks["session_log_broker"].write_turn_state.call_count == 1
         assert mocks["logging_broker"].log_error.call_count == 1
