@@ -111,7 +111,7 @@ check for RAG retrieve quality. Replace by tier below for all
 new code.
 
 **Standing rule all new test code — pytest, three tier.**
-Model on user's `NL.Core.Entitlements` .NET project ("The Standard"
+Model on user's `NL.Core.Users` .NET project (`C:/Users/pwong/source/repos/NL.Core.Users` — wins over `NL.Core.Entitlements` on any conflict) ("The Standard"
 test convention); full detail in decision record's "Resolved:
 Phase 2 test strategy" section.
 - **Unit** (`tests/unit/services|controllers/<feature>/`): every Broker
@@ -215,7 +215,7 @@ for why rule exist.
 | Aggregation | **Not used** | — | Its trigger "Exposer needs >1 Orchestration service"; every controller here calls exactly one service |
 | Controller, HTTP + in-process | Exposer Agent | Session Lifecycle, Review, LearnerProfile | Waive `/api/V1.0/` versioning (routes unversioned: `/start`, `/stop`, `/status`, `/review*`); turn off React output (frontend separately scaffolded in `frontend/`). `RetrievalController`/`GenerationController` were deleted (`fcf743a`) as valueless pass-throughs with a single caller each — Review now depends on Retrieval/Generation's own services directly. `LearnerProfileController` (`api/exposers/learner_profile.py`) kept despite that precedent because it has two eventual callers (`voice_conversation.py`, `review.py`); waives HTTP status-code mapping — no HTTP response to map |
 | Controller, CLI/subprocess | **Hand-written, no agent** | Ingestion CLI, Voice Conversation `main()` | Not worth waiver for ~20 lines of argparse/entrypoint code |
-| Broker interfaces | — | All | `typing.Protocol`, not `ABC` — waive `python-adaptations-skill`'s ABC default and BRK-004 ("no local interface defined"). Reframed post-audit: this doesn't diverge from reference `NL.Core.Entitlements` project, it matches it — `IEntitlementService.cs` sits next to `EntitlementService.cs` there too, interfaces co-located with implementation. Toolkit's ABC/BRK-004 default the outlier, not this waiver ([[Projects/spanish-companion/decisions/phase-2-vs-reference-architecture-audit\|F18]]) |
+| Broker interfaces | — | All | `typing.Protocol`, not `ABC` — waive `python-adaptations-skill`'s ABC default and BRK-004 ("no local interface defined"). Reframed post-audit: this doesn't diverge from reference `NL.Core.Users` project, it matches it — `IUserProfileService.cs` sits next to `UserProfileService.cs` in `NL.Core.Users.Api/Services/Foundations/UserProfiles/`, interfaces co-located with implementation. Toolkit's ABC/BRK-004 default the outlier, not this waiver ([[Projects/spanish-companion/decisions/phase-2-vs-reference-architecture-audit\|F18]]) |
 
 **Voice Conversation: no agent, any layer.** Full manual, supervised port
 of Phase 1's `voice/bot.py`. Carries three hardware-verified fixes no agent
