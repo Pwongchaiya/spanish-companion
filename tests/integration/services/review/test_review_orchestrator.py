@@ -37,6 +37,7 @@ from api.services.orchestrations.review import ReviewOrchestrationService
 from api.services.processings.ingestion_queue import IIngestionQueueProcessingService
 from api.services.processings.learner_profile import ILearnerProfileProcessingService
 from api.services.processings.mistake_pattern import IMistakePatternProcessingService
+from api.services.processings.topic_covered import ITopicCoveredProcessingService
 from rag.models.foundations.generation import Explanation
 from rag.models.orchestrations.retrieval import ScoredChunk
 from rag.services.foundations.generation import GenerationService
@@ -114,6 +115,11 @@ def mock_mistake_pattern_processing_service():
 
 
 @pytest.fixture
+def mock_topic_covered_processing_service():
+    return Mock(spec=ITopicCoveredProcessingService)
+
+
+@pytest.fixture
 def service(
     flag_service,
     practice_log_service,
@@ -121,6 +127,7 @@ def service(
     mock_generation_service,
     mock_learner_profile_processing_service,
     mock_mistake_pattern_processing_service,
+    mock_topic_covered_processing_service,
 ):
     return ReviewOrchestrationService(
         flag_service=flag_service,
@@ -132,6 +139,7 @@ def service(
         session_log_entry_service=Mock(spec=ISessionLogEntryService),
         live_transcript_service=Mock(spec=ILiveTranscriptService),
         ingestion_queue_processing_service=Mock(spec=IIngestionQueueProcessingService),
+        topic_covered_processing_service=mock_topic_covered_processing_service,
         clock=lambda: FIXED_NOW,
         logging_broker=StdlibLoggingBroker(),
         configuration_broker=FakeConfigurationBroker({"RETRIEVAL_TOP_K": str(RETRIEVAL_TOP_K)}),
