@@ -7,7 +7,7 @@ Updated automatically by /session-end (Last Session).
 ---
 
 ## Last Session
-Projects/spanish-companion/sessions/2026-09-24-1756.md
+Projects/spanish-companion/sessions/2026-09-24-1855.md
 
 ## Entity Manifest
 
