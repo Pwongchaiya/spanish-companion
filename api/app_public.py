@@ -29,6 +29,7 @@ from api.brokers.learner_profile import SqlAlchemyLearnerProfileBroker
 from api.brokers.logging import StdlibLoggingBroker
 from api.brokers.mistake_pattern.mistake_pattern_broker import SqlAlchemyMistakePatternBroker
 from api.brokers.practice_log import JsonLinesPracticeLogBroker
+from api.brokers.topic_covered import SqlAlchemyTopicCoveredBroker
 from api.brokers.session_log import FileSessionLogBroker
 from api.brokers.session_log_entry import SqlAlchemySessionLogEntryBroker
 from api.brokers.tts import AzureTtsBroker
@@ -40,10 +41,12 @@ from api.services.foundations.live_transcript import LiveTranscriptService
 from api.services.foundations.mistake_pattern import MistakePatternService
 from api.services.foundations.practice_log import PracticeLogService
 from api.services.foundations.session_log_entry import SessionLogEntryService
+from api.services.foundations.topic_covered import TopicCoveredService
 from api.services.foundations.tts import TtsService
 from api.services.orchestrations.review import ReviewOrchestrationService
 from api.services.processings.learner_profile import LearnerProfileProcessingService
 from api.services.processings.mistake_pattern import MistakePatternProcessingService
+from api.services.processings.topic_covered import TopicCoveredProcessingService
 from rag.brokers.chunk_repository import SqlAlchemyChunkRepositoryBroker
 from rag.brokers.embedding_model import SentenceTransformerEmbeddingModelBroker
 from rag.brokers.generation import GeminiGenerationBroker
@@ -107,6 +110,11 @@ def create_public_app() -> Flask:
     mistake_pattern_processing_service = MistakePatternProcessingService(
         MistakePatternService(SqlAlchemyMistakePatternBroker(database_url), logging_broker=logging_broker)
     )
+    # F1 follow-up: only production caller of record_topic() -- same DB this
+    # deployment already reads for retrieval/mistake_pattern above.
+    topic_covered_processing_service = TopicCoveredProcessingService(
+        TopicCoveredService(SqlAlchemyTopicCoveredBroker(database_url), logging_broker=logging_broker)
+    )
     review_orchestrator = ReviewOrchestrationService(
         flag_service=flag_service,
         practice_log_service=practice_log_service,
@@ -121,6 +129,7 @@ def create_public_app() -> Flask:
         ingestion_queue_processing_service=IngestionQueueProcessingService(
             IngestionQueueService(SqlAlchemyIngestionQueueBroker(database_url), logging_broker=logging_broker)
         ),
+        topic_covered_processing_service=topic_covered_processing_service,
         logging_broker=logging_broker,
     )
     app.register_blueprint(make_review_blueprint(review_orchestrator))
