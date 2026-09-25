@@ -15,7 +15,7 @@ from api.services.orchestrations.progress.progress_service import ProgressOrches
 from tests.unit.services.progress.conftest import FIXED_NOW, FakeConfigurationBroker
 
 
-def _result(i: int) -> PronunciationResult:
+def _result(i: int, is_word_drill: bool = False) -> PronunciationResult:
     return PronunciationResult(
         id=i,
         created_at=FIXED_NOW + timedelta(days=i),
@@ -27,6 +27,7 @@ def _result(i: int) -> PronunciationResult:
         prosody_score=None,
         words_json=[],
         locale="es-ES",
+        is_word_drill=is_word_drill,
     )
 
 
@@ -86,6 +87,23 @@ class TestListPronunciationTrend:
         assert mock_topic_covered_service.mock_calls == []
         assert mock_session_log_entry_service.mock_calls == []
         assert mock_learner_profile_processing_service.mock_calls == []
+
+    def test_should_exclude_word_drill_rows_from_the_trend(
+        self, service, mock_pronunciation_result_service
+    ):
+        # given
+        mock_pronunciation_result_service.list_pronunciation_results.return_value = [
+            _result(1),
+            _result(2, is_word_drill=True),
+            _result(3),
+        ]
+
+        # when
+        trend = service.list_pronunciation_trend(limit=2)
+
+        # then: limit applies after filtering, so both non-drill rows survive
+        assert [p.accuracy for p in trend] == [1.0, 3.0]
+        mock_pronunciation_result_service.list_pronunciation_results.assert_called_once_with()
 
     def test_should_default_limit_to_30(self, service, mock_pronunciation_result_service):
         # given

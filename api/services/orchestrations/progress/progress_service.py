@@ -166,6 +166,7 @@ class ProgressOrchestrationService(ProgressOrchestrationServiceExceptions, Progr
             # ponytail: loads every row then slices; add a LIMIT query if the table ever gets large.
             results = self._pronunciation_result_service.list_pronunciation_results()
             # Service returns oldest-first; the last n are the most recent, still oldest->newest.
+            results = [r for r in results if not r.is_word_drill]
             recent = results[-n:] if n > 0 else []
             trend = [
                 PronunciationTrendPoint(
