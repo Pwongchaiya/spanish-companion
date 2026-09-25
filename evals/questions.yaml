@@ -1,4 +1,4 @@
-# Golden set for the Review Mode RAG flow (retrieve -> explain). See .claude-toolkit rag-eval-skill.md.
+# Golden set for the Review Mode RAG flow (retrieve -> explain). See the standard plugin's .claude/skills/rag-eval-skill.md.
 # Grows over time; never delete an entry silently. Add one for every real retrieval miss.
 #
 # Fields
