@@ -43,6 +43,7 @@ propagates untouched to `_try_catch`, the single dispatch point that
 classifies and wraps.
 """
 
+from dataclasses import replace
 from datetime import datetime
 from functools import lru_cache
 from typing import Callable, List, Optional
@@ -136,6 +137,26 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
         """
         return self._try_catch(self._flag_service.list_flags)
 
+    def set_flag_status(self, flag_id: str, status: str) -> Flag:
+        def action() -> Flag:
+            # get_flag() raises FlagValidationException (wrapping
+            # NotFoundFlagException) for an unknown id -- same not-found
+            # check every other flag_id-taking method here already uses
+            # (explain_flag, record_practice, check_dictation).
+            flag = self._flag_service.get_flag(flag_id)
+            updated_flag = replace(flag, status=status)
+            flags = self._flag_service.list_flags()
+            new_flags = [updated_flag if f.id == flag_id else f for f in flags]
+            # save_flags() raises FlagValidationException (wrapping
+            # InvalidFlagStatusException) for a status outside FLAG_STATUSES
+            # -- the Exposer already rejects that with a 400 before ever
+            # reaching here, this is defense-in-depth for any other caller,
+            # same shape as record_practice's attempt_text double-check.
+            self._flag_service.save_flags(new_flags)
+            return updated_flag
+
+        return self._try_catch(action)
+
     # ponytail: flags are immutable once created and the corpus is a static
     # seeded set, so a given flag_id's explanation never changes -- cache
     # forever instead of re-running retrieval + an LLM call on every repeat
@@ -191,7 +212,9 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
         try:
             self._ingestion_queue_processing_service.record_weak_verdict(topic, self._clock())
         except Exception as e:  # ponytail: best-effort -- queue bookkeeping must never break Review
-            self._logging_broker.log_info("ingestion queue record failed for flag_id=%s topic=%s: %s", flag_id, topic, e)
+            self._logging_broker.log_info(
+                "ingestion queue record failed for flag_id=%s topic=%s: %s", flag_id, topic, e
+            )
 
     def _second_opinion(self, flag: Flag, top_k: int) -> Optional[Explanation]:
         """F4: one lexical re-retrieve + regenerate after a weak grounding verdict.

@@ -51,6 +51,7 @@ from api.models.orchestrations.review.exceptions import (
     ReviewOrchestrationServiceException,
     ReviewOrchestrationValidationException,
 )
+from api.services.foundations.flag.flag_service import FLAG_STATUSES
 from api.services.orchestrations.review import ReviewOrchestrationService
 
 
@@ -62,6 +63,27 @@ def make_review_blueprint(orchestrator: ReviewOrchestrationService) -> Blueprint
         try:
             flags = orchestrator.list_flags()
             return jsonify([{**asdict(f), "timestamp": f.timestamp.isoformat()} for f in flags]), 200
+        except ReviewOrchestrationDependencyException as e:
+            return jsonify({"error": str(e.inner_exception)}), 500
+        except ReviewOrchestrationServiceException as e:
+            return jsonify({"error": str(e.inner_exception)}), 500
+
+    @review_blueprint.route("/flags/<flag_id>", methods=["PATCH"])
+    def set_flag_status(flag_id: str):
+        body = request.get_json(silent=True) or {}
+        status = body.get("status")
+        # Rejected before the orchestrator is ever called -- same
+        # "malformed request never reaches the orchestrator" shape as
+        # record_practice's attempt_text check above.
+        if status not in FLAG_STATUSES:
+            return jsonify({"error": f"Invalid status: {status!r}"}), 400
+        try:
+            flag = orchestrator.set_flag_status(flag_id, status)
+            return jsonify({**asdict(flag), "timestamp": flag.timestamp.isoformat()}), 200
+        except ReviewOrchestrationValidationException as e:
+            if isinstance(e.inner_exception.inner_exception, NotFoundFlagException):
+                return jsonify({"error": str(e.inner_exception)}), 404
+            return jsonify({"error": str(e.inner_exception)}), 400
         except ReviewOrchestrationDependencyException as e:
             return jsonify({"error": str(e.inner_exception)}), 500
         except ReviewOrchestrationServiceException as e:

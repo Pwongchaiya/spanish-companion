@@ -38,6 +38,25 @@ class ReviewService(Protocol):
         """
         ...
 
+    def set_flag_status(self, flag_id: str, status: str) -> Flag:
+        """Set one flag's review status, persisting the full flag list.
+
+        Loads the current list, replaces the matching flag's `status`, saves
+        the full list back through FlagService (Voice Conversation still
+        overwrites the whole file at the start of every session, so this
+        only lasts until the next conversation), and returns the updated
+        Flag.
+
+        Raises ReviewOrchestrationValidationException wrapping
+        FlagValidationException, which wraps either NotFoundFlagException
+        (unknown flag_id) or InvalidFlagStatusException (status not one of
+        FLAG_STATUSES -- "open" | "mastered" | "skipped"; the Exposer already
+        rejects this with a 400 before calling here, this is
+        defense-in-depth), or ReviewOrchestrationServiceException for
+        anything else.
+        """
+        ...
+
     def explain_flag(self, flag_id: str) -> Explanation:
         """Grounded explanation of one flag, chosen by id.
 

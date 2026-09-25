@@ -12,6 +12,7 @@ from api.models.foundations.flag.exceptions import (
     FlagServiceException,
     FlagUnavailableError,
     FlagValidationException,
+    InvalidFlagStatusException,
     NotFoundFlagException,
 )
 
@@ -24,7 +25,7 @@ class FlagServiceExceptions:
     def _try_catch(self, fn: Callable[[], T]) -> T:
         try:
             return fn()
-        except NotFoundFlagException as e:
+        except (NotFoundFlagException, InvalidFlagStatusException) as e:
             raise self._create_and_log_validation_exception(e) from e
         except FlagUnavailableError as e:
             raise self._create_and_log_dependency_exception(e) from e
