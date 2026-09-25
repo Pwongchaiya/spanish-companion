@@ -3,6 +3,7 @@ import type {
   DictationResult,
   Explanation,
   Flag,
+  FlagStatus,
   MistakePatternSummary,
   Persona,
   PracticeAttempt,
@@ -15,6 +16,7 @@ import type {
   SpeakingTotal,
   TaskOutcome,
   TopicCoverageEntry,
+  Transcription,
   UnflaggedStreak,
 } from "./types";
 
@@ -119,6 +121,20 @@ export const apiClient = {
     }
     return res.blob();
   },
+
+  // Multipart: no Content-Type header, same reasoning as assessPronunciation.
+  transcribe: (wav: Blob): Promise<Transcription> => {
+    const form = new FormData();
+    form.append("audio", wav, "attempt.wav");
+    return fetch("/transcribe", { method: "POST", body: form }).then(json<Transcription>);
+  },
+
+  updateFlagStatus: (flagId: string, status: FlagStatus): Promise<Flag> =>
+    fetch(`/review/flags/${flagId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    }).then(json<Flag>),
 
   synthesizeSpeech: async (text: string): Promise<Blob> => {
     const res = await fetch("/tts/synthesize", {

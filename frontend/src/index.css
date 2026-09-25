@@ -4,6 +4,10 @@
   /* Aliento palette — moss-biased grey, near-black ink, hairlines not cards */
   --text: #8C948D;
   --text-h: #15191A;
+  /* AA-readable muted (4.96:1 on --bg): --text alone is 2.8:1, under AA for
+     body text. Use --text-2 for meaning-carrying small text (counts,
+     timestamps, categories); --text stays for decorative/quiet copy. */
+  --text-2: #636B65;
   --bg: #F3F4F1;
   --border: #DFE2DC;
   --code-bg: #E9EBE6;
@@ -49,6 +53,7 @@
     /* desaturated moss surface, not a straight palette inversion */
     --text: #8A9089;
     --text-h: #E9ECE6;
+    --text-2: #9AA199;
     --bg: #141615;
     --border: #2A2E2A;
     --code-bg: #1D201D;
@@ -75,6 +80,7 @@
 :root[data-theme="dark"] {
   --text: #8A9089;
   --text-h: #E9ECE6;
+  --text-2: #9AA199;
   --bg: #141615;
   --border: #2A2E2A;
   --code-bg: #1D201D;
@@ -95,6 +101,7 @@
 :root[data-theme="light"] {
   --text: #8C948D;
   --text-h: #15191A;
+  --text-2: #636B65;
   --bg: #F3F4F1;
   --border: #DFE2DC;
   --code-bg: #E9EBE6;
