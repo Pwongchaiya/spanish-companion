@@ -57,6 +57,18 @@ class IChunkRepositoryService(Protocol):
         """
         ...
 
+    def delete_chunks_by_source_url(self, source_url: str) -> int:
+        """Validate input, then delegate to ChunkRepositoryBroker.delete_chunks_by_source_url.
+
+        Raises:
+            ChunkRepositoryValidationException: wrapping
+                InvalidChunkRepositoryInputError -- blank `source_url`.
+            ChunkRepositoryDependencyException: wrapping
+                ChunkRepositoryUnavailableError -- the broker call failed.
+            ChunkRepositoryServiceException: anything else unexpected.
+        """
+        ...
+
     def search_by_vector(self, embedding: list[float], top_k: int) -> list[ScoredChunk]:
         """Validate input, then delegate to ChunkRepositoryBroker.search_by_vector.
 

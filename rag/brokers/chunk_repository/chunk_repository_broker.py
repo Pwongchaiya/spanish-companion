@@ -9,7 +9,7 @@ exception-hierarchy skill).
 from datetime import datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import create_engine, func, select
+from sqlalchemy import create_engine, delete, func, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 from rag.models.orchestrations.retrieval import ScoredChunk
@@ -75,6 +75,13 @@ class SqlAlchemyChunkRepositoryBroker:
         statement = select(func.count()).select_from(Chunk).where(Chunk.source_url == source_url)
         with Session(self._engine) as session:
             return session.execute(statement).scalar_one()
+
+    def delete_chunks_by_source_url(self, source_url: str) -> int:
+        statement = delete(Chunk).where(Chunk.source_url == source_url)
+        with Session(self._engine) as session:
+            result = session.execute(statement)
+            session.commit()
+            return result.rowcount
 
     def search_by_vector(self, embedding: list[float], top_k: int) -> list[ScoredChunk]:
         distance = Chunk.embedding.cosine_distance(embedding).label("score")
