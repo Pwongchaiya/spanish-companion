@@ -2,25 +2,19 @@
 full HTTP round trip through the real Exposer -> Orchestration ->
 Foundation -> Broker -> SQL stack (roadmap C1/C3).
 
-Two deliberate deviations from CLAUDE.md's acceptance-tier definition, both
-narrowing scope rather than widening it:
+One deliberate deviation from CLAUDE.md's acceptance-tier definition,
+narrowing scope rather than widening it: not api.app.create_app(). Same
+reason the session_lifecycle acceptance test builds its own Flask app:
+create_app() wires a real SubprocessBotProcessBroker at the real voice bot
+and requires Azure/Gemini credentials, none of which these two read-only
+routes touch.
 
-1. Not api.app.create_app(). Same reason the session_lifecycle acceptance
-   test builds its own Flask app: create_app() wires a real
-   SubprocessBotProcessBroker at the real voice bot and requires Azure/
-   Gemini credentials, none of which these two read-only routes touch.
+Per CLAUDE.md's Phase 2 test strategy, this hits a real test Postgres
+(TEST_DATABASE_URL, never DATABASE_URL) -- see tests/acceptance/conftest.py.
+The three A5/F1 dependencies are mocked out; they have their own suites and
+neither route under test reads them.
 
-2. sqlite, not a test Postgres. These rows use no pgvector, no Postgres
-   type, and no constraint sqlite lacks -- the 0003 migration's own
-   self-check makes the same call for the same reason. What this tier is
-   actually here to catch is wiring the four layers cannot check
-   individually: route registration, dependency order at construction, and
-   dataclass -> JSON shape. A live Postgres would not catch more of that.
-   The three A5/F1 dependencies are mocked out; they have their own suites
-   and neither route under test reads them.
-
-Self-cleaning: each test gets its own in-memory engine, so there is nothing
-to tear down.
+Self-cleaning: session_log is truncated in teardown.
 """
 
 from datetime import datetime, timedelta
@@ -32,8 +26,6 @@ from flask import Flask
 from api.brokers.logging import StdlibLoggingBroker
 from api.brokers.session_log_entry import SqlAlchemySessionLogEntryBroker
 from api.exposers.progress import make_progress_blueprint
-from api.models.base import Base
-from api.models.foundations.session_log_entry.session_log_entry import SessionLogEntryRecord
 from api.services.aggregations.session_recap import SessionRecapAggregationService
 from api.services.foundations.mistake_pattern import IMistakePatternService
 from api.services.foundations.pronunciation_result import IPronunciationResultService
@@ -47,9 +39,9 @@ SESSION_START = datetime(2026, 9, 1, 18, 0, 0)
 
 
 @pytest.fixture
-def session_log_entry_service():
-    broker = SqlAlchemySessionLogEntryBroker("sqlite://")
-    Base.metadata.create_all(broker._engine, tables=[SessionLogEntryRecord.__table__])
+def session_log_entry_service(test_database_url, truncate_tables):
+    truncate_tables("session_log")
+    broker = SqlAlchemySessionLogEntryBroker(test_database_url)
     return SessionLogEntryService(broker, logging_broker=StdlibLoggingBroker())
 
 

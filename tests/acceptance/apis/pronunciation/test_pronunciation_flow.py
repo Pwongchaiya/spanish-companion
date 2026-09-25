@@ -1,12 +1,15 @@
 """Acceptance tests for POST /pronunciation/assess and GET /progress/pronunciation --
 full HTTP round trip through the real Exposer -> Orchestration -> Foundation -> Broker stack.
 
-Same two narrowings as tests/acceptance/apis/progress/test_speaking_and_streak.py, for the same
-reasons: a bare Flask app (create_app() needs Azure/Gemini/Postgres), and in-memory sqlite for the
-pronunciation_result table. The Azure assessment broker is a Mock -- no live SDK call. The 413 cap
-is applied through api.app._register_upload_limit, the same function create_app() calls.
+Same narrowing as tests/acceptance/apis/progress/test_speaking_and_streak.py, for the same
+reason: a bare Flask app (create_app() needs Azure/Gemini). The Azure assessment broker is a
+Mock -- no live SDK call. The 413 cap is applied through api.app._register_upload_limit, the
+same function create_app() calls.
 
-Self-cleaning: each test gets its own in-memory engine.
+Per CLAUDE.md's Phase 2 test strategy, this hits a real test Postgres (TEST_DATABASE_URL,
+never DATABASE_URL) -- see tests/acceptance/conftest.py.
+
+Self-cleaning: pronunciation_result is truncated in teardown.
 """
 
 import io
@@ -22,16 +25,12 @@ from api.brokers.pronunciation_assessment import PronunciationAssessmentBroker
 from api.brokers.pronunciation_result import SqlAlchemyPronunciationResultBroker
 from api.exposers.progress import make_progress_blueprint
 from api.exposers.pronunciation import make_pronunciation_blueprint
-from api.models.base import Base
 from api.models.foundations.pronunciation_assessment.pronunciation_assessment import (
     PhonemeScore,
     PronunciationAssessment,
     WordScore,
 )
-from api.models.foundations.pronunciation_result.pronunciation_result import (
-    PronunciationResult,
-    PronunciationResultRecord,
-)
+from api.models.foundations.pronunciation_result.pronunciation_result import PronunciationResult
 from api.services.aggregations.session_recap import SessionRecapAggregationService
 from api.services.foundations.mistake_pattern import IMistakePatternService
 from api.services.foundations.pronunciation_assessment import PronunciationAssessmentService
@@ -62,9 +61,9 @@ def assessment_broker():
 
 
 @pytest.fixture
-def result_service():
-    broker = SqlAlchemyPronunciationResultBroker("sqlite://")
-    Base.metadata.create_all(broker._engine, tables=[PronunciationResultRecord.__table__])
+def result_service(test_database_url, truncate_tables):
+    truncate_tables("pronunciation_result")
+    broker = SqlAlchemyPronunciationResultBroker(test_database_url)
     return PronunciationResultService(broker, logging_broker=StdlibLoggingBroker())
 
 
