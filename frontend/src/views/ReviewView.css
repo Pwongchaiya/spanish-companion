@@ -711,6 +711,11 @@
   color: var(--text-h);
 }
 
+/* Dictation form: same left-aligned, 46ch column as the typed fallback. */
+.review-shell .dictation form {
+  align-items: flex-start;
+  max-width: 46ch;
+}
 .review-shell .typed {
   display: flex;
   flex-direction: column;
@@ -719,7 +724,8 @@
   max-width: 46ch;
   align-items: flex-start;
 }
-.review-shell .practice input {
+.review-shell .practice input,
+.review-shell .dictation input {
   font-family: var(--serif);
   font-size: 19px;
   font-weight: 300;
@@ -730,11 +736,13 @@
   padding: 0 0 7px;
   width: 100%;
 }
-.review-shell .practice input::placeholder {
+.review-shell .practice input::placeholder,
+.review-shell .dictation input::placeholder {
   color: var(--text-2);
   font-style: italic;
 }
-.review-shell .practice input:focus-visible {
+.review-shell .practice input:focus-visible,
+.review-shell .dictation input:focus-visible {
   outline: none;
   border-bottom-width: 2px;
   outline-offset: 0;

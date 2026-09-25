@@ -1,13 +1,22 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSessionReplay } from "../hooks/useSessionReplay";
 import { formatOffset, markerPercent, seekTarget } from "../audio/replayTimeline";
 import "./ReplayPanel.css";
 
 // E3: listen back to the last session with its flags marked on a timeline.
 // Click a marker to seek the audio to just before that mistake.
-export function ReplayPanel() {
+// autoStart: see DictationPanel -- the Review rail entry is already the click.
+export function ReplayPanel({ autoStart = false }: { autoStart?: boolean }) {
   const { phase, replay, load } = useSessionReplay();
   const audioRef = useRef<HTMLAudioElement>(null);
+  const autoStarted = useRef(false); // StrictMode runs mount effects twice
+
+  useEffect(() => {
+    if (!autoStart || autoStarted.current) return;
+    autoStarted.current = true;
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on mount
+  }, [autoStart]);
   const [currentTime, setCurrentTime] = useState(0);
 
   function seekTo(offsetSeconds: number) {
@@ -19,7 +28,7 @@ export function ReplayPanel() {
 
   return (
     <div className="replay">
-      {phase === "idle" && (
+      {phase === "idle" && !autoStart && (
         <button className="secondary" type="button" onClick={load}>
           Listen back to last session
         </button>

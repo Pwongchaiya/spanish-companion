@@ -398,13 +398,33 @@ export function ReviewView() {
     );
   }
 
+  const backToFlags = (
+    <div className="next">
+      <button
+        type="button"
+        className="primary"
+        onClick={() => {
+          setActivePanel(null);
+          setPane("list");
+        }}
+      >
+        Back to flags
+      </button>
+    </div>
+  );
+
   function renderDetail() {
     if (activePanel === "dictation") {
       return (
         <>
           <p className="kicker">Dictation</p>
           <h2 className="pair-hd">Type a sentence back</h2>
-          <DictationPanel />
+          <p className="wait">
+            Listen to one of your own flagged sentences and type it. Accents and spelling are checked word by word —
+            this is the one surface where typing is the point, not the fallback.
+          </p>
+          <DictationPanel autoStart />
+          {backToFlags}
         </>
       );
     }
@@ -413,7 +433,9 @@ export function ReviewView() {
         <>
           <p className="kicker">Listen back</p>
           <h2 className="pair-hd">Last session, with its flags on the timeline</h2>
-          <ReplayPanel />
+          <p className="wait">Each mark on the track is a flag. Tap one to jump to just before you said it.</p>
+          <ReplayPanel autoStart />
+          {backToFlags}
         </>
       );
     }

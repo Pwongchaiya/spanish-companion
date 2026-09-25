@@ -1,12 +1,22 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDictation } from "../hooks/useDictation";
 import "./DictationPanel.css";
 
 // Phase 5 E2: type back a sentence from your own flags. Orthography (accent /
 // spelling) differences are legitimate here -- it is the one typed surface.
-export function DictationPanel() {
+// autoStart: the caller already had the user pick "Dictation" (Review rail),
+// so skip the redundant start button and fetch an exercise on mount.
+export function DictationPanel({ autoStart = false }: { autoStart?: boolean }) {
   const { exercise, result, audioUrl, error, loading, start, listen, check } = useDictation();
   const [typed, setTyped] = useState("");
+  const autoStarted = useRef(false); // StrictMode runs mount effects twice
+
+  useEffect(() => {
+    if (!autoStart || autoStarted.current) return;
+    autoStarted.current = true;
+    void start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on mount
+  }, [autoStart]);
 
   function begin() {
     setTyped("");
@@ -16,9 +26,13 @@ export function DictationPanel() {
   if (!exercise) {
     return (
       <div className="dictation">
-        <button type="button" onClick={begin} disabled={loading}>
-          {loading ? "Loading…" : "Dictation: type a sentence back"}
-        </button>
+        {autoStart ? (
+          loading && <p className="looking">Loading a sentence…</p>
+        ) : (
+          <button type="button" onClick={begin} disabled={loading}>
+            {loading ? "Loading…" : "Dictation: type a sentence back"}
+          </button>
+        )}
         {error && <p className="dictation-error">{error}</p>}
       </div>
     );
@@ -33,7 +47,7 @@ export function DictationPanel() {
         }}
       >
         <label htmlFor="dictation-input">Listen, then type the sentence.</label>
-        <button type="button" onClick={listen}>
+        <button type="button" className="ghost" onClick={listen}>
           ▶ Listen
         </button>
         {audioUrl && <audio src={audioUrl} autoPlay data-testid="dictation-audio" />}
@@ -45,7 +59,7 @@ export function DictationPanel() {
           autoComplete="off"
           spellCheck={false}
         />
-        <button type="submit" disabled={!typed.trim()}>
+        <button type="submit" className="primary" disabled={!typed.trim()}>
           Check
         </button>
       </form>
@@ -62,7 +76,7 @@ export function DictationPanel() {
               </span>
             ))}
           </p>
-          <button type="button" onClick={begin}>
+          <button type="button" className="ghost" onClick={begin}>
             Another
           </button>
         </div>
