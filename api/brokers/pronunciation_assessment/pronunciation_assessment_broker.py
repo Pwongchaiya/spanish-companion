@@ -93,10 +93,8 @@ class AzurePronunciationAssessmentBroker:
             granularity=PronunciationAssessmentGranularity.Phoneme,
             enable_miscue=True,
         )
-        try:
-            config.enable_prosody_assessment()
-        except Exception:  # noqa: BLE001 -- ponytail: prosody is optional (en-US only); its score is None otherwise
-            pass
+        # Only sets a property; unsupported locales (es-ES) just return no prosody score.
+        config.enable_prosody_assessment()
         config.apply_to(recognizer)
 
         # ponytail: recognize_once caps at ~30s / one utterance; use continuous recognition if longer
