@@ -9,9 +9,7 @@ EMBEDDING = [0.1, 0.2, 0.3]
 
 class TestChunkRepositoryServiceSearchByVectorLogic:
 
-    def test_should_return_brokers_scored_chunks_when_search_succeeds(
-        self, service, mock_broker, chunk
-    ):
+    def test_should_return_brokers_scored_chunks_when_search_succeeds(self, service, mock_broker, chunk):
         # given
         mock_broker.search_by_vector.return_value = [chunk]
 

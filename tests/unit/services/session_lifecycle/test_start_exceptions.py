@@ -23,9 +23,7 @@ class TestConversationSessionServiceStartExceptions:
     ):
         # given
         already_running_exception = AlreadyRunningSessionException()
-        expected_validation_exception = SessionValidationException(
-            inner_exception=already_running_exception
-        )
+        expected_validation_exception = SessionValidationException(inner_exception=already_running_exception)
         mock_broker.is_running.return_value = True
 
         # when

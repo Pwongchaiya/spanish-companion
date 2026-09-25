@@ -31,7 +31,8 @@ class TestReviewOrchestratorRecordPracticeScheduling:
         mock_mistake_pattern_processing_service.record_review.assert_called_once_with(profile.id, "ser_estar", grade)
 
     @pytest.mark.parametrize(
-        "grade,before", [("good", "resolve"), ("easy", "resolve"), ("again", "record_occurrence"), ("hard", "record_occurrence")]
+        "grade,before",
+        [("good", "resolve"), ("easy", "resolve"), ("again", "record_occurrence"), ("hard", "record_occurrence")],
     )
     def test_should_schedule_review_after_resolve_or_record_occurrence(
         self,

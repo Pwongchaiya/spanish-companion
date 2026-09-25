@@ -41,9 +41,11 @@ class SqlAlchemyTopicCoveredBroker:
 
     def select_topic_covered_by_profile(self, profile_id: int) -> list[TopicCovered]:
         with Session(self._engine) as session:
-            records = session.execute(
-                select(TopicCoveredRecord).where(TopicCoveredRecord.profile_id == profile_id)
-            ).scalars().all()
+            records = (
+                session.execute(select(TopicCoveredRecord).where(TopicCoveredRecord.profile_id == profile_id))
+                .scalars()
+                .all()
+            )
             return [_to_dataclass(record) for record in records]
 
     def insert_topic_covered(self, profile_id: int, topic: str) -> TopicCovered:

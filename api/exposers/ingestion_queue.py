@@ -105,7 +105,10 @@ if __name__ == "__main__":
         from api.models.foundations.ingestion_queue.ingestion_queue import IngestionQueue
 
         now = datetime(2026, 1, 1)
-        rows = [IngestionQueue(1, "ser-vs-estar", 3, "pending", now, now), IngestionQueue(2, "gender-agreement", 4, "pending", now, now)]
+        rows = [
+            IngestionQueue(1, "ser-vs-estar", 3, "pending", now, now),
+            IngestionQueue(2, "gender-agreement", 4, "pending", now, now),
+        ]
         fake = Mock()
         fake.list_pending.return_value = rows
 

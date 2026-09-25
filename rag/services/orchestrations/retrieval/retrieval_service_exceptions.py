@@ -66,9 +66,7 @@ class HybridRetrievalOrchestrationServiceExceptions:
         except Exception as e:
             raise self._create_and_log_service_exception(e) from e
 
-    def _create_and_log_validation_exception(
-        self, exception: Exception
-    ) -> RetrievalOrchestrationValidationException:
+    def _create_and_log_validation_exception(self, exception: Exception) -> RetrievalOrchestrationValidationException:
         """Mirrors CreateAndLogValidationException, Exeptions.cs:88-98.
 
         What arrives here is the RetrievalValidationError leaf itself, not a
@@ -80,9 +78,7 @@ class HybridRetrievalOrchestrationServiceExceptions:
         self._logging_broker.log_error(validation_exception)
         return validation_exception
 
-    def _create_and_log_dependency_exception(
-        self, exception: Exception
-    ) -> RetrievalOrchestrationDependencyException:
+    def _create_and_log_dependency_exception(self, exception: Exception) -> RetrievalOrchestrationDependencyException:
         """Mirrors CreateAndLogDependencyException, Exeptions.cs:112-122.
 
         What arrives here is EmbeddingModelDependencyException or
@@ -107,9 +103,7 @@ class HybridRetrievalOrchestrationServiceExceptions:
         self._logging_broker.log_error(dependency_exception)
         return dependency_exception
 
-    def _create_and_log_service_exception(
-        self, exception: Exception
-    ) -> RetrievalOrchestrationServiceException:
+    def _create_and_log_service_exception(self, exception: Exception) -> RetrievalOrchestrationServiceException:
         """Mirrors CreateAndLogServiceException, Exeptions.cs:124-134."""
         service_exception = RetrievalOrchestrationServiceException(inner_exception=exception)
         self._logging_broker.log_error(service_exception)

@@ -46,6 +46,7 @@ class TestPickBossPatterns:
     def test_should_include_at_boundary(self, boss, kwargs):
         p = boss(**kwargs)
         assert Svc._pick_boss_patterns([p], FIXED_NOW, 3) == [p]
+
     def test_should_order_by_occurrences_desc_and_cap_at_three(self, boss):
         ps = [boss(i, f"c{i}", count=3 + i) for i in range(5)]
         assert [p.category for p in Svc._pick_boss_patterns(ps, FIXED_NOW, 3)] == ["c4", "c3", "c2"]
@@ -66,7 +67,9 @@ class TestBossFightText:
 
 class TestSuggestScenarioBossFight:
     @pytest.fixture(autouse=True)
-    def _deps(self, mock_learner_profile_processing_service, mock_topic_covered_service, mock_flag_service, make_profile):
+    def _deps(
+        self, mock_learner_profile_processing_service, mock_topic_covered_service, mock_flag_service, make_profile
+    ):
         mock_learner_profile_processing_service.ensure_profile.return_value = make_profile(profile_id=7)
         mock_topic_covered_service.list_topic_covered_by_profile.return_value = []
         mock_flag_service.list_flags.return_value = []

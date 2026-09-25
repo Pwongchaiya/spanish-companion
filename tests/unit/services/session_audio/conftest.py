@@ -32,7 +32,11 @@ def service(mock_session_audio_broker, mock_logging_broker):
 def make_session_audio():
     def _make(**overrides) -> SessionAudio:
         base = SessionAudio(
-            id=None, session_log_id=4, file_path="data/audio/session_4.wav", duration_seconds=61.5, created_at=FIXED_TIME
+            id=None,
+            session_log_id=4,
+            file_path="data/audio/session_4.wav",
+            duration_seconds=61.5,
+            created_at=FIXED_TIME,
         )
         return replace(base, **overrides)
 

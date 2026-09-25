@@ -36,9 +36,7 @@ class TestChunkRepositoryServiceInsertChunkLogic:
         embedding = [0.9, -0.4, 0.0, 0.33]
 
         # when
-        service.insert_chunk(
-            TOPIC, SOURCE_URL, CONTENT, embedding, EMBEDDING_MODEL_VERSION, CHUNKING_STRATEGY_VERSION
-        )
+        service.insert_chunk(TOPIC, SOURCE_URL, CONTENT, embedding, EMBEDDING_MODEL_VERSION, CHUNKING_STRATEGY_VERSION)
 
         # then
         (_, _, _, passed_embedding, _, _), _ = mock_broker.insert_chunk.call_args

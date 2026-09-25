@@ -13,7 +13,12 @@ class TestGenerationServiceJudgeTaskOutcome:
 
     @pytest.mark.parametrize(
         "verdict, expected",
-        [("SUCCESS, ordered both.", "success"), ("success", "success"), ("FAIL. never ordered food", "fail"), ("Fail", "fail")],
+        [
+            ("SUCCESS, ordered both.", "success"),
+            ("success", "success"),
+            ("FAIL. never ordered food", "fail"),
+            ("Fail", "fail"),
+        ],
     )
     def test_should_parse_first_word_of_verdict(self, service, mock_broker, verdict, expected):
         # given

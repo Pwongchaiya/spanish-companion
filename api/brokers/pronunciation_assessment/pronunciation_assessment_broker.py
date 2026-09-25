@@ -52,8 +52,7 @@ def parse_assessment(result: Any) -> PronunciationAssessment:
     words: list[WordScore] = []
     for w in getattr(result, "words", None) or []:
         phonemes = [
-            PhonemeScore(phoneme=p.phoneme, accuracy_score=p.accuracy_score)
-            for p in getattr(w, "phonemes", None) or []
+            PhonemeScore(phoneme=p.phoneme, accuracy_score=p.accuracy_score) for p in getattr(w, "phonemes", None) or []
         ]
         error_type = getattr(w, "error_type", None)
         words.append(

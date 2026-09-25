@@ -23,9 +23,7 @@ from tests.unit.services.session_log_entry.conftest import FIXED_END, FIXED_STAR
 
 class TestDependencyTier:
 
-    def test_should_wrap_operational_error_on_create(
-        self, service, mock_session_log_entry_broker, mock_logging_broker
-    ):
+    def test_should_wrap_operational_error_on_create(self, service, mock_session_log_entry_broker, mock_logging_broker):
         mock_session_log_entry_broker.insert_session_log_entry.side_effect = OperationalError(
             "INSERT", {}, Exception("connection refused")
         )

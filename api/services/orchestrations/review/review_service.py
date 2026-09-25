@@ -224,9 +224,7 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
             profile = self._learner_profile_processing_service.ensure_profile(default_level)
             self._topic_covered_processing_service.record_topic(profile.id, topic)
         except Exception as e:  # ponytail: best-effort -- coverage bookkeeping must never break Review
-            self._logging_broker.log_info(
-                "topic_covered record failed for flag_id=%s topic=%s: %s", flag_id, topic, e
-            )
+            self._logging_broker.log_info("topic_covered record failed for flag_id=%s topic=%s: %s", flag_id, topic, e)
 
     def _record_weak_verdict(self, flag_id: str, topic: str) -> None:
         """F2: count a still-weak grounded explanation against the top chunk's
@@ -286,9 +284,7 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
                 # Judged here, in Review Mode, on first view -- never live.
                 transcript_text = self._live_transcript_service.read_full_text()
                 if transcript_text:
-                    outcome = self._generation_service.judge_task_outcome(
-                        transcript_text, scenario.success_condition
-                    )
+                    outcome = self._generation_service.judge_task_outcome(transcript_text, scenario.success_condition)
                     if outcome is not None:
                         self._session_log_entry_service.set_task_outcome(entry.id, outcome)
                         self._logging_broker.log_info(
@@ -306,9 +302,7 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
 
         return self._try_catch(action)
 
-    def record_practice(
-        self, flag_id: str, attempt_text: str, roleplay_slug: Optional[str] = None
-    ) -> PracticeResult:
+    def record_practice(self, flag_id: str, attempt_text: str, roleplay_slug: Optional[str] = None) -> PracticeResult:
         def action() -> PracticeResult:
             # Look the flag up purely to reject unknown ids -- same not-found
             # handling as explain_flag. A practice attempt against a flag that
@@ -342,9 +336,7 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
             )
             mastered = grade in ("good", "easy")
 
-            attempt = PracticeAttempt(
-                flag_id=flag.id, attempt_text=attempt_text, timestamp=self._clock(), grade=grade
-            )
+            attempt = PracticeAttempt(flag_id=flag.id, attempt_text=attempt_text, timestamp=self._clock(), grade=grade)
             self._practice_log_service.record_attempt(attempt)
             self._logging_broker.log_info("recorded practice attempt for flag_id=%s, grade=%s", flag.id, grade)
 
@@ -387,9 +379,7 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
             try:
                 self._mistake_pattern_processing_service.record_review(profile.id, flag.category, grade)
             except NotFoundMistakePatternException:
-                self._logging_broker.log_info(
-                    "no mistake_pattern to schedule for category=%s", flag.category
-                )
+                self._logging_broker.log_info("no mistake_pattern to schedule for category=%s", flag.category)
 
             return PracticeResult(attempt=attempt, mastered=mastered, grade=grade)
 
@@ -404,9 +394,7 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
         try:
             self._topic_covered_processing_service.record_topic(profile_id, topic)
         except Exception as e:  # ponytail: best-effort -- coverage bookkeeping must never break Review
-            self._logging_broker.log_info(
-                "topic_covered record failed for flag_id=%s topic=%s: %s", flag_id, topic, e
-            )
+            self._logging_broker.log_info("topic_covered record failed for flag_id=%s topic=%s: %s", flag_id, topic, e)
 
     def get_dictation_exercise(self, exclude_flag_id: Optional[str] = None) -> Optional[DictationExercise]:
         def action() -> Optional[DictationExercise]:

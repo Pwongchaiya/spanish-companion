@@ -30,9 +30,7 @@ def service(mock_practice_log_broker, mock_logging_broker):
 
 @pytest.fixture
 def make_attempt():
-    def _make(
-        flag_id: str = "flag-1", attempt_text: str = "fui al mercado", grade: str = "good"
-    ) -> PracticeAttempt:
+    def _make(flag_id: str = "flag-1", attempt_text: str = "fui al mercado", grade: str = "good") -> PracticeAttempt:
         return PracticeAttempt(flag_id=flag_id, attempt_text=attempt_text, timestamp=FIXED_TIMESTAMP, grade=grade)
 
     return _make

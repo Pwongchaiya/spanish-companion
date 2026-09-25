@@ -83,9 +83,7 @@ class ReviewOrchestrationServiceExceptions:
             failed = FailedReviewOrchestrationServiceException(inner_exception=e)
             raise self._create_and_log_service_exception(failed) from e
 
-    def _create_and_log_validation_exception(
-        self, exception: Exception
-    ) -> ReviewOrchestrationValidationException:
+    def _create_and_log_validation_exception(self, exception: Exception) -> ReviewOrchestrationValidationException:
         """Mirrors CreateAndLogValidationException, Exeptions.cs:88-98.
 
         What arrives here is FlagValidationException,
@@ -99,9 +97,7 @@ class ReviewOrchestrationServiceExceptions:
         self._logging_broker.log_error(validation_exception)
         return validation_exception
 
-    def _create_and_log_dependency_exception(
-        self, exception: Exception
-    ) -> ReviewOrchestrationDependencyException:
+    def _create_and_log_dependency_exception(self, exception: Exception) -> ReviewOrchestrationDependencyException:
         """Mirrors CreateAndLogDependencyException, Exeptions.cs:112-122.
 
         What arrives here is RetrievalOrchestrationDependencyException --
@@ -123,9 +119,7 @@ class ReviewOrchestrationServiceExceptions:
         self._logging_broker.log_error(dependency_exception)
         return dependency_exception
 
-    def _create_and_log_service_exception(
-        self, exception: Exception
-    ) -> ReviewOrchestrationServiceException:
+    def _create_and_log_service_exception(self, exception: Exception) -> ReviewOrchestrationServiceException:
         """Mirrors CreateAndLogServiceException, Exeptions.cs:124-134."""
         service_exception = ReviewOrchestrationServiceException(inner_exception=exception)
         self._logging_broker.log_error(service_exception)

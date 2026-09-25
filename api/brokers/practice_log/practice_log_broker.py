@@ -13,9 +13,7 @@ from api.brokers.practice_log.i_practice_log_broker import PracticeAttempt
 load_dotenv()
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_PRACTICE_LOG_FILE = Path(
-    os.getenv("PRACTICE_LOG_FILE_PATH", str(REPO_ROOT / "data" / "practice_log.jsonl"))
-)
+DEFAULT_PRACTICE_LOG_FILE = Path(os.getenv("PRACTICE_LOG_FILE_PATH", str(REPO_ROOT / "data" / "practice_log.jsonl")))
 
 
 class JsonLinesPracticeLogBroker:

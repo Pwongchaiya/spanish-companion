@@ -9,9 +9,7 @@ class TestLiveTranscriptServiceAppend:
         service.append("user", "hola")
 
         # then
-        mock_session_log_broker.append_transcript_line.assert_called_once_with(
-            '{"role": "user", "text": "hola"}'
-        )
+        mock_session_log_broker.append_transcript_line.assert_called_once_with('{"role": "user", "text": "hola"}')
 
     def test_should_preserve_non_ascii_text_unescaped(self, service, mock_session_log_broker):
         # when -- ensure_ascii=False must be preserved, or accented Spanish

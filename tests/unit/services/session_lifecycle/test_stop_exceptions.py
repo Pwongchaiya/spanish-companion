@@ -24,9 +24,7 @@ class TestConversationSessionServiceStopExceptions:
     ):
         # given
         not_running_exception = NotRunningSessionException()
-        expected_validation_exception = SessionValidationException(
-            inner_exception=not_running_exception
-        )
+        expected_validation_exception = SessionValidationException(inner_exception=not_running_exception)
         mock_broker.is_running.return_value = False
 
         # when

@@ -43,7 +43,7 @@ class TestSessionRecapAggregationServiceExceptions:
         assert exc_info.value.inner_exception is leaf
         mock_logging_broker.log_error.assert_called_once()
 
-    def test_should_raise_aggregation_service_exception_when_progress_services_own_service_exception_is_not_caught_by_name(
+    def test_should_raise_aggregation_service_exception_when_progress_services_own_service_exception_is_not_caught_by_name(  # noqa: E501
         self, service, mock_progress_service, mock_logging_broker
     ):
         # ProgressOrchestrationServiceException is deliberately absent from

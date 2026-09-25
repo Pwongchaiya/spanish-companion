@@ -135,9 +135,7 @@ def test_audio_should_return_404_when_no_recording(client, orchestrator):
 
 
 def test_audio_should_return_404_when_row_exists_but_file_is_gone(client, orchestrator, tmp_path):
-    orchestrator.get_audio.return_value = SessionAudio(
-        1, 4, str(tmp_path / "gone.wav"), 1.0, datetime(2026, 3, 1)
-    )
+    orchestrator.get_audio.return_value = SessionAudio(1, 4, str(tmp_path / "gone.wav"), 1.0, datetime(2026, 3, 1))
 
     assert client.get("/review/sessions/4/audio").status_code == 404
 

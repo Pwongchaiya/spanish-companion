@@ -11,6 +11,7 @@ place — backfilling version columns for pre-existing rows would be
 fabricated data. The corpus is re-ingested from scratch once IngestionOrchestrationService
 exists (later wave, not this migration's concern).
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -48,10 +49,7 @@ def upgrade() -> None:
         ),
     )
 
-    op.execute(
-        "CREATE INDEX chunks_embedding_idx ON chunks "
-        "USING hnsw (embedding vector_cosine_ops)"
-    )
+    op.execute("CREATE INDEX chunks_embedding_idx ON chunks " "USING hnsw (embedding vector_cosine_ops)")
 
 
 def downgrade() -> None:

@@ -25,9 +25,7 @@ def _no_profile_reads(mock_learner_profile_processing_service):
 
 class TestGetSpeakingTotal:
 
-    def test_should_sum_durations_of_completed_sessions(
-        self, service, mock_session_log_entry_service, make_session
-    ):
+    def test_should_sum_durations_of_completed_sessions(self, service, mock_session_log_entry_service, make_session):
         # given -- 30 + 15 minutes
         mock_session_log_entry_service.list_session_log_entries.return_value = [
             make_session(entry_id=1, minutes=30),
@@ -94,13 +92,9 @@ class TestGetLongestUnflaggedStreak:
         assert actual.longest == 0
         assert actual.current == 0
 
-    def test_should_count_a_run_of_clean_sessions(
-        self, service, mock_session_log_entry_service, make_session
-    ):
+    def test_should_count_a_run_of_clean_sessions(self, service, mock_session_log_entry_service, make_session):
         # 0, 0, 0 -> three in a row, still running
-        mock_session_log_entry_service.list_session_log_entries.return_value = self._sessions(
-            make_session, 0, 0, 0
-        )
+        mock_session_log_entry_service.list_session_log_entries.return_value = self._sessions(make_session, 0, 0, 0)
 
         actual = service.get_longest_unflagged_streak()
 
@@ -124,9 +118,7 @@ class TestGetLongestUnflaggedStreak:
         self, service, mock_session_log_entry_service, make_session
     ):
         # 0, 0, 1 -> best run of 2, currently 0
-        mock_session_log_entry_service.list_session_log_entries.return_value = self._sessions(
-            make_session, 0, 0, 1
-        )
+        mock_session_log_entry_service.list_session_log_entries.return_value = self._sessions(make_session, 0, 0, 1)
 
         actual = service.get_longest_unflagged_streak()
 
@@ -136,9 +128,7 @@ class TestGetLongestUnflaggedStreak:
     def test_should_return_zero_when_every_session_was_flagged(
         self, service, mock_session_log_entry_service, make_session
     ):
-        mock_session_log_entry_service.list_session_log_entries.return_value = self._sessions(
-            make_session, 1, 3, 2
-        )
+        mock_session_log_entry_service.list_session_log_entries.return_value = self._sessions(make_session, 1, 3, 2)
 
         actual = service.get_longest_unflagged_streak()
 
@@ -201,9 +191,7 @@ class TestGetLatestCompletedSession:
 
         assert actual is second
 
-    def test_should_skip_a_trailing_in_flight_session(
-        self, service, mock_session_log_entry_service, make_session
-    ):
+    def test_should_skip_a_trailing_in_flight_session(self, service, mock_session_log_entry_service, make_session):
         completed = make_session(entry_id=1, started_at=FIXED_NOW, minutes=30, flag_count=1)
         still_running = make_session(entry_id=2, started_at=FIXED_NOW + timedelta(days=1), minutes=None)
         mock_session_log_entry_service.list_session_log_entries.return_value = [completed, still_running]

@@ -24,9 +24,7 @@ class TestEmbeddingModelServiceEmbedValidation:
         mock_broker.embed.assert_not_called()
 
     @pytest.mark.parametrize("blank_text", ["", "   ", "\n\t"])
-    def test_should_raise_validation_exception_when_a_text_is_blank(
-        self, service, mock_broker, blank_text
-    ):
+    def test_should_raise_validation_exception_when_a_text_is_blank(self, service, mock_broker, blank_text):
         # when / then
         with pytest.raises(EmbeddingModelValidationException) as exc_info:
             service.embed(["hola", blank_text])

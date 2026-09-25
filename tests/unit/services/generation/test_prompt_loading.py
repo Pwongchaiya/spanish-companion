@@ -24,9 +24,7 @@ class TestGenerationServicePromptLoading:
         assert flag.category in prompt
         assert chunk.content in prompt
 
-    def test_should_build_judge_prompt_from_data_file_with_explanation_and_chunk_interpolated(
-        self, service, chunk
-    ):
+    def test_should_build_judge_prompt_from_data_file_with_explanation_and_chunk_interpolated(self, service, chunk):
         # when
         prompt = GenerationService._build_judge_prompt(service, "a draft explanation", chunk)
 

@@ -16,12 +16,20 @@ from api.services.processings.topic_covered.topic_covered_processing_service imp
 
 def test_topic_covered_processing_service():
     existing = TopicCovered(
-        id=1, profile_id=1, topic="ser vs estar", first_covered_at=datetime(2026, 1, 1), last_practiced_at=datetime(2026, 1, 1)
+        id=1,
+        profile_id=1,
+        topic="ser vs estar",
+        first_covered_at=datetime(2026, 1, 1),
+        last_practiced_at=datetime(2026, 1, 1),
     )
 
     # record_topic: found -> touch branch
     touched = TopicCovered(
-        id=1, profile_id=1, topic="ser vs estar", first_covered_at=datetime(2026, 1, 1), last_practiced_at=datetime(2026, 9, 10)
+        id=1,
+        profile_id=1,
+        topic="ser vs estar",
+        first_covered_at=datetime(2026, 1, 1),
+        last_practiced_at=datetime(2026, 9, 10),
     )
     foundation = Mock()
     foundation.list_topic_covered_by_profile.return_value = [existing]
@@ -34,7 +42,11 @@ def test_topic_covered_processing_service():
 
     # record_topic: not found -> insert branch
     created = TopicCovered(
-        id=2, profile_id=1, topic="preterite", first_covered_at=datetime(2026, 9, 10), last_practiced_at=datetime(2026, 9, 10)
+        id=2,
+        profile_id=1,
+        topic="preterite",
+        first_covered_at=datetime(2026, 9, 10),
+        last_practiced_at=datetime(2026, 9, 10),
     )
     foundation = Mock()
     foundation.list_topic_covered_by_profile.return_value = [existing]

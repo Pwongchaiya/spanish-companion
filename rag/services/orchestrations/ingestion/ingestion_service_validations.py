@@ -50,9 +50,7 @@ class IngestionOrchestrationServiceValidations:
         if not source_url or not source_url.strip():
             raise IngestionValidationError("source_url is required")
 
-    def _validate_embeddings_match_chunks(
-        self, embeddings: Sequence[Sequence[float]], chunks: Sequence[str]
-    ) -> None:
+    def _validate_embeddings_match_chunks(self, embeddings: Sequence[Sequence[float]], chunks: Sequence[str]) -> None:
         """No reference analog — see this module's docstring."""
         if len(embeddings) != len(chunks):
             raise IngestionValidationError(

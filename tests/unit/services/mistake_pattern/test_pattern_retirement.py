@@ -37,8 +37,14 @@ class TestPatternRetirement:
         # given
         foundation, service = _service([_pattern("resolved", 10.0)])
         foundation.update_mistake_pattern.side_effect = lambda _id, **kw: MistakePattern(
-            id=7, profile_id=1, category="ser vs estar", occurrence_count=3, last_seen_at=NOW,
-            status="resolved", interval_days=kw["interval_days"], next_due_at=NOW - timedelta(days=1),
+            id=7,
+            profile_id=1,
+            category="ser vs estar",
+            occurrence_count=3,
+            last_seen_at=NOW,
+            status="resolved",
+            interval_days=kw["interval_days"],
+            next_due_at=NOW - timedelta(days=1),
         )
         reviewed = service.record_review(1, "ser vs estar", "easy")
         assert reviewed.interval_days == 35.0

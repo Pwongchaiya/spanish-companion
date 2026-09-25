@@ -23,9 +23,7 @@ CHUNKING_STRATEGY_VERSION = "fixed-800-v1"
 class TestChunkRepositoryServiceInsertChunkValidation:
 
     @pytest.mark.parametrize("blank_topic", ["", "   ", "\n\t"])
-    def test_should_raise_validation_exception_when_topic_is_blank(
-        self, service, mock_broker, blank_topic
-    ):
+    def test_should_raise_validation_exception_when_topic_is_blank(self, service, mock_broker, blank_topic):
         # when / then
         with pytest.raises(ChunkRepositoryValidationException) as exc_info:
             service.insert_chunk(
@@ -36,9 +34,7 @@ class TestChunkRepositoryServiceInsertChunkValidation:
         mock_broker.insert_chunk.assert_not_called()
 
     @pytest.mark.parametrize("blank_source_url", ["", "   ", "\n\t"])
-    def test_should_raise_validation_exception_when_source_url_is_blank(
-        self, service, mock_broker, blank_source_url
-    ):
+    def test_should_raise_validation_exception_when_source_url_is_blank(self, service, mock_broker, blank_source_url):
         # when / then
         with pytest.raises(ChunkRepositoryValidationException) as exc_info:
             service.insert_chunk(
@@ -49,9 +45,7 @@ class TestChunkRepositoryServiceInsertChunkValidation:
         mock_broker.insert_chunk.assert_not_called()
 
     @pytest.mark.parametrize("blank_content", ["", "   ", "\n\t"])
-    def test_should_raise_validation_exception_when_content_is_blank(
-        self, service, mock_broker, blank_content
-    ):
+    def test_should_raise_validation_exception_when_content_is_blank(self, service, mock_broker, blank_content):
         # when / then
         with pytest.raises(ChunkRepositoryValidationException) as exc_info:
             service.insert_chunk(
@@ -65,9 +59,7 @@ class TestChunkRepositoryServiceInsertChunkValidation:
         # given -- all three fields blank; topic is checked first, so its
         # message is the one the caller sees
         with pytest.raises(ChunkRepositoryValidationException) as exc_info:
-            service.insert_chunk(
-                "", "", "", EMBEDDING, EMBEDDING_MODEL_VERSION, CHUNKING_STRATEGY_VERSION
-            )
+            service.insert_chunk("", "", "", EMBEDDING, EMBEDDING_MODEL_VERSION, CHUNKING_STRATEGY_VERSION)
 
         assert "topic is required" in str(exc_info.value.inner_exception)
         mock_broker.insert_chunk.assert_not_called()

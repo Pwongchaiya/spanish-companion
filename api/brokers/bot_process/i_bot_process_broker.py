@@ -21,7 +21,6 @@ didn't rescue it. A polled stop-flag file has no such dependency and works
 identically cross-platform.
 """
 
-import subprocess
 from typing import Optional, Protocol
 
 # ponytail: scenario_text crosses the process boundary via a one-shot file,

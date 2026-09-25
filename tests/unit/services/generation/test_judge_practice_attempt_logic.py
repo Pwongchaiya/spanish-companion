@@ -10,9 +10,7 @@ import pytest
 class TestGenerationServiceJudgePracticeAttempt:
 
     @pytest.mark.parametrize("grade", ["again", "hard", "good", "easy"])
-    def test_should_return_the_grade_word_when_broker_verdict_starts_with_it(
-        self, service, mock_broker, flag, grade
-    ):
+    def test_should_return_the_grade_word_when_broker_verdict_starts_with_it(self, service, mock_broker, flag, grade):
         # given
         mock_broker.generate.return_value = f"{grade.upper()}, that's my assessment."
 

@@ -130,9 +130,7 @@ class HybridRetrievalOrchestrationService(
             self._validate_retrieve_input(query, top_k)
 
             # Query text at DEBUG only (user speech); ids and counts at INFO.
-            self._logging_broker.log_debug(
-                "retrieve query=%r top_k=%d category=%r", query, top_k, category
-            )
+            self._logging_broker.log_debug("retrieve query=%r top_k=%d category=%r", query, top_k, category)
 
             if alternate:
                 if self._alternate_strategy is None:

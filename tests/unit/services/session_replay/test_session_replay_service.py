@@ -62,9 +62,7 @@ def logging_broker():
 
 @pytest.fixture
 def service(audio_service, flag_service, entry_service, logging_broker):
-    return SessionReplayOrchestrationService(
-        audio_service, flag_service, entry_service, logging_broker=logging_broker
-    )
+    return SessionReplayOrchestrationService(audio_service, flag_service, entry_service, logging_broker=logging_broker)
 
 
 @pytest.fixture

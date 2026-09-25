@@ -155,9 +155,7 @@ class TestSessionLogEntry:
 
         assert mocks["session_log_entry_service"].create_session_log_entry.call_count == 1
         assert mocks["session_log_entry_service"].complete_session_log_entry.call_count == 1
-        entry_id, _ended_at, flag_count = mocks[
-            "session_log_entry_service"
-        ].complete_session_log_entry.call_args.args
+        entry_id, _ended_at, flag_count = mocks["session_log_entry_service"].complete_session_log_entry.call_args.args
         assert entry_id == 42
         assert flag_count == 2, "flag_count must be the in-memory session_flags length, not a re-read of flags.json"
 
@@ -173,8 +171,8 @@ class TestSessionLogEntry:
         assert mocks["session_log_entry_service"].complete_session_log_entry.call_args.args[2] == 0
 
     def test_conversation_survives_a_failed_row_open(self, orchestrator, mocks):
-        mocks["session_log_entry_service"].create_session_log_entry.side_effect = (
-            SessionLogEntryDependencyException(OSError("db down"))
+        mocks["session_log_entry_service"].create_session_log_entry.side_effect = SessionLogEntryDependencyException(
+            OSError("db down")
         )
 
         asyncio.run(orchestrator.run())
@@ -190,8 +188,8 @@ class TestSessionLogEntry:
         mocks["session_log_entry_service"].create_session_log_entry.return_value = SessionLogEntry(
             id=1, started_at=datetime(2026, 1, 2, 10, 0), ended_at=None, flag_count=0
         )
-        mocks["session_log_entry_service"].complete_session_log_entry.side_effect = (
-            SessionLogEntryDependencyException(OSError("db down"))
+        mocks["session_log_entry_service"].complete_session_log_entry.side_effect = SessionLogEntryDependencyException(
+            OSError("db down")
         )
 
         asyncio.run(orchestrator.run())
@@ -226,8 +224,8 @@ class TestSessionFlagSnapshot:
         mocks["flag_service"].save_session_flags.assert_called_once_with(42, flags)
 
     def test_skips_the_snapshot_when_the_session_log_row_never_opened(self, orchestrator, mocks):
-        mocks["session_log_entry_service"].create_session_log_entry.side_effect = (
-            SessionLogEntryDependencyException(OSError("db down"))
+        mocks["session_log_entry_service"].create_session_log_entry.side_effect = SessionLogEntryDependencyException(
+            OSError("db down")
         )
 
         asyncio.run(orchestrator.run())

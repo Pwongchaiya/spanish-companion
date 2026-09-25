@@ -1,6 +1,6 @@
 """Unit tests for ProgressOrchestrationService.list_pronunciation_trend."""
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import pytest
 
@@ -62,8 +62,13 @@ class TestListPronunciationTrend:
         mock_logging_broker.log_error.assert_not_called()
 
     def test_should_keep_only_last_n_where_n_comes_from_config(
-        self, mock_learner_profile_processing_service, mock_mistake_pattern_service, mock_topic_covered_service,
-        mock_session_log_entry_service, mock_pronunciation_result_service, mock_logging_broker
+        self,
+        mock_learner_profile_processing_service,
+        mock_mistake_pattern_service,
+        mock_topic_covered_service,
+        mock_session_log_entry_service,
+        mock_pronunciation_result_service,
+        mock_logging_broker,
     ):
         # given
         svc = ProgressOrchestrationService(
@@ -88,9 +93,7 @@ class TestListPronunciationTrend:
         assert mock_session_log_entry_service.mock_calls == []
         assert mock_learner_profile_processing_service.mock_calls == []
 
-    def test_should_exclude_word_drill_rows_from_the_trend(
-        self, service, mock_pronunciation_result_service
-    ):
+    def test_should_exclude_word_drill_rows_from_the_trend(self, service, mock_pronunciation_result_service):
         # given
         mock_pronunciation_result_service.list_pronunciation_results.return_value = [
             _result(1),
@@ -133,9 +136,15 @@ class TestListPronunciationTrend:
 
     @pytest.mark.parametrize("raw,expected", [("abc", 30), ("", 30), ("0", 0), ("-3", 0)])
     def test_should_fall_back_or_return_empty_for_bad_limit_config(
-        self, raw, expected, mock_learner_profile_processing_service, mock_mistake_pattern_service,
-        mock_topic_covered_service, mock_session_log_entry_service, mock_pronunciation_result_service,
-        mock_logging_broker
+        self,
+        raw,
+        expected,
+        mock_learner_profile_processing_service,
+        mock_mistake_pattern_service,
+        mock_topic_covered_service,
+        mock_session_log_entry_service,
+        mock_pronunciation_result_service,
+        mock_logging_broker,
     ):
         # given
         svc = ProgressOrchestrationService(

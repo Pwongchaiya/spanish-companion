@@ -4,7 +4,7 @@ from api.models.orchestrations.learner_profile.exceptions.learner_profile_orches
 from api.models.orchestrations.learner_profile.exceptions.learner_profile_orchestration_dependency_exception import (
     LearnerProfileOrchestrationDependencyException,
 )
-from api.models.orchestrations.learner_profile.exceptions.failed_learner_profile_orchestration_service_exception import (
+from api.models.orchestrations.learner_profile.exceptions.failed_learner_profile_orchestration_service_exception import (  # noqa: E501
     FailedLearnerProfileOrchestrationServiceException,
 )
 from api.models.orchestrations.learner_profile.exceptions.learner_profile_orchestration_service_exception import (

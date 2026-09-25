@@ -169,7 +169,9 @@ class LearnerProfileOrchestrationService(LearnerProfileOrchestrationServiceExcep
         return value if value >= 0 else default
 
     @staticmethod
-    def _pick_boss_patterns(patterns: List[MistakePattern], now: datetime, min_occurrences: int) -> List[MistakePattern]:
+    def _pick_boss_patterns(
+        patterns: List[MistakePattern], now: datetime, min_occurrences: int
+    ) -> List[MistakePattern]:
         """C4: up to 3 active, due, frequently-repeated patterns whose review
         interval hasn't grown past 2 days (a proxy for "not improving")."""
         eligible = [
@@ -221,16 +223,33 @@ if __name__ == "__main__":
 
     svc = LearnerProfileOrchestrationService
     assert svc._pick_focus_category([]) is None
-    resolved_only = [MistakePattern(id=1, profile_id=1, category="ser_estar", occurrence_count=9, last_seen_at=datetime.now(), status="resolved")]
+    resolved_only = [
+        MistakePattern(
+            id=1, profile_id=1, category="ser_estar", occurrence_count=9, last_seen_at=datetime.now(), status="resolved"
+        )
+    ]
     assert svc._pick_focus_category(resolved_only) is None
     mixed = [
-        MistakePattern(id=1, profile_id=1, category="gender", occurrence_count=2, last_seen_at=datetime.now(), status="active"),
-        MistakePattern(id=2, profile_id=1, category="ser_estar", occurrence_count=5, last_seen_at=datetime.now(), status="active"),
+        MistakePattern(
+            id=1, profile_id=1, category="gender", occurrence_count=2, last_seen_at=datetime.now(), status="active"
+        ),
+        MistakePattern(
+            id=2, profile_id=1, category="ser_estar", occurrence_count=5, last_seen_at=datetime.now(), status="active"
+        ),
     ]
     assert svc._pick_focus_category(mixed) == "ser_estar"
 
     now = datetime(2026, 1, 10)
-    boss_ok = MistakePattern(id=3, profile_id=1, category="ser_estar", occurrence_count=4, last_seen_at=now, status="active", next_due_at=now, interval_days=1.0)
+    boss_ok = MistakePattern(
+        id=3,
+        profile_id=1,
+        category="ser_estar",
+        occurrence_count=4,
+        last_seen_at=now,
+        status="active",
+        next_due_at=now,
+        interval_days=1.0,
+    )
     assert svc._pick_boss_patterns([boss_ok], now, 3) == [boss_ok]
     assert svc._pick_boss_patterns([boss_ok], now, 5) == []
     _t, _k = svc._boss_fight_text(["a"] * 40)
@@ -244,8 +263,20 @@ if __name__ == "__main__":
 
     assert svc._pick_due_topic([]) is None
     topics = [
-        TopicCovered(id=1, profile_id=1, topic="past_tense", first_covered_at=datetime(2026, 1, 1), last_practiced_at=datetime(2026, 9, 1)),
-        TopicCovered(id=2, profile_id=1, topic="subjunctive", first_covered_at=datetime(2026, 1, 1), last_practiced_at=datetime(2026, 1, 2)),
+        TopicCovered(
+            id=1,
+            profile_id=1,
+            topic="past_tense",
+            first_covered_at=datetime(2026, 1, 1),
+            last_practiced_at=datetime(2026, 9, 1),
+        ),
+        TopicCovered(
+            id=2,
+            profile_id=1,
+            topic="subjunctive",
+            first_covered_at=datetime(2026, 1, 1),
+            last_practiced_at=datetime(2026, 1, 2),
+        ),
     ]
     assert svc._pick_due_topic(topics) == "subjunctive"
     print("OK")

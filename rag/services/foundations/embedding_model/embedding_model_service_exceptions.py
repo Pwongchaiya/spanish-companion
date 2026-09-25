@@ -43,23 +43,17 @@ class EmbeddingModelServiceExceptions:
         except Exception as e:
             raise self._create_and_log_service_exception(e) from e
 
-    def _create_and_log_validation_exception(
-        self, exception: Exception
-    ) -> EmbeddingModelValidationException:
+    def _create_and_log_validation_exception(self, exception: Exception) -> EmbeddingModelValidationException:
         validation_exception = EmbeddingModelValidationException(inner_exception=exception)
         self._logging_broker.log_error(validation_exception)
         return validation_exception
 
-    def _create_and_log_dependency_exception(
-        self, exception: Exception
-    ) -> EmbeddingModelDependencyException:
+    def _create_and_log_dependency_exception(self, exception: Exception) -> EmbeddingModelDependencyException:
         dependency_exception = EmbeddingModelDependencyException(inner_exception=exception)
         self._logging_broker.log_error(dependency_exception)
         return dependency_exception
 
-    def _create_and_log_service_exception(
-        self, exception: Exception
-    ) -> EmbeddingModelServiceException:
+    def _create_and_log_service_exception(self, exception: Exception) -> EmbeddingModelServiceException:
         service_exception = EmbeddingModelServiceException(inner_exception=exception)
         self._logging_broker.log_error(service_exception)
         return service_exception

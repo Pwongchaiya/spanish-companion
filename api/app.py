@@ -397,10 +397,7 @@ def create_app() -> Flask:
                     yield f"data: {json.dumps({'type': 'turn_state', 'state': turn_state})}\n\n"
                     last_turn_state = turn_state
 
-                flags = [
-                    asdict(flag) | {"timestamp": flag.timestamp.isoformat()}
-                    for flag in flag_service.list_flags()
-                ]
+                flags = [asdict(flag) | {"timestamp": flag.timestamp.isoformat()} for flag in flag_service.list_flags()]
                 if flags != last_flags:
                     yield f"data: {json.dumps({'type': 'flags', 'flags': flags})}\n\n"
                     last_flags = flags

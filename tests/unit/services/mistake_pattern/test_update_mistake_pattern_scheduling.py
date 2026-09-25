@@ -31,8 +31,14 @@ class TestMistakePatternServiceUpdateScheduling:
         # given
         broker = Mock(spec=IMistakePatternBroker)
         updated = MistakePattern(
-            id=1, profile_id=1, category="c", occurrence_count=1, last_seen_at=DUE, status="active",
-            interval_days=2.0, next_due_at=DUE,
+            id=1,
+            profile_id=1,
+            category="c",
+            occurrence_count=1,
+            last_seen_at=DUE,
+            status="active",
+            interval_days=2.0,
+            next_due_at=DUE,
         )
         broker.update_mistake_pattern.return_value = updated
         service = MistakePatternService(broker, logging_broker=Mock())
