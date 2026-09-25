@@ -29,6 +29,7 @@ from api.services.orchestrations.review import ReviewOrchestrationService
 from api.services.processings.ingestion_queue import IIngestionQueueProcessingService
 from api.services.processings.learner_profile import ILearnerProfileProcessingService
 from api.services.processings.mistake_pattern import IMistakePatternProcessingService
+from api.services.processings.topic_covered import ITopicCoveredProcessingService
 from rag.models.orchestrations.retrieval import ScoredChunk
 from rag.services.foundations.generation import GenerationService
 from rag.services.orchestrations.retrieval import HybridRetrievalOrchestrationService
@@ -112,6 +113,11 @@ def mock_ingestion_queue_processing_service():
 
 
 @pytest.fixture
+def mock_topic_covered_processing_service():
+    return Mock(spec=ITopicCoveredProcessingService)
+
+
+@pytest.fixture
 def clock():
     return FakeClock()
 
@@ -132,6 +138,7 @@ def service(
     mock_session_log_entry_service,
     mock_live_transcript_service,
     mock_ingestion_queue_processing_service,
+    mock_topic_covered_processing_service,
     clock,
     configuration_broker,
     mock_logging_broker,
@@ -146,6 +153,7 @@ def service(
         session_log_entry_service=mock_session_log_entry_service,
         live_transcript_service=mock_live_transcript_service,
         ingestion_queue_processing_service=mock_ingestion_queue_processing_service,
+        topic_covered_processing_service=mock_topic_covered_processing_service,
         clock=clock,
         configuration_broker=configuration_broker,
         logging_broker=mock_logging_broker,
