@@ -37,6 +37,10 @@ class IFlagService(Protocol):
     def save_flags(self, flags: List[Flag]) -> None:
         """Overwrite the stored flag list with the full current list.
 
+        Raises FlagValidationException (wrapping InvalidFlagStatusException)
+        if any flag's `status` is not one of FLAG_STATUSES ("open" |
+        "mastered" | "skipped") -- checked before the broker is called, so a
+        rejected list is never partially written.
         Raises FlagDependencyException (wrapping FlagUnavailableError) if
         the underlying FlagBroker call fails.
         Raises FlagServiceException for any other unexpected failure.

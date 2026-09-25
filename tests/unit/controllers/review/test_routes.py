@@ -73,6 +73,7 @@ class TestListFlags:
                 "timestamp": "2026-08-01T12:00:00",
                 "channel": "grammar",
                 "occurrence_count": 1,
+                "status": "open",
             }
         ]
         assert isinstance(body[0]["timestamp"], str)

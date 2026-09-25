@@ -26,10 +26,12 @@ wraps. The previous per-method wrapping of broker failures into
 FlagUnavailableError is preserved, just moved into the closure itself.
 
 No Validations mixin/file: get_flag()'s only failure mode is not-found,
-which is validation-shaped via NotFoundFlagException itself -- there is no
-separate rejected-input case to check before calling the broker. Matches
-HybridRetrievalOrchestrationService's precedent (no validations file at all when there
-is nothing to validate) rather than inventing an empty one.
+which is validation-shaped via NotFoundFlagException itself. save_flags()'s
+status-enum check (added 2026-09-24 for Flag.status) is a single `in`
+comparison inline in its closure, same shape as get_flag()'s not-found
+check -- not enough to justify a separate Validations mixin file, matching
+HybridRetrievalOrchestrationService's precedent (no validations file at all
+when a one-line check covers it).
 """
 
 from typing import List
@@ -37,9 +39,18 @@ from typing import List
 from api.brokers.flag import FlagBroker
 from api.brokers.logging import LoggingBroker
 from api.models.foundations.flag import Flag
-from api.models.foundations.flag.exceptions import FlagUnavailableError, NotFoundFlagException
+from api.models.foundations.flag.exceptions import (
+    FlagUnavailableError,
+    InvalidFlagStatusException,
+    NotFoundFlagException,
+)
 from api.services.foundations.flag.flag_service_exceptions import FlagServiceExceptions
 from api.services.foundations.flag.i_flag_service import IFlagService
+
+# Allowed Flag.status values (added 2026-09-24). Defined here, the tier that
+# validates it -- same "constant lives next to its validator" convention as
+# FLAG_CHANNELS in voice_conversation_service.py.
+FLAG_STATUSES = ("open", "mastered", "skipped")
 
 
 class FlagService(FlagServiceExceptions, IFlagService):
@@ -96,6 +107,9 @@ class FlagService(FlagServiceExceptions, IFlagService):
 
     def save_flags(self, flags: List[Flag]) -> None:
         def action() -> None:
+            for flag in flags:
+                if flag.status not in FLAG_STATUSES:
+                    raise InvalidFlagStatusException(flag.status)
             try:
                 self._flag_broker.save_flags(flags)
             except Exception as e:
