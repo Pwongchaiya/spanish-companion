@@ -8,7 +8,7 @@ bare literal 3 -- it is the same value the `configuration_broker` fixture
 feeds the service, so tests and service can't silently drift apart.
 """
 
-from rag.models.foundations.generation import Explanation
+from rag.models.foundations.generation import FALLBACK_EXPLANATION, Explanation
 
 from tests.unit.services.review.conftest import RETRIEVAL_TOP_K
 
@@ -68,7 +68,7 @@ class TestReviewOrchestratorExplainFlag:
         actual = service.explain_flag("flag-1")
 
         # then
-        assert actual == Explanation(explanation="I'm not certain on that one.", source_url="", source_excerpt="")
+        assert actual == Explanation(explanation=FALLBACK_EXPLANATION, source_url="", source_excerpt="")
         mock_flag_service.get_flag.assert_called_once_with("flag-1")
         mock_retrieval_service.retrieve.assert_called_once_with(
             query="fui al mercado",

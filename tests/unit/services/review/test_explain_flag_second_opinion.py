@@ -8,10 +8,10 @@ Any failure of that pass degrades to the original explanation.
 import pytest
 
 from api.services.orchestrations.review import ReviewOrchestrationService
-from rag.models.foundations.generation import Explanation
+from rag.models.foundations.generation import FALLBACK_EXPLANATION, Explanation
 from tests.unit.services.review.conftest import RETRIEVAL_TOP_K, FakeConfigurationBroker
 
-WEAK = Explanation(explanation="I'm not certain on that one.", source_url="https://rae.example/1", source_excerpt="x")
+WEAK = Explanation(explanation=FALLBACK_EXPLANATION, source_url="https://rae.example/1", source_excerpt="x")
 GOOD = Explanation(explanation="grounded answer", source_url="https://rae.example/2", source_excerpt="y")
 
 

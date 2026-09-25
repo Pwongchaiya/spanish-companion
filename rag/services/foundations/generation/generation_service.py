@@ -49,7 +49,7 @@ from pathlib import Path
 import rag
 from rag.brokers.generation import GenerationBroker, GenerationError
 from rag.brokers.logging import LoggingBroker
-from rag.models.foundations.generation import Explanation
+from rag.models.foundations.generation import FALLBACK_EXPLANATION, Explanation
 from rag.models.orchestrations.retrieval import ScoredChunk
 from rag.services.foundations.generation.generation_service_exceptions import (
     GenerationServiceExceptions,
@@ -108,8 +108,7 @@ class GenerationService(GenerationServiceExceptions, IGenerationService):
                 # api/services/review.py) — without it the two failure modes are
                 # indistinguishable from logs alone.
                 self._logging_broker.log_info("generation failed, using fallback: %s", e)
-                # Phase 1's exact fallback string, review/review.py:107 — preserve verbatim
-                text = "I'm not certain on that one."
+                text = FALLBACK_EXPLANATION
             return Explanation(explanation=text, source_url=chunk.source_url, source_excerpt=chunk.content)
 
         return self._try_catch(action)

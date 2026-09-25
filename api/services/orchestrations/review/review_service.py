@@ -67,14 +67,9 @@ from api.services.orchestrations.review.review_service_exceptions import ReviewO
 from api.services.processings.ingestion_queue import IIngestionQueueProcessingService
 from api.services.processings.learner_profile import ILearnerProfileProcessingService
 from api.services.processings.mistake_pattern import IMistakePatternProcessingService
-from rag.models.foundations.generation import Explanation
+from rag.models.foundations.generation import FALLBACK_EXPLANATION, Explanation
 from rag.services.foundations.generation import GenerationService
 from rag.services.orchestrations.retrieval import HybridRetrievalOrchestrationService
-
-# GenerationService.explain() swallows a rejected grounding verdict (or a broker
-# failure) into this exact string -- the only signal Review gets that the draft
-# was weak. Keep in sync with rag/services/foundations/generation.
-_WEAK_EXPLANATION = "I'm not certain on that one."
 
 
 class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewService):
@@ -185,17 +180,16 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
                 # retry), because both deliberately return the same user-facing
                 # string.
                 self._logging_broker.log_info("no corpus match for flag_id=%s category=%r", flag_id, flag.category)
-                # Phase 1's exact fallback string, review/review.py:107 — preserve
-                # verbatim, same as GenerationService's. One user-facing "couldn't
-                # help with this" string across the system; debugging splits them in
-                # the logs above, not in the copy.
-                return Explanation(explanation="I'm not certain on that one.", source_url="", source_excerpt="")
+                # One user-facing "couldn't help with this" string across the
+                # system (FALLBACK_EXPLANATION, rag/models/foundations/generation);
+                # debugging splits them in the logs above, not in the copy.
+                return Explanation(explanation=FALLBACK_EXPLANATION, source_url="", source_excerpt="")
 
             # retrieve() returns best-first, so [0] is the top-ranked chunk.
             explanation = self._generation_service.explain(flag, chunks[0])
-            if explanation.explanation == _WEAK_EXPLANATION:
+            if explanation.is_fallback:
                 explanation = self._second_opinion(flag, retrieval_top_k) or explanation
-            if explanation.explanation == _WEAK_EXPLANATION:
+            if explanation.is_fallback:
                 self._record_weak_verdict(flag.id, chunks[0].topic)
             return explanation
 
@@ -236,7 +230,7 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
         except Exception as e:  # ponytail: best-effort -- any failure degrades to the original explanation
             self._logging_broker.log_info("second opinion failed for flag_id=%s: %s", flag.id, e)
             return None
-        if second.explanation == _WEAK_EXPLANATION:
+        if second.is_fallback:
             self._logging_broker.log_info("second opinion still weak for flag_id=%s", flag.id)
             return None
         self._logging_broker.log_info("second opinion recovered flag_id=%s", flag.id)
