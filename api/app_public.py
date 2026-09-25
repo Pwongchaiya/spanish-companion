@@ -19,6 +19,9 @@ from flask import Flask, jsonify, request, send_from_directory
 
 from api.app import ALLOWED_ORIGINS, FRONTEND_DIST, _is_allowed_origin
 from api.brokers.flag import JsonFileFlagBroker
+from api.brokers.transcription.transcription_broker import AzureTranscriptionBroker
+from api.exposers.transcription import make_transcription_blueprint
+from api.services.foundations.transcription.transcription_service import TranscriptionService
 from api.brokers.ingestion_queue import SqlAlchemyIngestionQueueBroker
 from api.services.foundations.ingestion_queue import IngestionQueueService
 from api.services.processings.ingestion_queue import IngestionQueueProcessingService
@@ -126,6 +129,11 @@ def create_public_app() -> Flask:
     # Voice Conversation dependency, safe for the public deployment ---
     tts_service = TtsService(AzureTtsBroker(), logging_broker=logging_broker)
     app.register_blueprint(make_tts_blueprint(tts_service))
+
+    # --- Transcription -- Review's speak-to-practice uploads a browser-recorded
+    # WAV; no server mic, safe for the public deployment ---
+    transcription_service = TranscriptionService(AzureTranscriptionBroker(), logging_broker=logging_broker)
+    app.register_blueprint(make_transcription_blueprint(transcription_service))
 
     @app.route("/")
     def index():

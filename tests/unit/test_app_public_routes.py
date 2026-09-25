@@ -49,6 +49,7 @@ class TestAppPublicRoutes:
         assert "/review/flags" in rules
         assert "/review/flags/<flag_id>/explain" in rules
         assert "/review/flags/<flag_id>/practice" in rules
+        assert "/transcribe" in rules
         assert "/" in rules
 
     def test_should_not_register_session_lifecycle_or_sse_routes(self, public_app):
