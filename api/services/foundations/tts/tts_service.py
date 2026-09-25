@@ -41,11 +41,11 @@ class TtsService(TtsServiceExceptions, TtsServiceValidations, ITtsService):
         self._tts_broker = tts_broker
         self._logging_broker = logging_broker
 
-    def synthesize_speech(self, text: str) -> bytes:
+    def synthesize_speech(self, text: str, rate: float = 1.0) -> bytes:
         def action() -> bytes:
-            self._validate_tts_on_synthesize(text)
+            self._validate_tts_on_synthesize(text, rate)
             try:
-                return self._tts_broker.synthesize(text)
+                return self._tts_broker.synthesize(text, rate)
             except Exception as e:
                 raise TtsUnavailableError(str(e)) from e
 

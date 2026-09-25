@@ -11,7 +11,7 @@ from typing import Protocol
 class ITtsService(Protocol):
     """External-facing contract for Tts's Foundation service."""
 
-    def synthesize_speech(self, text: str) -> bytes:
+    def synthesize_speech(self, text: str, rate: float = 1.0) -> bytes:
         """WAV-encoded audio bytes for the given Spanish text.
 
         Raises TtsValidationException (wrapping InvalidTtsRequestException)

@@ -48,7 +48,7 @@ class TestTtsServiceSynthesizeValidation:
 
         # then
         assert result == b"audio"
-        mock_broker.synthesize.assert_called_once_with(at_cap)
+        mock_broker.synthesize.assert_called_once_with(at_cap, 1.0)
 
     def test_should_log_the_validation_exception(self, service, mock_broker, mock_logging_broker):
         # when
@@ -59,3 +59,26 @@ class TestTtsServiceSynthesizeValidation:
         mock_logging_broker.log_error.assert_called_once()
         logged_exception = mock_logging_broker.log_error.call_args.args[0]
         assert type(logged_exception) is TtsValidationException
+
+    @pytest.mark.parametrize("rate", [0.5, 2.0])
+    def test_should_accept_rate_at_the_bounds(self, service, mock_broker, rate):
+        # given
+        mock_broker.synthesize.return_value = b"audio"
+
+        # when
+        result = service.synthesize_speech("perro", rate)
+
+        # then
+        assert result == b"audio"
+        mock_broker.synthesize.assert_called_once_with("perro", rate)
+
+    @pytest.mark.parametrize("bad_rate", [0.4, 2.1, "fast", True, None])
+    def test_should_raise_validation_exception_when_rate_is_invalid(self, service, mock_broker, bad_rate):
+        # when
+        with pytest.raises(TtsValidationException) as exc_info:
+            service.synthesize_speech("perro", bad_rate)
+
+        # then
+        assert isinstance(exc_info.value.inner_exception, InvalidTtsRequestException)
+        assert "rate" in exc_info.value.inner_exception.errors
+        mock_broker.synthesize.assert_not_called()

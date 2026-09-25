@@ -23,7 +23,7 @@ class TestTtsServiceSynthesizeExceptions:
             # then
             assert isinstance(e.inner_exception, TtsUnavailableError)
 
-        mock_broker.synthesize.assert_called_once_with("perro")
+        mock_broker.synthesize.assert_called_once_with("perro", 1.0)
         mock_logging_broker.log_error.assert_called_once()
         logged_exception = mock_logging_broker.log_error.call_args.args[0]
         assert type(logged_exception) is TtsDependencyException

@@ -16,7 +16,7 @@ class TestTtsServiceSynthesize:
 
         # then
         assert result == b"RIFF....WAVEfmt "
-        mock_broker.synthesize.assert_called_once_with("perro")
+        mock_broker.synthesize.assert_called_once_with("perro", 1.0)
 
     def test_should_pass_text_through_unmodified(self, service, mock_broker):
         # given
@@ -26,4 +26,14 @@ class TestTtsServiceSynthesize:
         service.synthesize_speech("¿Cómo estás?")
 
         # then
-        mock_broker.synthesize.assert_called_once_with("¿Cómo estás?")
+        mock_broker.synthesize.assert_called_once_with("¿Cómo estás?", 1.0)
+
+    def test_should_pass_rate_through_to_the_broker(self, service, mock_broker):
+        # given
+        mock_broker.synthesize.return_value = b"audio"
+
+        # when
+        service.synthesize_speech("perro", 0.6)
+
+        # then
+        mock_broker.synthesize.assert_called_once_with("perro", 0.6)
