@@ -49,6 +49,7 @@ export function ReplayPanel() {
                 key={flag.flag_id}
                 className="replay-marker"
                 type="button"
+                data-status={flag.status ?? "open"}
                 style={{ left: `${markerPercent(flag.offset_seconds, replay.duration_seconds)}%` }}
                 title={`${formatOffset(flag.offset_seconds)} ${flag.said} → ${flag.corrected}`}
                 aria-label={`Jump to ${formatOffset(flag.offset_seconds)}: ${flag.said} becomes ${flag.corrected}`}
