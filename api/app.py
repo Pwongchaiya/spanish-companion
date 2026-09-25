@@ -45,6 +45,7 @@ from api.brokers.session_log import FileSessionLogBroker
 from api.brokers.session_log_entry import SqlAlchemySessionLogEntryBroker
 from api.brokers.ingestion_queue import SqlAlchemyIngestionQueueBroker
 from api.brokers.topic_covered import SqlAlchemyTopicCoveredBroker
+from api.brokers.transcription.transcription_broker import AzureTranscriptionBroker
 from api.services.foundations.ingestion_queue import IngestionQueueService
 from api.services.processings.ingestion_queue import IngestionQueueProcessingService
 from api.brokers.tts import AzureTtsBroker
@@ -54,6 +55,7 @@ from api.exposers.pronunciation import make_pronunciation_blueprint
 from api.exposers.review import make_review_blueprint
 from api.exposers.session_lifecycle import make_session_lifecycle_blueprint
 from api.exposers.session_replay import make_session_replay_blueprint
+from api.exposers.transcription import make_transcription_blueprint
 from api.exposers.tts import make_tts_blueprint
 from api.services.foundations.audio_storage import AudioStorageService
 from api.services.foundations.flag import FlagService
@@ -67,6 +69,7 @@ from api.services.foundations.session_audio import SessionAudioService
 from api.services.foundations.session_lifecycle import ConversationSessionService
 from api.services.foundations.session_log_entry import SessionLogEntryService
 from api.services.foundations.topic_covered import TopicCoveredService
+from api.services.foundations.transcription.transcription_service import TranscriptionService
 from api.services.foundations.tts import TtsService
 from api.services.orchestrations.learner_profile import LearnerProfileOrchestrationService
 from api.services.aggregations.session_recap import SessionRecapAggregationService
@@ -352,6 +355,12 @@ def create_app() -> Flask:
         logging_broker=logging_broker,
     )
     app.register_blueprint(make_pronunciation_blueprint(pronunciation_orchestrator))
+
+    # --- Transcription (review-three-pane HANDOFF.md section 4) -- free-form WAV -> text
+    # for the spoken-practice path; unbiased recognition, no reference text (unlike
+    # Pronunciation above), single broker, no Orchestration layer needed ---
+    transcription_service = TranscriptionService(AzureTranscriptionBroker(), logging_broker=logging_broker)
+    app.register_blueprint(make_transcription_blueprint(transcription_service))
 
     # --- /api/events SSE — status/transcript/flags/turn_state, per the
     # architecture decision record's "Resolved: /api/events SSE event
