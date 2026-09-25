@@ -74,9 +74,12 @@ class JsonFileFlagBroker:
                         timestamp=datetime.fromisoformat(item["timestamp"]),
                         # .get() with the dataclass default, not item[...] --
                         # a flags.json written before 2026-09-18 (A7+B3) has
-                        # neither key, and that's not malformed data.
+                        # neither key, and that's not malformed data. Same
+                        # tolerance for "status" (new 2026-09-24): a row
+                        # written before that date has no status key either.
                         channel=item.get("channel", "grammar"),
                         occurrence_count=item.get("occurrence_count", 1),
+                        status=item.get("status", "open"),
                     )
                 )
             except (KeyError, TypeError, ValueError):
@@ -126,7 +129,15 @@ if __name__ == "__main__":
         old_format_path = Path(tmp_dir) / "flags.json"
         old_format_path.write_text(
             json.dumps(
-                [{"id": "1", "said": "hablo", "corrected": "hablé", "category": "tense", "timestamp": "2026-08-01T12:00:00"}]
+                [
+                    {
+                        "id": "1",
+                        "said": "hablo",
+                        "corrected": "hablé",
+                        "category": "tense",
+                        "timestamp": "2026-08-01T12:00:00",
+                    }
+                ]
             ),
             encoding="utf-8",
         )
@@ -134,5 +145,19 @@ if __name__ == "__main__":
         assert len(loaded) == 1
         assert loaded[0].channel == "grammar"
         assert loaded[0].occurrence_count == 1
+        # "status" is the same tolerance, added 2026-09-24 -- a row without
+        # it loads as "open" instead of being dropped.
+        assert loaded[0].status == "open"
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        # status round-trips through save_flags -> load_flags unchanged.
+        broker = JsonFileFlagBroker(path=Path(tmp_dir) / "flags.json")
+        flag = Flag(
+            id="1", said="hablo", corrected="hablé", category="tense", timestamp=datetime.now(), status="mastered"
+        )
+        broker.save_flags([flag])
+        loaded = broker.load_flags()
+        assert len(loaded) == 1
+        assert loaded[0].status == "mastered"
 
     print("flag_broker self-check passed")

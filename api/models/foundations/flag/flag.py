@@ -21,6 +21,13 @@ ever reach this dataclass, since a spoken session can't legitimately produce
 one (see voice_conversation_service.py's `_record_flag`). `occurrence_count`
 collapses repeat flags for the same (category, said, corrected) within one
 session instead of one row per repeat.
+
+`status` is new 2026-09-24 (confirmed user decision) — default to "open" so
+every pre-existing Flag(...) call site and every already-saved flags.json row
+keeps working untouched. One of "open" | "mastered" | "skipped" (see
+FLAG_STATUSES in api/services/foundations/flag/flag_service.py, the tier that
+validates it); Review is the only writer of this field, via
+ReviewOrchestrationService.set_flag_status().
 """
 
 from dataclasses import dataclass
@@ -36,3 +43,4 @@ class Flag:
     timestamp: datetime
     channel: str = "grammar"
     occurrence_count: int = 1
+    status: str = "open"
