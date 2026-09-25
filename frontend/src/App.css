@@ -76,6 +76,31 @@
   border-radius: 2px;
 }
 
+/* Phone: five tabs don't fit beside the brand -- wrap them to their own row. */
+@media (max-width: 720px) {
+  #root {
+    padding: 16px;
+  }
+  .tabs {
+    flex-wrap: wrap;
+    gap: 14px;
+    padding: 8px 0;
+  }
+  .tabs-right {
+    width: 100%;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .tabs nav {
+    flex-wrap: wrap;
+    gap: 8px 14px;
+  }
+  .tabs button {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tabs button {
     transition: none;
