@@ -1,0 +1,8 @@
+[flake8]
+max-line-length = 120
+# E203: conflicts with black's slice formatting
+extend-ignore = E203
+extend-exclude = .venv,.claude,.claude-toolkit,frontend,spike,data
+# F811: conftests import the shared mock_logging_broker fixture, pytest re-binds it by argument name
+per-file-ignores =
+    tests/*:F811
