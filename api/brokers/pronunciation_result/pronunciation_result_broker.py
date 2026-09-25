@@ -27,6 +27,7 @@ def _to_dataclass(record: PronunciationResultRecord) -> PronunciationResult:
         prosody_score=record.prosody_score,
         words_json=record.words_json,
         locale=record.locale,
+        is_word_drill=record.is_word_drill,
     )
 
 
@@ -49,6 +50,7 @@ class SqlAlchemyPronunciationResultBroker:
             prosody_score=result.prosody_score,
             words_json=result.words_json,
             locale=result.locale,
+            is_word_drill=result.is_word_drill,
         )
         with Session(self._engine) as session:
             session.add(record)
@@ -74,7 +76,7 @@ if __name__ == "__main__":
 
     from api.models.base import Base
 
-    def _make(created_at: datetime, prosody: float | None) -> PronunciationResult:
+    def _make(created_at: datetime, prosody: float | None, is_word_drill: bool = False) -> PronunciationResult:
         return PronunciationResult(
             id=None,
             created_at=created_at,
@@ -86,16 +88,18 @@ if __name__ == "__main__":
             prosody_score=prosody,
             words_json=[{"word": "hola", "accuracy": 90.0}],
             locale="es-ES",
+            is_word_drill=is_word_drill,
         )
 
     broker = SqlAlchemyPronunciationResultBroker("sqlite://")
     Base.metadata.create_all(broker._engine, tables=[PronunciationResultRecord.__table__])
 
     newer = broker.insert_pronunciation_result(_make(datetime(2026, 1, 2, 10, 0, 0), None))
-    older = broker.insert_pronunciation_result(_make(datetime(2026, 1, 1, 10, 0, 0), 70.0))
+    older = broker.insert_pronunciation_result(_make(datetime(2026, 1, 1, 10, 0, 0), 70.0, True))
     assert newer.id is not None and newer.prosody_score is None, newer
     assert newer.words_json == [{"word": "hola", "accuracy": 90.0}], newer
 
     rows = broker.select_all_pronunciation_results()
     assert [r.id for r in rows] == [older.id, newer.id], rows
     assert rows[0].prosody_score == 70.0 and rows[0].locale == "es-ES", rows[0]
+    assert rows[0].is_word_drill is True and rows[1].is_word_drill is False, rows
