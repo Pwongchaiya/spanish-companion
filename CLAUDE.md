@@ -1,7 +1,7 @@
 # CLAUDE.md — Spanish Learning Companion
 
 > Primary context for Claude Code. Made from
-> `.claude-toolkit/.claude/templates/standard-claude-md-template.md` via `/project-init`,
+> the `standard` plugin's `.claude/templates/standard-claude-md-template.md` via `/project-init`,
 > adapted this project (see Architecture below). Update when architecture
 > decisions change.
 
@@ -17,8 +17,10 @@ live talk must stay fast, natural — nothing expensive (RAG, verify) run during
 Full scope, out-of-scope list, build order:
 `spanish-companion-mvp-scope.md` (filename kept for history; project is past MVP stage).
 
-Shared agent, skill toolkit live at `.claude-toolkit/` as git
-submodule. All agents, skills, slash commands load from that path.
+Shared agent, skill toolkit is the `standard` Claude Code plugin (marketplace
+`pwongchaiya-toolkit`, local clone `~/.claude/plugins/marketplaces/pwongchaiya-toolkit/`). All agents, skills, slash
+commands, hooks load from the plugin (`standard:` prefix). Scripts below are
+run from that stable clone path — the plugin cache path changes per version.
 
 ---
 
@@ -187,7 +189,7 @@ This section the enforceable summary — every layer agent (Broker,
 Foundation, Orchestration, Exposer, Auditor) read CLAUDE.md auto
 and MUST apply waiver without re-argue per call.
 
-**Why waiver exist:** the `.claude-toolkit/` agent roster enforce
+**Why waiver exist:** the `standard` plugin's agent roster enforce
 Hassan Habib's Standard six-layer rule (Broker → Foundation → Processing →
 Orchestration → Aggregation → Exposer). This project's original Phase 2
 architecture collapse to three layer (Broker → Service → Controller) —
@@ -274,7 +276,7 @@ example: `Projects/spanish-companion/decisions/hierarchical-agent-delegation.md`
 work with no natural judgment/mechanical split doesn't need tiering — dispatch
 directly.
 
-**Model tiering is enforced, not advisory.** `.claude-toolkit/checks/check_agent_models.py`
+**Model tiering is enforced, not advisory.** `~/.claude/plugins/marketplaces/pwongchaiya-toolkit/checks/check_agent_models.py`
 fails if agent's `model:` frontmatter drifts from its tier, or if a new agent
 isn't listed. Four of eleven agents had silently inverted tiers before this landed
 (2026-09-10). When dispatching ad-hoc subagents, pass tier's model explicitly —
@@ -284,9 +286,9 @@ a fan-out that defaults to Opus is how this project exhausted a session limit.
 HTTP 429 cannot run cleanup, so record has to exist beforehand:
 
 ```bash
-python .claude-toolkit/scripts/stall_ledger.py register --vault "$VAULT" --project spanish-companion --id <id> --label "<what it is>"
-python .claude-toolkit/scripts/stall_ledger.py done     --vault "$VAULT" --project spanish-companion --id <id>
-python .claude-toolkit/scripts/stall_ledger.py stalled  --vault "$VAULT" --project spanish-companion --id <id> --reset "<reset text from the 429>"
+python ~/.claude/plugins/marketplaces/pwongchaiya-toolkit/scripts/stall_ledger.py register --vault "$VAULT" --project spanish-companion --id <id> --label "<what it is>"
+python ~/.claude/plugins/marketplaces/pwongchaiya-toolkit/scripts/stall_ledger.py done     --vault "$VAULT" --project spanish-companion --id <id>
+python ~/.claude/plugins/marketplaces/pwongchaiya-toolkit/scripts/stall_ledger.py stalled  --vault "$VAULT" --project spanish-companion --id <id> --reset "<reset text from the 429>"
 ```
 
 `SessionStart` reports anything left standing. Resume a decision — confirm with
@@ -370,8 +372,5 @@ Vault path: `c:\Users\pwong\OneDrive\Documents\Obsidian\Notes`
 - `.env` and any `*.env` file
 - `data/corpus/` (raw fetched RAE pages)
 - `.venv/`, `__pycache__/`, `*.pyc`, `.pytest_cache/`
-- `.claude/` (machine-specific settings, not committed — `commands/`/`agents/`
-  are synced copies of `.claude-toolkit/.claude/{commands,agents}`, not
-  symlinks: this repo lives under OneDrive, which re-materializes NTFS
-  symlinks as independent copies, so a `SessionStart` hook runs
-  `.claude-toolkit/scripts/sync_commands.py` to keep them current instead)
+- `.claude/` (machine-specific settings, not committed — agents/commands come
+  from the `standard` plugin, no local copies)

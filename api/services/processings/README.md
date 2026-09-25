@@ -12,5 +12,5 @@ TopicCovered Foundation service. See
 `Projects/spanish-companion/entities/topic-covered.md`.
 
 When another Processing service is needed, see
-`.claude-toolkit/.claude/agents/processing-agent.md` for the scaffolding
+`standard` plugin `.claude/agents/processing-agent.md` for the scaffolding
 pattern and build order.
