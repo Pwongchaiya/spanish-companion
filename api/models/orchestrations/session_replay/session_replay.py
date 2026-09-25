@@ -13,6 +13,7 @@ class ReplayFlag:
     said: str
     corrected: str
     category: str
+    status: str = "open"
 
 
 @dataclass

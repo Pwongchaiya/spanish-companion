@@ -93,6 +93,7 @@ def test_record_then_replay_then_stream_audio(stack):
                 "said": "yo tiene",
                 "corrected": "yo tengo",
                 "category": "conjugation",
+                "status": "open",
             }
         ],
     }
@@ -101,6 +102,56 @@ def test_record_then_replay_then_stream_audio(stack):
     assert audio.status_code == 200 and audio.mimetype == "audio/wav"
     assert audio.data[:4] == b"RIFF" and audio.data[8:12] == b"WAVE"
     assert client.get(body["audio_url"], headers={"Range": "bytes=0-99"}).status_code == 206
+
+
+def test_replay_uses_the_sessions_own_flag_file_when_one_exists(stack):
+    """Roadmap E3: a per-session snapshot (written at teardown) is used
+    directly instead of flags.json's time-window filter, and a flag's
+    status comes from flags.json when that id is still present there
+    (PATCH /review/flags/<id> only ever updates flags.json), else from the
+    snapshot's own status."""
+    client, recording, session_id, tmp_path = stack
+    recording.save_recording(session_id, b"\x01\x00" * (24000 * 30), 24000, 1)
+
+    flag_broker = JsonFileFlagBroker(path=tmp_path / "flags.json")
+    # "f-in" also lives in the current flags.json (seeded by the `stack`
+    # fixture) with status "open" -- unchanged here, so its status should
+    # still come from flags.json, not the snapshot.
+    flag_broker.save_session_flags(
+        session_id,
+        [
+            Flag("f-in", "yo tiene", "yo tengo", "conjugation", datetime(2026, 3, 1, 10, 0, 20)),
+            Flag(
+                "f-snapshot-only",
+                "el mesa",
+                "la mesa",
+                "gender",
+                datetime(2026, 3, 1, 10, 0, 40),
+                status="mastered",
+            ),
+        ],
+    )
+
+    body = client.get(f"/review/sessions/{session_id}/replay").get_json()
+
+    assert body["flags"] == [
+        {
+            "flag_id": "f-in",
+            "offset_seconds": 20.0,
+            "said": "yo tiene",
+            "corrected": "yo tengo",
+            "category": "conjugation",
+            "status": "open",
+        },
+        {
+            "flag_id": "f-snapshot-only",
+            "offset_seconds": 30.0,  # clamped to the 30s audio duration, not 40s
+            "said": "el mesa",
+            "corrected": "la mesa",
+            "category": "gender",
+            "status": "mastered",
+        },
+    ]
 
 
 def test_should_return_404_for_a_session_with_no_recording(stack):

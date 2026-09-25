@@ -58,6 +58,7 @@ def test_replay_should_return_the_pinned_contract(client, orchestrator):
                 "said": "yo tiene",
                 "corrected": "yo tengo",
                 "category": "conjugation",
+                "status": "open",
             }
         ],
     }

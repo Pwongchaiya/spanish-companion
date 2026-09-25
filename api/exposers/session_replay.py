@@ -6,7 +6,7 @@ Referer checking is app-wide in api/app.py's before_request, so both routes
 here pass through it like every other route; nothing is re-checked here.
 
   GET /review/sessions/<id>/replay -> {session_log_id, duration_seconds,
-        audio_url, flags: [{flag_id, offset_seconds, said, corrected, category}]}
+        audio_url, flags: [{flag_id, offset_seconds, said, corrected, category, status}]}
   GET /review/sessions/latest      -> {session_log_id} of the newest recording, 404 if none
                                       (extra to the pinned contract; see get_latest)
   GET /review/sessions/<id>/audio  -> the WAV (audio/wav, range-capable so the
@@ -73,6 +73,7 @@ def make_session_replay_blueprint(orchestrator: ISessionReplayService) -> Bluepr
                                 "said": f.said,
                                 "corrected": f.corrected,
                                 "category": f.category,
+                                "status": f.status,
                             }
                             for f in replay.flags
                         ],
