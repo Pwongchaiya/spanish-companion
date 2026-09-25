@@ -107,20 +107,24 @@ class IngestionOrchestrationService(
         # identical chunks.
         self._chunk_size = int(configuration_broker.get("CHUNK_SIZE", "800"))
 
-    def ingest_topic(self, topic: str, source_url: str, text: str) -> int:
+    def ingest_topic(self, topic: str, source_url: str, text: str, refresh: bool = False) -> int:
         def action() -> int:
-            # Writes to `chunks` are one-way — ChunkRepositoryBroker has no delete path —
-            # and a blank string is not NULL, so it sails past the column's NOT NULL
+            # A blank string is not NULL, so it sails past the column's NOT NULL
             # constraint and lands in the corpus permanently. Guard here, before anything
             # is embedded or inserted.
             self._validate_ingest_topic_input(topic, source_url)
 
             # Idempotent re-ingest: a URL that already has rows is skipped whole.
             # Keyed on source_url, not topic -- a topic spans several pages, and a
-            # new URL under an existing topic must still ingest. Coarse on purpose:
-            # a changed page (or new CHUNKING_STRATEGY_VERSION) needs a delete
-            # path, which does not exist.
-            if self._chunk_repository_service.count_chunks_by_source_url(source_url) > 0:
+            # new URL under an existing topic must still ingest.
+            #
+            # refresh=True bypasses the skip: delete this URL's existing rows first,
+            # then fall through and ingest unconditionally. Covers a changed RAE page
+            # or a bumped CHUNKING_STRATEGY_VERSION, where the stored rows are stale
+            # rather than simply already-present.
+            if refresh:
+                self._chunk_repository_service.delete_chunks_by_source_url(source_url)
+            elif self._chunk_repository_service.count_chunks_by_source_url(source_url) > 0:
                 return 0
 
             # ponytail: dict.fromkeys is stdlib order-preserving dedupe, scoped to

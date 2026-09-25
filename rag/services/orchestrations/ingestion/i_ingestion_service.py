@@ -27,11 +27,16 @@ from typing import Protocol
 class IIngestionService(Protocol):
     """External-facing contract for the Ingestion orchestration service."""
 
-    def ingest_topic(self, topic: str, source_url: str, text: str) -> int:
+    def ingest_topic(self, topic: str, source_url: str, text: str, refresh: bool = False) -> int:
         """Chunk `text`, embed the chunks in one batch, insert each. Returns rows inserted.
 
         Empty or whitespace-only `text` yields zero chunks and returns 0
         without touching either dependency.
+
+        `refresh=True` deletes any existing rows for `source_url` first, then
+        ingests unconditionally -- bypassing the usual skip-if-already-stored
+        check. Use after a RAE page changes or CHUNKING_STRATEGY_VERSION
+        bumps. Default (`refresh=False`) behaviour is unchanged.
 
         Raises:
             IngestionOrchestrationValidationException: wrapping

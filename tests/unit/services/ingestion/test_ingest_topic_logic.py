@@ -69,6 +69,32 @@ class TestIngestionServiceIngestTopicLogic:
         mock_embedding_model.embed.assert_not_called()
         mock_chunk_repository.insert_chunk.assert_not_called()
 
+    def test_should_delete_then_reingest_when_refresh_is_true_even_if_chunks_existed(
+        self, service, mock_chunk_repository, mock_embedding_model
+    ):
+        # given -- refresh bypasses the count-based skip entirely, even though
+        # count_chunks_by_source_url reports existing rows
+        mock_chunk_repository.count_chunks_by_source_url.return_value = 5
+        mock_embedding_model.embed.return_value = [[0.1, 0.2]]
+        mock_embedding_model.model_name = "sentence-transformers/test-model"
+
+        # when
+        rows_inserted = service.ingest_topic(topic=TOPIC, source_url=SOURCE_URL, text="short text", refresh=True)
+
+        # then
+        assert rows_inserted == 1
+        mock_chunk_repository.delete_chunks_by_source_url.assert_called_once_with(SOURCE_URL)
+        mock_chunk_repository.count_chunks_by_source_url.assert_not_called()
+        mock_embedding_model.embed.assert_called_once_with(["short text"])
+        mock_chunk_repository.insert_chunk.assert_called_once_with(
+            topic=TOPIC,
+            source_url=SOURCE_URL,
+            content="short text",
+            embedding=[0.1, 0.2],
+            embedding_model_version="sentence-transformers/test-model",
+            chunking_strategy_version=CHUNKING_STRATEGY_VERSION,
+        )
+
     def test_should_return_zero_and_touch_no_broker_when_text_is_empty(
         self, service, mock_chunk_repository, mock_embedding_model
     ):
