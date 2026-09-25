@@ -8,13 +8,14 @@ IngestionOrchestrationService, and prints a per-topic row count. Fetching (reque
 BeautifulSoup) lives here rather than in IngestionOrchestrationService so the service
 stays a pure text -> rows operation.
 
-Known limitation: re-running this against an already-populated corpus
-inserts duplicate rows — ChunkRepositoryBroker has no read/exists method
-to dedupe against prior runs (see
-rag/services/orchestrations/ingestion/ingestion_service.py's docstring).
-At MVP scale (3-5 topics), the fix is re-running the Alembic migration
-(drops and recreates the table) before re-ingesting, not a code change.
+Re-running this against an already-populated corpus skips any URL that
+already has chunks stored (source_url dedupe -- see
+IngestionOrchestrationService.ingest_topic). Pass --refresh to force every
+topic's URL to be deleted and re-ingested instead -- use after a RAE page
+changes or CHUNKING_STRATEGY_VERSION bumps.
 """
+
+import argparse
 
 import requests
 from bs4 import BeautifulSoup
@@ -54,7 +55,7 @@ def fetch_page_text(url: str, timeout_seconds: int) -> str:
     return "\n".join(lines).strip()
 
 
-def main() -> None:
+def main(refresh: bool = False) -> None:
     logging_broker = StdlibLoggingBroker()
     configuration_broker = EnvConfigurationBroker()
     request_timeout_seconds = int(configuration_broker.get("REQUEST_TIMEOUT_SECONDS", "15"))
@@ -75,7 +76,7 @@ def main() -> None:
             print(f"SKIP {topic} ({url}): fetch failed — {e}")
             continue
 
-        count = service.ingest_topic(topic, url, text)
+        count = service.ingest_topic(topic, url, text, refresh=refresh)
         print(f"{topic}: {count} chunks ({url})")
 
 
@@ -112,4 +113,11 @@ if __name__ == "__main__":
     if "--selftest" in sys.argv:
         _selftest()
     else:
-        main()
+        parser = argparse.ArgumentParser()
+        parser.add_argument(
+            "--refresh",
+            action="store_true",
+            help="Delete each topic's existing chunks before re-ingesting, instead of skipping already-stored URLs",
+        )
+        args = parser.parse_args()
+        main(refresh=args.refresh)
