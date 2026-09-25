@@ -14,12 +14,25 @@ export interface TranscriptTurn {
   text: string;
 }
 
+// Server-persisted via PATCH /review/flags/<id> {status}. Optional because
+// older payloads (and the review flag list) may not carry it yet -- missing
+// is treated as "open" everywhere it's read.
+export type FlagStatus = "open" | "mastered" | "skipped";
+
 export interface Flag {
   id: string;
   said: string;
   corrected: string;
   category: string;
   timestamp: string;
+  status?: FlagStatus;
+}
+
+// POST /transcribe response. text === "" means the mic recorded but no
+// speech was recognised -- not an error.
+export interface Transcription {
+  text: string;
+  duration_seconds: number;
 }
 
 export interface Explanation {
