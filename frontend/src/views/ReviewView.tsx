@@ -53,6 +53,7 @@ export function ReviewView() {
     mistakeSummary,
     practicePhase,
     lastRecordedSeconds,
+    attemptHeardSeconds,
     setPracticePhase,
     selectFlag,
     submitPractice,
@@ -484,6 +485,9 @@ export function ReviewView() {
               ? "This pattern is marked resolved; you will not be pushed at it for a while."
               : "It is saved with the flag, so it comes round again before it sticks."}
           </p>
+          {attemptHeardSeconds != null && (
+            <p className="heard">heard · azure es-ES · {attemptHeardSeconds.toFixed(1)}s</p>
+          )}
           <div className="next">
             <button type="button" className="primary" onClick={goNextFlag}>
               Next flag
@@ -560,7 +564,7 @@ export function ReviewView() {
             <span className="num">{flags.length}</span> flagged
           </span>
           <span className="spacer" />
-          {taskOutcome && (
+          {taskOutcome && flags.length > 0 && (
             <span className="task" data-outcome={taskOutcome.outcome ?? "pending"} title={taskOutcome.success_condition}>
               <span className="mark" aria-hidden="true" />
               {taskOutcome.label}:{" "}
@@ -675,7 +679,11 @@ export function ReviewView() {
               </div>
             )}
 
-            {!hasLoaded && !connectionOk && <p className="empty">Can&rsquo;t check for flags right now.</p>}
+            {!hasLoaded && !connectionOk && (
+              <div className="empty">
+                <p className="big">Can&rsquo;t check for flags right now.</p>
+              </div>
+            )}
             {hasLoaded && flags.length === 0 && (
               <div className="empty">
                 <p className="big">Nothing was flagged last time.</p>
