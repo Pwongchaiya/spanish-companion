@@ -34,7 +34,7 @@ HybridRetrievalOrchestrationService's precedent (no validations file at all
 when a one-line check covers it).
 """
 
-from typing import List
+from typing import List, Optional
 
 from api.brokers.flag import FlagBroker
 from api.brokers.logging import LoggingBroker
@@ -116,3 +116,24 @@ class FlagService(FlagServiceExceptions, IFlagService):
                 raise FlagUnavailableError(str(e)) from e
 
         self._try_catch(action)
+
+    def save_session_flags(self, session_id: int, flags: List[Flag]) -> None:
+        def action() -> None:
+            for flag in flags:
+                if flag.status not in FLAG_STATUSES:
+                    raise InvalidFlagStatusException(flag.status)
+            try:
+                self._flag_broker.save_session_flags(session_id, flags)
+            except Exception as e:
+                raise FlagUnavailableError(str(e)) from e
+
+        self._try_catch(action)
+
+    def get_session_flags(self, session_id: int) -> Optional[List[Flag]]:
+        def action() -> Optional[List[Flag]]:
+            try:
+                return self._flag_broker.get_session_flags(session_id)
+            except Exception as e:
+                raise FlagUnavailableError(str(e)) from e
+
+        return self._try_catch(action)

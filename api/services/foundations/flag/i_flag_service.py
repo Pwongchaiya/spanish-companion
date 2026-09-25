@@ -7,7 +7,7 @@ service interfaces for the same reason: the reference project itself
 co-locates the interface file with its implementation in the same folder.
 """
 
-from typing import List, Protocol
+from typing import List, Optional, Protocol
 
 from api.models.foundations.flag import Flag
 
@@ -41,6 +41,29 @@ class IFlagService(Protocol):
         if any flag's `status` is not one of FLAG_STATUSES ("open" |
         "mastered" | "skipped") -- checked before the broker is called, so a
         rejected list is never partially written.
+        Raises FlagDependencyException (wrapping FlagUnavailableError) if
+        the underlying FlagBroker call fails.
+        Raises FlagServiceException for any other unexpected failure.
+        """
+        ...
+
+    def save_session_flags(self, session_id: int, flags: List[Flag]) -> None:
+        """Snapshot this session's flags to their own per-session store, in
+        addition to (never instead of) save_flags()'s shared-list overwrite.
+        Voice Conversation calls this once at teardown so Session Replay
+        (roadmap E3) can recover an older session's flags after a later
+        session's save_flags() overwrites the shared list.
+
+        Same validation/exception contract as save_flags().
+        """
+        ...
+
+    def get_session_flags(self, session_id: int) -> Optional[List[Flag]]:
+        """This session's own snapshot, or None if none exists -- a session
+        recorded before this feature shipped, or one whose teardown snapshot
+        write failed. Callers fall back to list_flags() + a time window in
+        that case.
+
         Raises FlagDependencyException (wrapping FlagUnavailableError) if
         the underlying FlagBroker call fails.
         Raises FlagServiceException for any other unexpected failure.
