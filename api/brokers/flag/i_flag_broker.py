@@ -44,3 +44,18 @@ class FlagBroker(Protocol):
         tolerance as Phase 1's load_latest_flags(). Review is the only
         reader."""
         ...
+
+    def save_session_flags(self, session_id: int, flags: list[Flag]) -> None:
+        """Write this session's flags to their own file (data/flags/session_
+        <id>.json), in ADDITION to (never instead of) save_flags()'s shared-
+        file overwrite. Lets Session Replay (roadmap E3) recover an older
+        session's flags after a later session's save_flags() call overwrites
+        flags.json. Voice Conversation is the only writer, once at teardown."""
+        ...
+
+    def get_session_flags(self, session_id: int) -> list[Flag] | None:
+        """This session's own flag snapshot, or None if no per-session file
+        exists -- a session recorded before this feature shipped, or one
+        whose teardown write failed. Session Replay falls back to
+        load_flags() + its time-window filter in that case."""
+        ...
