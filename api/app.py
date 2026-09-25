@@ -80,6 +80,7 @@ from api.services.orchestrations.session_audio_recording import SessionAudioReco
 from api.services.orchestrations.session_replay import SessionReplayOrchestrationService
 from api.services.processings.learner_profile import LearnerProfileProcessingService
 from api.services.processings.mistake_pattern import MistakePatternProcessingService
+from api.services.processings.topic_covered import TopicCoveredProcessingService
 from rag.brokers.chunk_repository import SqlAlchemyChunkRepositoryBroker
 from rag.brokers.embedding_model import SentenceTransformerEmbeddingModelBroker
 from rag.brokers.generation import GeminiGenerationBroker
@@ -222,6 +223,9 @@ def create_app() -> Flask:
     # one instance each is enough.
     learner_profile_processing_service = LearnerProfileProcessingService(learner_profile_service)
     mistake_pattern_processing_service = MistakePatternProcessingService(mistake_pattern_service)
+    # F1 follow-up: shared with Review below (only production caller of
+    # record_topic() -- see topic_covered_processing_service.py docstring).
+    topic_covered_processing_service = TopicCoveredProcessingService(topic_covered_service)
     learner_profile_orchestrator = LearnerProfileOrchestrationService(
         learner_profile_processing_service,
         mistake_pattern_service,
@@ -279,6 +283,7 @@ def create_app() -> Flask:
         ingestion_queue_processing_service=IngestionQueueProcessingService(
             IngestionQueueService(SqlAlchemyIngestionQueueBroker(database_url), logging_broker=logging_broker)
         ),
+        topic_covered_processing_service=topic_covered_processing_service,
         logging_broker=logging_broker,
         configuration_broker=configuration_broker,
     )
