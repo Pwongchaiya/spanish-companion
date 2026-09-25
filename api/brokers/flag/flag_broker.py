@@ -17,74 +17,105 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_FLAGS_FILE = Path(os.getenv("FLAGS_FILE_PATH", str(REPO_ROOT / "data" / "flags.json")))
 
 
+def _parse_flags(raw: object) -> list[Flag]:
+    # ponytail: tolerant parsing is the spec, not error-hiding — mirrors
+    # Phase 1's load_latest_flags() so Review never crashes on a missing
+    # file, one caught mid-write, or a stale Phase 1-shaped file. Shared by
+    # load_flags() and get_session_flags() -- same file shape, same rules.
+    if not isinstance(raw, list):
+        return []
+    flags = []
+    for item in raw:
+        try:
+            flags.append(
+                Flag(
+                    id=item["id"],
+                    said=item["said"],
+                    corrected=item["corrected"],
+                    category=item["category"],
+                    timestamp=datetime.fromisoformat(item["timestamp"]),
+                    # .get() with the dataclass default, not item[...] --
+                    # a flags.json written before 2026-09-18 (A7+B3) has
+                    # neither key, and that's not malformed data. Same
+                    # tolerance for "status" (new 2026-09-24): a row
+                    # written before that date has no status key either.
+                    channel=item.get("channel", "grammar"),
+                    occurrence_count=item.get("occurrence_count", 1),
+                    status=item.get("status", "open"),
+                )
+            )
+        except (KeyError, TypeError, ValueError):
+            continue
+    return flags
+
+
+def _atomic_write(path: Path, payload: list) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    # Atomic write (temp file + os.replace) so a concurrent load never
+    # observes a truncated/partial file mid-write — write_text() alone
+    # truncates then writes, a real window given Voice Conversation rewrites
+    # flags.json every ~1s while Review could, in principle, read it.
+    tmp_path = path.with_suffix(".tmp")
+    tmp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    # ponytail: OneDrive syncs this repo and transiently locks files it's
+    # actively uploading, raising WinError 5 on os.replace. flags.json is
+    # rewritten every ~1s during a session, so it collides with OneDrive
+    # often enough to matter. Retry a few times before giving up.
+    for attempt in range(5):
+        try:
+            os.replace(tmp_path, path)
+            return
+        except PermissionError:
+            if attempt == 4:
+                raise
+            time.sleep(0.05 * (attempt + 1))
+
+
 class JsonFileFlagBroker:
     """FlagBroker backed by a single JSON file, fully overwritten on every
     save.
 
     `path` defaults to FLAGS_FILE_PATH (env) and is only overridden by
     callers that want an isolated file (e.g. tests, once written).
+
+    Per-session snapshots (save_session_flags/get_session_flags, added
+    2026-09-24 for E3 replay) live in a `flags/` directory next to `path` --
+    `<path.parent>/flags/session_<id>.json` -- so tests that override `path`
+    get an isolated session directory too, for free.
     """
 
     def __init__(self, path: Path | None = None) -> None:
         self._path = path if path is not None else DEFAULT_FLAGS_FILE
+        self._session_dir = self._path.parent / "flags"
+
+    def _session_path(self, session_id: int) -> Path:
+        return self._session_dir / f"session_{session_id}.json"
 
     def save_flags(self, flags: list[Flag]) -> None:
-        self._path.parent.mkdir(parents=True, exist_ok=True)
         payload = [{**asdict(flag), "timestamp": flag.timestamp.isoformat()} for flag in flags]
-        # Atomic write (temp file + os.replace) so a concurrent load_flags()
-        # never observes a truncated/partial file mid-write — write_text()
-        # alone truncates then writes, a real window given Voice Conversation
-        # rewrites this file every ~1s while Review could, in principle, read it.
-        tmp_path = self._path.with_suffix(".tmp")
-        tmp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-        # ponytail: OneDrive syncs this repo and transiently locks files it's
-        # actively uploading, raising WinError 5 on os.replace. This file is
-        # rewritten every ~1s during a session, so it collides with OneDrive
-        # often enough to matter. Retry a few times before giving up.
-        for attempt in range(5):
-            try:
-                os.replace(tmp_path, self._path)
-                return
-            except PermissionError:
-                if attempt == 4:
-                    raise
-                time.sleep(0.05 * (attempt + 1))
+        _atomic_write(self._path, payload)
 
     def load_flags(self) -> list[Flag]:
-        # ponytail: tolerant parsing is the spec, not error-hiding — mirrors
-        # Phase 1's load_latest_flags() so Review never crashes on a
-        # missing file, one caught mid-write, or a stale Phase 1-shaped
-        # file. utf-8-sig (not utf-8) because PowerShell can write a BOM on
+        # utf-8-sig (not utf-8) because PowerShell can write a BOM on
         # Windows, same reason review/review.py:48 uses it.
         try:
             raw = json.loads(self._path.read_text(encoding="utf-8-sig"))
         except (OSError, json.JSONDecodeError):
             return []
+        return _parse_flags(raw)
+
+    def save_session_flags(self, session_id: int, flags: list[Flag]) -> None:
+        payload = [{**asdict(flag), "timestamp": flag.timestamp.isoformat()} for flag in flags]
+        _atomic_write(self._session_path(session_id), payload)
+
+    def get_session_flags(self, session_id: int) -> list[Flag] | None:
+        try:
+            raw = json.loads(self._session_path(session_id).read_text(encoding="utf-8-sig"))
+        except (OSError, json.JSONDecodeError):
+            return None
         if not isinstance(raw, list):
-            return []
-        flags = []
-        for item in raw:
-            try:
-                flags.append(
-                    Flag(
-                        id=item["id"],
-                        said=item["said"],
-                        corrected=item["corrected"],
-                        category=item["category"],
-                        timestamp=datetime.fromisoformat(item["timestamp"]),
-                        # .get() with the dataclass default, not item[...] --
-                        # a flags.json written before 2026-09-18 (A7+B3) has
-                        # neither key, and that's not malformed data. Same
-                        # tolerance for "status" (new 2026-09-24): a row
-                        # written before that date has no status key either.
-                        channel=item.get("channel", "grammar"),
-                        occurrence_count=item.get("occurrence_count", 1),
-                        status=item.get("status", "open"),
-                    )
-                )
-            except (KeyError, TypeError, ValueError):
-                continue
-        return flags
+            return None
+        return _parse_flags(raw)
 
 
 if __name__ == "__main__":
@@ -159,5 +190,24 @@ if __name__ == "__main__":
         loaded = broker.load_flags()
         assert len(loaded) == 1
         assert loaded[0].status == "mastered"
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        # save_session_flags/get_session_flags (added 2026-09-24 for E3
+        # replay) round-trip independently of flags.json, and get_session_flags
+        # returns None -- not [] -- for a session with no snapshot, so a
+        # caller can tell "no flags this session" apart from "no file yet".
+        broker = JsonFileFlagBroker(path=Path(tmp_dir) / "flags.json")
+        session_flag = Flag(
+            id="s1", said="tengo hambre", corrected="tengo hambre", category="lexis", timestamp=datetime.now()
+        )
+        assert broker.get_session_flags(4) is None
+
+        broker.save_session_flags(4, [session_flag])
+        loaded_session = broker.get_session_flags(4)
+        assert loaded_session is not None and [f.id for f in loaded_session] == ["s1"]
+        # flags.json itself is untouched by a per-session write.
+        assert broker.load_flags() == []
+        # another session's snapshot stays isolated.
+        assert broker.get_session_flags(5) is None
 
     print("flag_broker self-check passed")
