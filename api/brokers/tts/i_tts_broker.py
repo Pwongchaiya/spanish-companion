@@ -19,7 +19,7 @@ class TtsBroker(Protocol):
     """External-resource boundary for one-shot speech synthesis. Raw
     synthesis only -- no business logic, no input validation."""
 
-    def synthesize(self, text: str) -> bytes:
+    def synthesize(self, text: str, rate: float = 1.0) -> bytes:
         """WAV-encoded audio bytes for the given Spanish text.
 
         Raises whatever the underlying SDK/transport raises on failure
