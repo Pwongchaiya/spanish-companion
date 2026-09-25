@@ -1,9 +1,9 @@
 """ReviewOrchestrationService.explain_flag() -- F2: a still-weak grounding verdict
 is recorded against the top retrieved chunk's RAE topic, best-effort."""
 
-from rag.models.foundations.generation import Explanation
+from rag.models.foundations.generation import FALLBACK_EXPLANATION, Explanation
 
-WEAK = Explanation(explanation="I'm not certain on that one.", source_url="https://rae.example/1", source_excerpt="x")
+WEAK = Explanation(explanation=FALLBACK_EXPLANATION, source_url="https://rae.example/1", source_excerpt="x")
 GOOD = Explanation(explanation="grounded answer", source_url="https://rae.example/1", source_excerpt="x")
 
 

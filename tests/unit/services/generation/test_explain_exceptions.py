@@ -8,7 +8,7 @@ explanation escape, and never invents a second fallback mechanism.
 """
 
 from rag.brokers.generation import GenerationError
-from rag.models.foundations.generation import Explanation
+from rag.models.foundations.generation import FALLBACK_EXPLANATION, Explanation
 
 
 class TestGenerationServiceExplainExceptions:
@@ -24,7 +24,7 @@ class TestGenerationServiceExplainExceptions:
 
         # then
         assert result == Explanation(
-            explanation="I'm not certain on that one.",
+            explanation=FALLBACK_EXPLANATION,
             source_url=chunk.source_url,
             source_excerpt=chunk.content,
         )
@@ -44,7 +44,7 @@ class TestGenerationServiceExplainExceptions:
 
         # then
         assert result == Explanation(
-            explanation="I'm not certain on that one.",
+            explanation=FALLBACK_EXPLANATION,
             source_url=chunk.source_url,
             source_excerpt=chunk.content,
         )
@@ -80,8 +80,31 @@ class TestGenerationServiceExplainExceptions:
 
         # then
         assert result == Explanation(
-            explanation="I'm not certain on that one.",
+            explanation=FALLBACK_EXPLANATION,
             source_url=chunk.source_url,
             source_excerpt=chunk.content,
         )
         assert mock_broker.generate.call_count == 2
+
+    def test_should_mark_fallback_explanation_as_fallback(self, service, mock_broker, flag, chunk):
+        # given
+        mock_broker.generate.side_effect = GenerationError("Gemini client call failed: boom")
+
+        # when
+        result = service.explain(flag, chunk)
+
+        # then
+        assert result.is_fallback is True
+
+    def test_should_not_mark_grounded_explanation_as_fallback(self, service, mock_broker, flag, chunk):
+        # given
+        mock_broker.generate.side_effect = [
+            "Great question! 'Tengo' is the correct form.",
+            "YES, the reference content supports this claim.",
+        ]
+
+        # when
+        result = service.explain(flag, chunk)
+
+        # then
+        assert result.is_fallback is False
