@@ -39,6 +39,14 @@ describe("ReplayPanel", () => {
     expect(api.getLatestReplay).not.toHaveBeenCalled();
   });
 
+  it("autoStart loads once on mount, with no start button", async () => {
+    api.getLatestReplay.mockResolvedValue(null);
+    render(<ReplayPanel autoStart />);
+    await screen.findByText(/no recording of your last session/i);
+    expect(api.getLatestReplay).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: /listen back/i })).toBeNull();
+  });
+
   it("shows a friendly message when there is no recording", async () => {
     api.getLatestReplay.mockResolvedValue(null);
     render(<ReplayPanel />);

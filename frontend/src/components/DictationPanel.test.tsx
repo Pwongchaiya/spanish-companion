@@ -32,6 +32,14 @@ describe("DictationPanel", () => {
     expect(api.getDictationExercise).not.toHaveBeenCalled();
   });
 
+  it("autoStart fetches once on mount, with no start button", async () => {
+    api.getDictationExercise.mockResolvedValue({ flag_id: "f1", target: "él está" });
+    render(<DictationPanel autoStart />);
+    await screen.findByLabelText(/type the sentence/i);
+    expect(api.getDictationExercise).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: /dictation/i })).toBeNull();
+  });
+
   it("shows a friendly message on 404 (no flags)", async () => {
     api.getDictationExercise.mockRejectedValue(Object.assign(new Error("none"), { status: 404 }));
     render(<DictationPanel />);
