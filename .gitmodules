@@ -1,3 +1,0 @@
-[submodule ".claude-toolkit"]
-	path = .claude-toolkit
-	url = https://github.com/Pwongchaiya/the-claude-standard-toolkit.git

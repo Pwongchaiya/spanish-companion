@@ -1,7 +1,6 @@
 .git
 .gitmodules
 .claude
-.claude-toolkit
 .venv
 __pycache__
 *.pyc
