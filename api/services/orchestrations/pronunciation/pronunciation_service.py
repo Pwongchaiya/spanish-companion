@@ -56,7 +56,7 @@ class PronunciationOrchestrationService(PronunciationOrchestrationServiceExcepti
         self._clock = clock
         self._logging_broker = logging_broker
 
-    def assess_and_record(self, audio_wav: bytes, reference_text: str) -> PronunciationResult:
+    def assess_and_record(self, audio_wav: bytes, reference_text: str, is_word_drill: bool = False) -> PronunciationResult:
         def action() -> PronunciationResult:
             assessment = self._assessment_service.assess_pronunciation(audio_wav, reference_text)
             stored = self._result_service.create_pronunciation_result(
@@ -71,6 +71,7 @@ class PronunciationOrchestrationService(PronunciationOrchestrationServiceExcepti
                     prosody_score=assessment.prosody_score,
                     words_json=_words_json(assessment),
                     locale=LOCALE,
+                    is_word_drill=is_word_drill,
                 )
             )
             self._logging_broker.log_info("recorded pronunciation attempt, overall=%s", stored.pronunciation_score)

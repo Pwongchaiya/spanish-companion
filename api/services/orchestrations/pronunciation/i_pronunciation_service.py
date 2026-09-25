@@ -12,7 +12,7 @@ from api.models.foundations.pronunciation_result.pronunciation_result import Pro
 class PronunciationService(Protocol):
     """External-facing contract for the Pronunciation orchestration service."""
 
-    def assess_and_record(self, audio_wav: bytes, reference_text: str) -> PronunciationResult:
+    def assess_and_record(self, audio_wav: bytes, reference_text: str, is_word_drill: bool = False) -> PronunciationResult:
         """Score a spoken WAV against reference_text, persist the attempt, return the stored row.
 
         Raises PronunciationOrchestrationValidationException (wrapping

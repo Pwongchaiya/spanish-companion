@@ -40,3 +40,17 @@ class TestAssessAndRecordLogic:
         mock_result_service.create_pronunciation_result.assert_called_once_with(result)
         mock_logging_broker.log_info.assert_called_once()
         mock_logging_broker.log_error.assert_not_called()
+
+    def test_should_persist_the_word_drill_flag(
+        self, service, mock_assessment_service, mock_result_service, assessment
+    ):
+        # given
+        mock_assessment_service.assess_pronunciation.return_value = assessment
+
+        # when
+        result = service.assess_and_record(WAV, TEXT, True)
+
+        # then
+        assert result.is_word_drill is True
+        mock_assessment_service.assess_pronunciation.assert_called_once_with(WAV, TEXT)
+        mock_result_service.create_pronunciation_result.assert_called_once_with(result)
