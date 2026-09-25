@@ -32,19 +32,26 @@ class TestGetVariant:
 class TestIsDialectLegit:
 
     @pytest.mark.parametrize(
-        "key, said",
+        "key, said, corrected",
         [
-            ("rioplatense", "Vos tenés razón"),
-            ("castilian", "Vosotros habláis rápido"),
-            ("mexican", "Ahorita voy"),
+            ("rioplatense", "Vos tenés razón", "Tú tienes razón"),
+            ("castilian", "Vosotros habláis rápido", "Ustedes hablan rápido"),
+            ("mexican", "Ahorita voy", "Ya voy"),
         ],
     )
-    def test_should_be_true_for_a_form_legit_in_that_variant(self, key, said):
-        assert is_dialect_legit(said, get_variant(key))
+    def test_should_be_true_for_a_form_legit_in_that_variant(self, key, said, corrected):
+        assert is_dialect_legit(said, corrected, get_variant(key))
 
     def test_should_be_false_for_the_same_form_in_another_variant(self):
-        assert not is_dialect_legit("Vos tenés razón", get_variant("mexican"))
-        assert not is_dialect_legit("Vos tenés razón", get_variant("neutral"))
+        assert not is_dialect_legit("Vos tenés razón", "Tú tienes razón", get_variant("mexican"))
+        assert not is_dialect_legit("Vos tenés razón", "Tú tienes razón", get_variant("neutral"))
 
     def test_should_be_false_for_a_genuine_error(self):
-        assert not is_dialect_legit("Yo soy cansado", get_variant("rioplatense"))
+        assert not is_dialect_legit("Yo soy cansado", "Yo estoy cansado", get_variant("rioplatense"))
+
+    def test_should_be_false_for_genuine_error_next_to_a_legit_form(self):
+        """A real error sitting next to dialect vocabulary is no longer
+        dropped -- only the said/corrected diff is checked now."""
+        assert not is_dialect_legit(
+            "Vos tenés hambre y yo soy cansado", "Vos tenés hambre y yo estoy cansado", get_variant("rioplatense")
+        )

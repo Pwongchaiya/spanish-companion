@@ -101,23 +101,39 @@ def get_variant(key: Optional[str]) -> SpanishVariant:
     return _VARIANTS.get(key or DEFAULT_VARIANT, _VARIANTS[DEFAULT_VARIANT])
 
 
-def is_dialect_legit(said: str, variant: SpanishVariant) -> bool:
-    """True if `said` contains a form that is correct in `variant`.
+def is_dialect_legit(said: str, corrected: str, variant: SpanishVariant) -> bool:
+    """True if the only tokens `said` has that `corrected` doesn't are
+    themselves legit forms in `variant` -- i.e. the diff is dialect
+    vocabulary, not a real mistake.
 
-    ponytail: token match on the whole utterance, so a genuine error sitting
-    next to a legit form in the same sentence is also dropped; under-flagging
-    is the accepted direction (see the flag-emission note in
-    voice_conversation_service.py). Upgrade path: match only the tokens that
-    differ between `said` and `corrected`.
+    Upgrade from the old whole-utterance token match: only the tokens that
+    differ between `said` and `corrected` are checked now, so a genuine
+    error sitting next to a legit form in the same sentence is kept.
+
+    ponytail: said-only tokens must be a (non-empty) subset of legit_forms
+    -- no said-token -> corrected-token mapping, so a real error whose
+    *wrong* word happens to itself be legit-form vocabulary (e.g. voseo
+    "sos" used where the real mistake is ser/estar, "sos" -> "estás") is
+    still suppressed if that's the only differing token. Under-flagging is
+    the accepted direction here; closing this needs a said-form ->
+    standard-form mapping this table doesn't have.
     """
-    tokens = set(re.findall(r"\w+", said.lower()))
-    return not tokens.isdisjoint(variant.legit_forms)
+    said_tokens = set(re.findall(r"\w+", said.lower()))
+    corrected_tokens = set(re.findall(r"\w+", corrected.lower()))
+    said_only = said_tokens - corrected_tokens
+    return bool(said_only) and said_only <= variant.legit_forms
 
 
 if __name__ == "__main__":
     assert get_variant(None) is get_variant("nonsense") is get_variant("neutral")
-    assert is_dialect_legit("Vos tenés razón", get_variant("rioplatense"))
-    assert not is_dialect_legit("Vos tenés razón", get_variant("neutral"))
-    assert not is_dialect_legit("Yo soy cansado", get_variant("rioplatense"))
+    assert is_dialect_legit("Vos tenés razón", "Tú tienes razón", get_variant("rioplatense"))
+    assert not is_dialect_legit("Vos tenés razón", "Tú tienes razón", get_variant("neutral"))
+    assert not is_dialect_legit("Yo soy cansado", "Yo estoy cansado", get_variant("rioplatense"))
+    # A genuine error next to a legit form is kept -- the old whole-utterance
+    # match would have dropped this because "vos"/"tenés" appear anywhere in
+    # `said`; now only the said/corrected diff ("soy" vs "estoy") is checked.
+    assert not is_dialect_legit(
+        "Vos tenés hambre y yo soy cansado", "Vos tenés hambre y yo estoy cansado", get_variant("rioplatense")
+    )
     assert set(VARIANT_KEYS) == {"neutral", "castilian", "rioplatense", "mexican"}
     print("OK")
