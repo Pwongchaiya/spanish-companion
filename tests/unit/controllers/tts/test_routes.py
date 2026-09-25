@@ -49,7 +49,27 @@ class TestTtsRoutesSynthesize:
         assert response.status_code == 200
         assert response.mimetype == "audio/wav"
         assert response.data == b"RIFF....WAVEfmt "
-        mock_service.synthesize_speech.assert_called_once_with("perro")
+        mock_service.synthesize_speech.assert_called_once_with("perro", 1.0)
+
+    def test_should_pass_rate_from_the_body(self, client, mock_service):
+        # given
+        mock_service.synthesize_speech.return_value = b"audio"
+
+        # when
+        client.post("/tts/synthesize", json={"text": "perro", "rate": 0.6})
+
+        # then
+        mock_service.synthesize_speech.assert_called_once_with("perro", 0.6)
+
+    def test_should_default_rate_to_one_when_absent(self, client, mock_service):
+        # given
+        mock_service.synthesize_speech.return_value = b"audio"
+
+        # when
+        client.post("/tts/synthesize", json={"text": "perro"})
+
+        # then
+        mock_service.synthesize_speech.assert_called_once_with("perro", 1.0)
 
     def test_should_pass_none_when_text_is_missing_from_body(self, client, mock_service):
         # given
@@ -61,7 +81,7 @@ class TestTtsRoutesSynthesize:
         client.post("/tts/synthesize", json={})
 
         # then
-        mock_service.synthesize_speech.assert_called_once_with(None)
+        mock_service.synthesize_speech.assert_called_once_with(None, 1.0)
 
     def test_should_return_400_when_validation_fails(self, client, mock_service):
         # given

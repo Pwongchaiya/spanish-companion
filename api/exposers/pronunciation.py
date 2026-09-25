@@ -47,8 +47,9 @@ def make_pronunciation_blueprint(orchestrator: PronunciationService) -> Blueprin
             return jsonify({"error": "reference_text is required"}), 400
         if len(reference_text) > MAX_REFERENCE_TEXT_LENGTH:
             return jsonify({"error": f"reference_text must be {MAX_REFERENCE_TEXT_LENGTH} characters or fewer"}), 400
+        is_word_drill = (request.form.get("is_word_drill") or "").strip().lower() == "true"
         try:
-            result = orchestrator.assess_and_record(audio, reference_text)
+            result = orchestrator.assess_and_record(audio, reference_text, is_word_drill)
             return (
                 jsonify(
                     {

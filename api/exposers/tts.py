@@ -37,8 +37,9 @@ def make_tts_blueprint(service: TtsService) -> Blueprint:
     def synthesize():
         body = request.get_json(silent=True) or {}
         text = body.get("text")
+        rate = body.get("rate", 1.0)
         try:
-            audio_bytes = service.synthesize_speech(text)
+            audio_bytes = service.synthesize_speech(text, rate)
             return Response(audio_bytes, mimetype="audio/wav")
         except TtsValidationException as e:
             return jsonify({"error": str(e.inner_exception)}), 400
