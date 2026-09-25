@@ -385,6 +385,16 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
                 self._flag_service.save_flags(session_flags)
             except (FlagDependencyException, FlagServiceException) as e:
                 self._logging_broker.log_error(e)
+            # Roadmap E3: per-session snapshot, in ADDITION to the shared-file
+            # overwrite above -- lets Session Replay recover this session's
+            # flags after a later session's save_flags() overwrites
+            # flags.json. No-ops when session_log_entry is None (its own
+            # write already failed above), same guard _save_session_audio uses.
+            if session_log_entry is not None:
+                try:
+                    self._flag_service.save_session_flags(session_log_entry.id, session_flags)
+                except (FlagDependencyException, FlagServiceException) as e:
+                    self._logging_broker.log_error(e)
             # The turn-state write is a UI indicator, not data, so it goes
             # last and swallows its own failure. It used to run first here,
             # unguarded -- an OSError from it aborted the rest of this block
