@@ -9,8 +9,17 @@ ports Phase 1's `save_flags_json` / `load_latest_flags`
 (`voice/bot.py`, `review/review.py`) semantics exactly, now behind a
 Protocol so Review (built later) never depends on the file format directly.
 
-Voice Conversation is the only writer; Review is the only reader. No
-SQLAlchemy, no Alembic — there is no table backing this.
+Voice Conversation is the only writer of the flag *list*; Review is the only
+reader. Since 2026-09-24 (Flag.status), Review is also a writer, but only of
+one field on an existing row (`ReviewOrchestrationService.set_flag_status()`
+loads the full list, replaces one flag's status, and calls `save_flags()`
+with the full list back) — it never adds or removes a flag, and it still
+goes through the same whole-file-overwrite `save_flags()` Voice Conversation
+uses, not a separate partial-update method. Voice Conversation still
+overwrites the whole file at the start of every session, so a status set in
+Review only lasts until the next conversation starts.
+
+No SQLAlchemy, no Alembic — there is no table backing this.
 """
 
 from typing import Protocol
