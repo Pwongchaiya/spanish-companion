@@ -81,6 +81,16 @@ class ChunkRepositoryService(
 
         return self._try_catch(action)
 
+    def delete_chunks_by_source_url(self, source_url: str) -> int:
+        def action() -> int:
+            self._validate_blank_field(source_url, "source_url")
+            try:
+                return self._chunk_repository.delete_chunks_by_source_url(source_url)
+            except Exception as e:
+                raise ChunkRepositoryUnavailableError(str(e)) from e
+
+        return self._try_catch(action)
+
     def search_by_vector(self, embedding: list[float], top_k: int) -> list[ScoredChunk]:
         def action() -> list[ScoredChunk]:
             self._validate_search_input(top_k)

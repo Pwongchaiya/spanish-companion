@@ -24,6 +24,10 @@ class ChunkRepositoryBroker(Protocol):
         """Number of rows already stored for this source_url. Ingestion's skip check."""
         ...
 
+    def delete_chunks_by_source_url(self, source_url: str) -> int:
+        """Delete all rows stored for this source_url, return rows deleted. Ingestion's --refresh path."""
+        ...
+
     def search_by_vector(self, embedding: list[float], top_k: int) -> list[ScoredChunk]:
         """Cosine-distance search (pgvector `<=>`), nearest-first, up to top_k rows.
 
