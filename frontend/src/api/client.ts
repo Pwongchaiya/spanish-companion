@@ -101,10 +101,11 @@ export const apiClient = {
 
   // Multipart: no Content-Type header -- the browser must set it itself so the
   // boundary is included.
-  assessPronunciation: (wav: Blob, referenceText: string): Promise<PronunciationResult> => {
+  assessPronunciation: (wav: Blob, referenceText: string, isWordDrill = false): Promise<PronunciationResult> => {
     const form = new FormData();
     form.append("audio", wav, "attempt.wav");
     form.append("reference_text", referenceText);
+    form.append("is_word_drill", String(isWordDrill));
     return fetch("/pronunciation/assess", { method: "POST", body: form }).then(json<PronunciationResult>);
   },
 
@@ -136,11 +137,11 @@ export const apiClient = {
       body: JSON.stringify({ status }),
     }).then(json<Flag>),
 
-  synthesizeSpeech: async (text: string): Promise<Blob> => {
+  synthesizeSpeech: async (text: string, rate = 1): Promise<Blob> => {
     const res = await fetch("/tts/synthesize", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, rate }),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));

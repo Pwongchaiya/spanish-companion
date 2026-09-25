@@ -1,84 +1,802 @@
-/* Shadowing drill -- same hairline, no-card language as MinimalPairDrill.css. */
+/* Shadowing drill -- "Data Ledger": two-column scorecard + coach aside.
+   Everything is scoped under .view.sd (root of ShadowingDrill.tsx); tokens come
+   from index.css, so [data-theme] and prefers-color-scheme need no overrides here. */
 
-.shadow {
+.view.sd {
+  display: block;
+  max-width: 900px;
+}
+
+.view.sd .wrap {
+  display: grid;
+  grid-template-columns: 1fr 264px;
+  gap: 40px;
+  align-items: start;
+  width: 100%;
+}
+
+.view.sd .col {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  max-width: 520px;
-  margin: 48px auto;
-  text-align: center;
+  gap: 24px;
+  min-width: 0;
 }
 
-.shadow-kicker {
+.view.sd .kicker {
+  font-size: 10.5px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text-h);
+  margin: 0;
+}
+
+.view.sd .kicker.quiet {
   color: var(--text);
-  margin: 0;
 }
 
-.shadow-sentence {
-  font-family: var(--serif);
-  font-size: 22px;
-  font-weight: 300;
-  color: var(--text-h);
-  margin: 0;
+.view.sd .kicker.ember {
+  color: var(--ember);
 }
 
-.shadow-actions {
-  display: flex;
-  gap: 12px;
+/* buttons: global button.primary is looser; re-tighten inside the ledger */
+.view.sd button.primary {
+  padding: 11px 20px;
 }
 
-.shadow-actions button {
+.view.sd .ghost {
   border: 1px solid var(--border);
-  background: var(--bg);
+  background: none;
   color: var(--text-h);
-  padding: 10px 20px;
+  border-radius: 3px;
+  padding: 9px 13px;
+  font: 500 12.5px var(--sans);
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  transition: border-color 180ms ease;
 }
 
-.shadow-actions button:disabled {
+.view.sd .ghost:hover {
+  border-color: var(--accent-border);
+}
+
+.view.sd .ghost:disabled {
   opacity: 0.5;
   cursor: default;
 }
 
-.shadow-error {
-  color: var(--text-h);
-  margin: 0;
-}
-
-.shadow-result {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  width: 100%;
-}
-
-.shadow-scores {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 24px;
-  margin: 0;
-}
-
-.shadow-scores dt {
-  font-size: 11.5px;
-  letter-spacing: 0.06em;
-  color: var(--text);
-}
-
-.shadow-scores dd {
-  margin: 2px 0 0;
-  font-family: var(--serif);
-  font-size: 30px;
-  font-weight: 300;
-  color: var(--text-h);
-}
-
-.shadow-next {
+.view.sd .linkish {
   border: none;
   background: none;
   color: var(--accent);
   cursor: pointer;
+  font: 400 13.5px var(--sans);
   text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 4px 0;
+}
+
+.view.sd .linkish.next {
+  align-self: center;
+}
+
+.view.sd .status {
+  min-height: 16px;
+  font: 12px var(--sans);
+  letter-spacing: 0.06em;
+  color: var(--text-h);
+  margin: 0;
+}
+
+/* ---- stage: pre / recording / loading / error ---- */
+.view.sd .stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  text-align: center;
+  padding-top: 18px;
+}
+
+.view.sd .lead {
+  font: 300 25px/1.4 var(--serif);
+  color: var(--text-h);
+  margin: 0;
+  max-width: 34ch;
+}
+
+.view.sd .lead.small {
+  font-size: 19px;
+}
+
+.view.sd .row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.view.sd .rec-ring {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  border: 1px solid var(--ring-speaking);
+  display: grid;
+  place-items: center;
+  position: relative;
+}
+
+.view.sd .rec-ring::before {
+  content: "";
+  position: absolute;
+  inset: -9px;
+  border-radius: 50%;
+  border: 1px solid var(--ring-speaking);
+  opacity: 0.3;
+  animation: sd-breathe 1.8s ease-in-out infinite;
+}
+
+.view.sd .rec-ring i {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--ring-speaking);
+  display: block;
+}
+
+@keyframes sd-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 0.05;
+  }
+}
+
+.view.sd .rec-time {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-h);
+  margin: 0;
+}
+
+.view.sd .stop-btn {
+  border: 1px solid var(--ring-speaking);
+  background: none;
+  color: var(--text-h);
+  border-radius: 3px;
+  padding: 12px 26px;
+  font: 500 14px var(--sans);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+}
+
+.view.sd .stop-btn i {
+  width: 9px;
+  height: 9px;
+  background: var(--ring-speaking);
+  display: block;
+  flex: none;
+}
+
+.view.sd .stop-btn:hover {
+  background: var(--code-bg);
+}
+
+.view.sd .sk {
+  background: var(--code-bg);
+  border-radius: 2px;
+  animation: sd-sk 1.3s ease-in-out infinite;
+}
+
+@keyframes sd-sk {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.view.sd .spin {
+  animation: sd-spin 1.5s linear infinite;
+}
+
+@keyframes sd-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.view.sd .sk-rows {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.view.sd .sk-rows .sk {
+  height: 44px;
+  border-radius: 0;
+}
+
+.view.sd .err {
+  border-left: 2px solid var(--ember);
+  padding: 2px 0 2px 15px;
+  text-align: left;
+  max-width: 38ch;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.view.sd .err .lbl {
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ember);
+}
+
+.view.sd .err p {
+  margin: 0;
+  font: 300 19px/1.5 var(--serif);
+  color: var(--text-h);
+}
+
+.view.sd .err .detail {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-h);
+  overflow-wrap: anywhere;
+}
+
+/* ---- hero: dial + verdict ---- */
+.view.sd .hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 11px;
+  text-align: center;
+  padding-top: 8px;
+}
+
+.view.sd .dial {
+  position: relative;
+  width: 128px;
+  height: 128px;
+}
+
+.view.sd .dial svg {
+  transform: rotate(-90deg);
+}
+
+.view.sd .dial .track {
+  stroke: var(--border);
+}
+
+.view.sd .dial .fill {
+  stroke: var(--accent);
+  stroke-linecap: butt;
+  transition: stroke-dasharray 600ms ease;
+}
+
+.view.sd .dial.warn .fill {
+  stroke: var(--ring-warming);
+}
+
+.view.sd .dial.poor .fill {
+  stroke: var(--ember);
+}
+
+.view.sd .dial .num {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font: 300 42px/1 var(--serif);
+  color: var(--text-h);
+  font-variant-numeric: tabular-nums;
+}
+
+.view.sd .verdict {
+  font: 300 21px/1.42 var(--serif);
+  color: var(--text-h);
+  margin: 0;
+  max-width: 28ch;
+}
+
+.view.sd .verdict em {
+  font-style: italic;
+  color: var(--text);
+}
+
+.view.sd .sentence {
+  font: 300 15.5px/1.55 var(--serif);
+  color: var(--text);
+  margin: 0;
+  max-width: 40ch;
+}
+
+.view.sd .en {
+  font: italic 300 14px/1.5 var(--serif);
+  color: var(--text-h);
+  margin: 6px 0 0;
+  max-width: 40ch;
+}
+
+/* ---- meters: 3 only, prosody dropped ---- */
+.view.sd .meters {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.view.sd .meter {
+  padding: 13px 0 12px 16px;
+  border-left: 1px solid var(--border);
+}
+
+.view.sd .meter:first-child {
+  border-left: none;
+  padding-left: 0;
+}
+
+.view.sd .m-label {
+  display: block;
+  font: 10px var(--sans);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-h);
+}
+
+.view.sd .m-val {
+  display: block;
+  margin: 5px 0 8px;
+  font: 300 29px/1 var(--serif);
+  color: var(--text-h);
+  font-variant-numeric: tabular-nums;
+}
+
+.view.sd .m-val::after {
+  content: " /100";
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text);
+  letter-spacing: 0.04em;
+}
+
+.view.sd .m-bar {
+  display: block;
+  height: 2px;
+  position: relative;
+  margin-right: 16px;
+  background-color: var(--border);
+  background-image: linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 25% 100%;
+}
+
+.view.sd .meter:last-child .m-bar {
+  margin-right: 0;
+}
+
+.view.sd .m-bar i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--accent);
+}
+
+/* ---- word cells ---- */
+.view.sd .hd {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+  margin-bottom: 13px;
+}
+
+.view.sd .cells {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.view.sd .cell {
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: none;
+  color: var(--text-h);
+  cursor: pointer;
+  padding: 0;
+  font: 15px var(--sans);
+  display: inline-flex;
+  align-items: stretch;
+  overflow: hidden;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.view.sd .cell .w {
+  padding: 6px 10px 7px;
+}
+
+.view.sd .cell .n {
+  padding: 6px 8px 7px;
+  border-left: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-h);
+  display: flex;
+  align-items: center;
+}
+
+.view.sd .cell.good {
+  border-color: var(--ring-listening);
+}
+
+.view.sd .cell.good .n {
+  border-left-color: var(--ring-listening);
+}
+
+.view.sd .cell.warn {
+  border-color: var(--ring-warming);
+}
+
+.view.sd .cell.warn .n {
+  border-left-color: var(--ring-warming);
+}
+
+.view.sd .cell.poor {
+  border-color: var(--ember);
+  border-style: dashed;
+  color: var(--ember);
+}
+
+.view.sd .cell.poor .w {
+  text-decoration: underline wavy var(--ember);
+  text-underline-offset: 3px;
+}
+
+.view.sd .cell.poor .n {
+  border-left-color: var(--ember);
+  color: var(--ember);
+}
+
+.view.sd .cell:hover {
+  background: var(--accent-bg);
+}
+
+.view.sd .foot {
+  margin: 12px 0 0;
+  font: 12px/1.5 var(--mono);
+  color: var(--text);
+}
+
+.view.sd .tail {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+}
+
+/* ---- aside: ledger card of hairline rows ---- */
+.view.sd .coach {
+  position: sticky;
+  top: 24px;
+  display: flex;
+  flex-direction: column;
+  border-left: 2px solid var(--ember);
+  padding: 0 0 0 15px;
+}
+
+.view.sd .coach.calm {
+  border-left-color: var(--accent-border);
+}
+
+.view.sd .coach.placeholder {
+  border-left-color: var(--border);
+}
+
+.view.sd .coach summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ember);
+  padding: 9px 0;
+}
+
+.view.sd .coach summary::-webkit-details-marker {
+  display: none;
+}
+
+.view.sd .coach summary::after {
+  content: "▾";
+  margin-left: auto;
+  padding-left: 12px;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--text-h);
+  transition: transform 180ms ease;
+}
+
+.view.sd .coach[open] summary::after {
+  transform: rotate(180deg);
+}
+
+.view.sd .coach.calm summary {
+  color: var(--accent);
+}
+
+.view.sd .coach.placeholder summary {
+  color: var(--text-h);
+}
+
+.view.sd .sum-extra {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--text-h);
+}
+
+.view.sd .coach .word {
+  font: 300 29px/1.12 var(--serif);
+  color: var(--text-h);
+  text-decoration: underline wavy var(--ember);
+  text-underline-offset: 8px;
+  text-decoration-thickness: 1px;
+  padding-bottom: 12px;
+}
+
+.view.sd .coach.calm .word {
+  font-size: 20px;
+  text-decoration: none;
+}
+
+.view.sd .rows {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+}
+
+.view.sd .rows dt {
+  grid-column: 1;
+  font: 10px var(--sans);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-h);
+  padding: 8px 14px 8px 0;
+  border-top: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.view.sd .rows dd {
+  grid-column: 2;
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--text-h);
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.view.sd .rows dd.bad {
+  color: var(--ember);
+}
+
+.view.sd .rows dd.up {
+  color: var(--accent);
+}
+
+.view.sd .rows dd .was {
+  color: var(--text);
+  text-decoration: line-through;
+  margin-right: 6px;
+}
+
+.view.sd .coach .why {
+  font: italic 300 14.5px/1.6 var(--serif);
+  color: var(--text-h);
+  margin: 13px 0 0;
+}
+
+.view.sd .act-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 13px;
+}
+
+.view.sd .act-row .wide {
+  grid-column: 1 / -1;
+}
+
+.view.sd .coach-note {
+  font: italic 300 14.5px/1.6 var(--serif);
+  color: var(--text);
+  margin: 0;
+}
+
+.view.sd .sk-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.view.sd .sk-aside .sk {
+  height: 9px;
+  width: 100%;
+}
+
+.view.sd .sk-aside .sk.tall {
+  height: 24px;
+  width: 66%;
+}
+
+.view.sd .sk-aside .sk.short {
+  width: 72%;
+}
+
+.view.sd .aside-foot {
+  margin: 11px 0 0;
+}
+
+/* ---- single-word drill, in place inside the same card ---- */
+.view.sd .drill-live {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0 2px;
+}
+
+.view.sd .drill-live .dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--ring-speaking);
+  flex: none;
+  animation: sd-breathe 1.8s ease-in-out infinite;
+}
+
+.view.sd .drill-live .lbl {
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ember);
+  margin-left: auto;
+}
+
+.view.sd .drill .err {
+  border-left: none;
+  padding: 12px 0 0;
+  max-width: none;
+}
+
+.view.sd .drill-spin {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0 4px;
+}
+
+/* the card's own rule is the verdict: ember while wrong, accent once cleared */
+.view.sd .coach.drill[data-result="up"] {
+  border-left-color: var(--accent-border);
+}
+
+.view.sd .coach.drill[data-result="up"] summary {
+  color: var(--accent);
+}
+
+.view.sd .coach.drill[data-result="up"] .word {
+  text-decoration: none;
+}
+
+/* ---- narrow: aside unpins and jumps to the top ---- */
+@media (max-width: 860px) {
+  .view.sd .wrap {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+
+  .view.sd .col {
+    gap: 22px;
+  }
+
+  .view.sd .coach {
+    position: static;
+    order: -1;
+    padding: 0 0 0 13px;
+  }
+
+  .view.sd .coach summary {
+    padding: 11px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .view.sd .coach[open] summary {
+    border-bottom-color: transparent;
+  }
+
+  .view.sd .coach .word {
+    font-size: 24px;
+  }
+
+  .view.sd .act-row .ghost {
+    padding: 11px 13px;
+  }
+}
+
+@media (max-width: 520px) {
+  .view.sd .meters {
+    grid-template-columns: 1fr;
+  }
+
+  .view.sd .meter {
+    border-left: none;
+    padding: 10px 0;
+    border-top: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .view.sd .meter:first-child {
+    border-top: none;
+  }
+
+  .view.sd .m-val {
+    margin: 0;
+    font-size: 22px;
+    text-align: right;
+  }
+
+  .view.sd .m-bar {
+    grid-column: 1 / -1;
+    margin: 4px 0 0;
+  }
+}
+
+/* Dark mode and [data-theme] are handled by the tokens; nothing to override. The
+   selector below only keeps the theme-attribute path explicit for the dial track. */
+:root[data-theme="dark"] .view.sd .dial .track {
+  stroke: var(--border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .view.sd *,
+  .view.sd *::before,
+  .view.sd *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }
