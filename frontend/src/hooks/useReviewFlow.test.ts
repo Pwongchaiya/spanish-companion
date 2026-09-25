@@ -135,6 +135,7 @@ describe("useReviewFlow", () => {
 
     expect(apiClient.submitPractice).toHaveBeenCalledWith("f1", "hola", undefined);
     expect(result.current.attempt?.attempt_text).toBe("hola");
+    expect(result.current.attemptHeardSeconds).toBe(2.1);
   });
 
   it("does not log a practice attempt when transcribe hears no speech", async () => {
@@ -174,5 +175,6 @@ describe("useReviewFlow", () => {
 
     expect(apiClient.transcribe).not.toHaveBeenCalled();
     expect(apiClient.submitPractice).toHaveBeenCalledWith("f1", "hola", undefined);
+    expect(result.current.attemptHeardSeconds).toBeNull();
   });
 });

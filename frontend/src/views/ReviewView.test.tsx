@@ -30,6 +30,7 @@ function mockFlow(overrides: Partial<ReturnType<typeof useReviewFlow>>) {
     mistakeSummary: [],
     practicePhase: "idle",
     lastRecordedSeconds: null,
+    attemptHeardSeconds: null,
     setPracticePhase: vi.fn(),
     selectFlag: vi.fn(),
     submitPractice: vi.fn(),

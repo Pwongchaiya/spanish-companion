@@ -37,6 +37,9 @@ export function useReviewFlow() {
   // Set from the transcribe response, consumed immediately by the nospeech
   // notice ("0 words · 3.1s of audio") -- not carried across flags/attempts.
   const [lastRecordedSeconds, setLastRecordedSeconds] = useState<number | null>(null);
+  // Audio length behind the current attempt; null = it was typed. Drives the
+  // "heard · azure es-ES · 4.2s" provenance line on the logged pane.
+  const [attemptHeardSeconds, setAttemptHeardSeconds] = useState<number | null>(null);
   const addToast = useToastStore((s) => s.addToast);
 
   // ponytail: bumped on every user-driven phase change (not the internal
@@ -142,6 +145,7 @@ export function useReviewFlow() {
     setSelectedFlagId(flagId);
     setExplanation(null);
     setAttempt(null);
+    setAttemptHeardSeconds(null);
     setError(null);
     setPracticePhase("idle");
     // Offline: still show the flag itself (said/corrected are already in
@@ -159,14 +163,15 @@ export function useReviewFlow() {
     }
   }
 
-  async function submitPractice(attemptText: string, roleplaySlug?: string) {
+  async function submitPractice(attemptText: string, roleplaySlug?: string, heardSeconds: number | null = null) {
     if (!selectedFlagId) return;
     try {
       setAttempt(await apiClient.submitPractice(selectedFlagId, attemptText, roleplaySlug));
+      setAttemptHeardSeconds(heardSeconds);
     } catch (e) {
       handleCaughtError(
         e,
-        () => submitPractice(attemptText, roleplaySlug),
+        () => submitPractice(attemptText, roleplaySlug, heardSeconds),
         "Couldn't save that practice attempt.",
         "Your answer is still in the box.",
       );
@@ -187,7 +192,7 @@ export function useReviewFlow() {
         setPracticePhaseState("nospeech");
         return;
       }
-      await submitPractice(text, roleplaySlug);
+      await submitPractice(text, roleplaySlug, duration_seconds);
     } catch (e) {
       if (practiceTokenRef.current !== token) return;
       setPracticePhaseState("idle");
@@ -232,6 +237,7 @@ export function useReviewFlow() {
     mistakeSummary,
     practicePhase,
     lastRecordedSeconds,
+    attemptHeardSeconds,
     setPracticePhase,
     selectFlag,
     submitPractice,
