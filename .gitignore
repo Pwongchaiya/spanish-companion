@@ -12,7 +12,6 @@ data/session_logs/
 data/turn_state.txt
 data/stop_signal
 .claude
-.claude-toolkit
 voice/logs/
 review/logs/
 .repowise/
