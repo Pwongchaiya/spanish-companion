@@ -5,6 +5,7 @@ __pycache__/
 *.pyc
 data/corpus/*.html
 data/flags.json
+data/flags/
 data/practice_log.jsonl
 data/live_transcript.jsonl
 data/session_logs/
