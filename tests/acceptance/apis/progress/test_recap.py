@@ -2,13 +2,13 @@
 the real Exposer -> Aggregation -> (Progress Orchestration -> Foundation ->
 Broker -> SQL) stack, with Review's flag list mocked (roadmap C2).
 
-Same two deliberate scope narrowings as test_speaking_and_streak.py, for the
-same reasons:
+Same deliberate scope narrowing as test_speaking_and_streak.py, for the same
+reason: not api.app.create_app() -- ReviewOrchestrationService pulls in
+Azure/Gemini/retrieval credentials this route never touches.
 
-1. Not api.app.create_app() -- ReviewOrchestrationService pulls in Azure/
-   Gemini/retrieval credentials this route never touches.
-2. sqlite, not a test Postgres -- session_log uses no pgvector/Postgres-only
-   type, and the 0003 migration's own self-check makes the same call.
+Per CLAUDE.md's Phase 2 test strategy, this hits a real test Postgres
+(TEST_DATABASE_URL, never DATABASE_URL) -- see tests/acceptance/conftest.py.
+The session_log table is truncated in teardown; self-cleaning.
 
 ReviewOrchestrationService is mocked at the Orchestration boundary (its
 list_flags() is a Protocol method with no persistence of its own visible
@@ -25,8 +25,6 @@ from flask import Flask
 from api.brokers.logging import StdlibLoggingBroker
 from api.brokers.session_log_entry import SqlAlchemySessionLogEntryBroker
 from api.exposers.progress import make_progress_blueprint
-from api.models.base import Base
-from api.models.foundations.session_log_entry.session_log_entry import SessionLogEntryRecord
 from api.services.aggregations.session_recap import SessionRecapAggregationService
 from api.services.foundations.mistake_pattern import IMistakePatternService
 from api.services.foundations.pronunciation_result import IPronunciationResultService
@@ -40,9 +38,9 @@ SESSION_START = datetime(2026, 9, 18, 18, 0, 0)
 
 
 @pytest.fixture
-def session_log_entry_service():
-    broker = SqlAlchemySessionLogEntryBroker("sqlite://")
-    Base.metadata.create_all(broker._engine, tables=[SessionLogEntryRecord.__table__])
+def session_log_entry_service(test_database_url, truncate_tables):
+    truncate_tables("session_log")
+    broker = SqlAlchemySessionLogEntryBroker(test_database_url)
     return SessionLogEntryService(broker, logging_broker=StdlibLoggingBroker())
 
 

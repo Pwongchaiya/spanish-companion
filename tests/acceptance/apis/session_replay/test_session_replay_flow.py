@@ -1,20 +1,23 @@
 """Acceptance tests for E3 transcript replay's HTTP round trip.
 
 Per CLAUDE.md's Phase 2 test strategy: Flask app in-process (app.test_client()),
-real brokers behind real Foundation/Orchestration services, pointed at pytest
-tmp_path (self-cleaning by construction): file-backed sqlite stands in for the
-test Postgres, a real WAV lands in tmp_path, flags come from a real JSON file.
-No external API is involved. Not api.app.create_app() -- it wires real
-Postgres/Azure/Gemini brokers with no injection point (same as the other
-acceptance tiers here); the Origin/Referer allowlist it applies is exercised via
-the same api.app helpers. Round trip: record -> replay -> audio -> prune.
+real brokers behind real Foundation/Orchestration services. session_log/session_audio
+hit a real test Postgres (TEST_DATABASE_URL, never DATABASE_URL -- see
+tests/acceptance/conftest.py); a real WAV lands in pytest tmp_path, flags come
+from a real JSON file there too. No external API is involved. Not
+api.app.create_app() -- it wires real Postgres/Azure/Gemini brokers with no
+injection point (same as the other acceptance tiers here); the Origin/Referer
+allowlist it applies is exercised via the same api.app helpers. Round trip:
+record -> replay -> audio -> prune.
+
+Self-cleaning: session_log and session_audio are truncated in teardown; the
+WAV/JSON files live under pytest's tmp_path, which pytest cleans up itself.
 """
 
 from datetime import datetime
 
 import pytest
 from flask import Flask, jsonify, request
-from sqlalchemy import create_engine
 
 from api.app import ALLOWED_ORIGINS, _is_allowed_origin
 from api.brokers.audio_storage import LocalWavAudioStorageBroker
@@ -23,10 +26,7 @@ from api.brokers.logging import StdlibLoggingBroker
 from api.brokers.session_audio import SqlAlchemySessionAudioBroker
 from api.brokers.session_log_entry import SqlAlchemySessionLogEntryBroker
 from api.exposers.session_replay import make_session_replay_blueprint
-from api.models.base import Base
 from api.models.foundations.flag import Flag
-from api.models.foundations.session_audio.session_audio import SessionAudioRecord
-from api.models.foundations.session_log_entry.session_log_entry import SessionLogEntryRecord
 from api.services.foundations.audio_storage import AudioStorageService
 from api.services.foundations.flag import FlagService
 from api.services.foundations.session_audio import SessionAudioService
@@ -40,11 +40,9 @@ NOW = datetime(2026, 3, 1, 10, 2, 0)
 
 
 @pytest.fixture
-def stack(tmp_path):
-    url = f"sqlite:///{tmp_path / 'test.db'}"
-    engine = create_engine(url)
-    Base.metadata.create_all(engine, tables=[SessionLogEntryRecord.__table__, SessionAudioRecord.__table__])
-    engine.dispose()
+def stack(tmp_path, test_database_url, truncate_tables):
+    truncate_tables("session_audio", "session_log")
+    url = test_database_url
     logging_broker = StdlibLoggingBroker()
 
     entries = SessionLogEntryService(SqlAlchemySessionLogEntryBroker(url), logging_broker=logging_broker)
