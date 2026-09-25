@@ -1,0 +1,11 @@
+# Setup once per clone: pip install pre-commit && pre-commit install
+# Hooks run in pre-commit's own envs; black is not installed in .venv (pathspec clash with repowise).
+repos:
+  - repo: https://github.com/psf/black-pre-commit-mirror
+    rev: 26.5.1
+    hooks:
+      - id: black
+  - repo: https://github.com/PyCQA/flake8
+    rev: 7.3.0
+    hooks:
+      - id: flake8
