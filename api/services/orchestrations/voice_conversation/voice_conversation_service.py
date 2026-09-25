@@ -195,6 +195,23 @@ def parse_flag(content: str, logging_broker: LoggingBroker) -> Optional[dict]:
     return {**{key: flag[key] for key in FLAG_KEYS}, "channel": channel}
 
 
+def _truncate_at_boundary(text: str, max_chars: int) -> str:
+    """Truncate `text` to at most `max_chars`, preferring a clean break over
+    a mid-word/mid-sentence cut: the last sentence end (". ", "! ", "? ")
+    within the limit if one exists past roughly half of it, else the last
+    whitespace, else a hard cut."""
+    if len(text) <= max_chars:
+        return text
+    window = text[:max_chars]
+    best_end = max((window.rfind(t) for t in (". ", "! ", "? ")), default=-1)
+    if best_end >= max_chars // 2:
+        return window[: best_end + 1].rstrip()
+    space_idx = window.rfind(" ")
+    if space_idx > 0:
+        return window[:space_idx].rstrip()
+    return window
+
+
 def _record_flag(
     session_flags: List[Flag],
     parsed: dict,
@@ -515,7 +532,7 @@ class ConversationOrchestrationService(ConversationOrchestrationServiceException
             summary = self._generation_service.generate_text(prompt)
             if not summary:
                 return
-            self._persona_processing_service.update_memory(slug, summary[:max_chars])
+            self._persona_processing_service.update_memory(slug, _truncate_at_boundary(summary, max_chars))
             self._logging_broker.log_info(f"Persona memory updated: {slug}")
         except Exception as e:  # noqa: BLE001 -- degrade, never crash teardown
             self._logging_broker.log_warning("Persona memory update failed (%s): %s", slug, e)
