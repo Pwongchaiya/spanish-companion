@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Same versions as .pre-commit-config.yaml.
+      - run: pip install black==26.5.1 flake8==7.3.0
+      - run: black --check .
+      - run: flake8
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: spanish_companion_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ci" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql+pg8000://ci:ci@localhost:5432/spanish_companion_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      # pyaudio (via pipecat-ai[local]) compiles against portaudio; see Dockerfile.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends portaudio19-dev
+      # CPU-only torch: the default CUDA wheel is ~2 GB and nothing here uses a GPU.
+      - run: pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+      - run: alembic upgrade head
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+      - run: python -m pytest -q
+      # Scoring logic only; the real eval needs the ingested corpus and Gemini, so it stays manual.
+      - run: python evals/run_eval.py --self-test
