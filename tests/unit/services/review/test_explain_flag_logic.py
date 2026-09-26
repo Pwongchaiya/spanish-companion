@@ -6,6 +6,12 @@ See test_explain_flag_exceptions.py for the unknown-flag_id refusal.
 RETRIEVAL_TOP_K is asserted by reference to conftest's constant, never as a
 bare literal 3 -- it is the same value the `configuration_broker` fixture
 feeds the service, so tests and service can't silently drift apart.
+
+#64: Review passes GenerationService.explain() the FULL retrieved chunk
+list now, not just chunks[0] -- GenerationService itself decides how many
+of them (EXPLAIN_TOP_K) to ground on. That slicing is GenerationService's
+own unit-tested behaviour (tests/unit/services/generation/); this suite
+only asserts Review hands over the whole list.
 """
 
 from rag.models.foundations.generation import FALLBACK_EXPLANATION, Explanation
@@ -48,8 +54,8 @@ class TestReviewOrchestratorExplainFlag:
             top_k=RETRIEVAL_TOP_K,
             category="preterite",
         )
-        # chunks[0] specifically -- retrieve() returns best-first.
-        mock_generation_service.explain.assert_called_once_with(flag, top_chunk)
+        # #64: the full retrieved (best-first) list, not just chunks[0].
+        mock_generation_service.explain.assert_called_once_with(flag, [top_chunk, runner_up])
 
     def test_should_return_fallback_without_calling_generation_when_retrieval_is_empty(
         self,
