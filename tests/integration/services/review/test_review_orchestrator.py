@@ -219,7 +219,7 @@ class TestReviewOrchestratorIntegration:
             category="preterite",
         )
         # The flag handed to Generation is the one reconstructed from disk.
-        mock_generation_service.explain.assert_called_once_with(flag, top_chunk)
+        mock_generation_service.explain.assert_called_once_with(flag, [top_chunk])
 
     def test_should_raise_validation_exception_when_the_real_file_has_no_such_id(
         self, service, flag_broker, mock_retrieval_service, practice_log_broker
