@@ -6,4 +6,6 @@ Reference grammar content:
 Proposed explanation:
 {explanation}
 
-Is the proposed explanation fully supported by the reference content above, with no unsupported claims? Answer with "YES" or "NO" as the first word, optionally followed by a one-line reason.
+The explanation is written about the learner's own sentence, which the reference will never contain. Quoting that sentence, applying the rule to it, and encouraging the learner are expected and are not unsupported claims. Judge only the grammar rule the explanation states: is that rule supported by the reference content, and does the explanation invent no grammar rule the reference does not support?
+
+Answer with "YES" or "NO" as the first word, optionally followed by a one-line reason.
