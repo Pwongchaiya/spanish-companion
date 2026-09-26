@@ -96,6 +96,7 @@ def create_public_app() -> Flask:
             )
         ],
         alternate_strategy=LexicalStrategy(chunk_repository_service, logging_broker=logging_broker),
+        candidate_pool=int(os.getenv("RETRIEVAL_CANDIDATE_POOL", "50")),
         logging_broker=logging_broker,
     )
     generation_service = GenerationService(GeminiGenerationBroker(), logging_broker=logging_broker)

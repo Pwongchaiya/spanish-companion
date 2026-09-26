@@ -1,8 +1,8 @@
 """Unit tests for HybridRetrievalOrchestrationService.retrieve() -- pipeline behaviour.
 
 Covers the stage order the service owns:
-    embed once -> every strategy -> fuse -> filters (+ per-call category
-    boost) -> [:top_k]
+    embed once -> every strategy (candidate_pool deep) -> fuse -> filters
+    (category matches skip them) -> per-call category boost -> [:top_k]
 
 See test_retrieve_validation.py for the blank-query / top_k guards.
 """
@@ -154,25 +154,52 @@ class TestHybridRetrievalServiceRetrieveLogic:
         assert [result.chunk_id for result in unboosted] == [1, 2]
         assert mock_strategy.search.call_count == 2
 
-    def test_should_apply_category_boost_after_configured_filters(self, service_factory, mock_strategy, make_chunk):
-        # given -- the per-call category hint gets the final say on order, so a
-        # configured filter's ranking is what the boost partitions.
+    def test_should_let_category_matches_skip_configured_filters(self, service_factory, mock_strategy, make_chunk):
+        # given -- a filter that drops everything it sees (MaxDistanceFilter on a
+        # learner sentence, 2026-09-25 eval); the matching chunk must survive it.
         mock_strategy.search.return_value = [
             make_chunk(1, topic="vocabulary"),
             make_chunk(2, topic="ser-vs-estar"),
         ]
         mock_filter = Mock(spec=ResultFilter)
-        mock_filter.apply.return_value = [
-            make_chunk(3, topic="vocabulary"),
-            make_chunk(4, topic="ser-vs-estar"),
-        ]
+        mock_filter.apply.return_value = []
         service = service_factory(filters=[mock_filter])
 
         # when
         results = service.retrieve(query="ella es feliz", top_k=3, category="ser vs estar")
 
-        # then -- the boost saw the configured filter's output, not the fused list.
-        mock_filter.apply.assert_called_once_with(
-            [make_chunk(1, topic="vocabulary"), make_chunk(2, topic="ser-vs-estar")]
-        )
-        assert [result.chunk_id for result in results] == [4, 3]
+        # then -- the filter only saw the unmatched chunk.
+        mock_filter.apply.assert_called_once_with([make_chunk(1, topic="vocabulary")])
+        assert [result.chunk_id for result in results] == [2]
+
+    def test_should_still_filter_everything_when_category_matches_no_chunk(
+        self, service_factory, mock_strategy, make_chunk
+    ):
+        # given -- an uncovered category (vocabulary) must still come back [].
+        mock_strategy.search.return_value = [make_chunk(1, topic="ser-vs-estar")]
+        mock_filter = Mock(spec=ResultFilter)
+        mock_filter.apply.return_value = []
+        service = service_factory(filters=[mock_filter])
+
+        # when
+        results = service.retrieve(query="la cuenta", top_k=3, category="vocabulary")
+
+        # then
+        mock_filter.apply.assert_called_once_with([make_chunk(1, topic="ser-vs-estar")])
+        assert results == []
+
+    def test_should_fetch_candidate_pool_but_return_top_k(
+        self, service_factory, mock_strategy, make_chunk, query_embedding
+    ):
+        # given -- the right chunk ranked 4th by dense search.
+        mock_strategy.search.return_value = [make_chunk(i, topic="vocabulary") for i in range(1, 4)] + [
+            make_chunk(4, topic="ser-vs-estar")
+        ]
+        service = service_factory(candidate_pool=50)
+
+        # when
+        results = service.retrieve(query="ella es feliz", top_k=3, category="ser vs estar")
+
+        # then
+        mock_strategy.search.assert_called_once_with(query_embedding, 50)
+        assert [result.chunk_id for result in results] == [4, 1, 2]
