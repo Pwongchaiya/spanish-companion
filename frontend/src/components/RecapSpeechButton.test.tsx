@@ -9,7 +9,7 @@ import { apiClient } from "../api/client";
 describe("RecapSpeechButton", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    global.URL.createObjectURL = vi.fn(() => "blob:mock-url");
+    globalThis.URL.createObjectURL = vi.fn(() => "blob:mock-url");
   });
 
   it("fetches the recap audio once and plays it on click", async () => {
