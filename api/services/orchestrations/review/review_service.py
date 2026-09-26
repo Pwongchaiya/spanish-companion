@@ -198,8 +198,12 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
                 # debugging splits them in the logs above, not in the copy.
                 return Explanation(explanation=FALLBACK_EXPLANATION, source_url="", source_excerpt="")
 
-            # retrieve() returns best-first, so [0] is the top-ranked chunk.
-            explanation = self._generation_service.explain(flag, chunks[0])
+            # #64: pass the full retrieved (best-first) chunk list --
+            # GenerationService itself decides how many of them (EXPLAIN_TOP_K)
+            # actually ground the explanation. Topic bookkeeping below still
+            # uses chunks[0]'s topic -- per CLAUDE.md's Phase-2 waiver, weak-
+            # verdict/topic recording may keep using the top chunk's topic.
+            explanation = self._generation_service.explain(flag, chunks)
             if explanation.is_fallback:
                 explanation = self._second_opinion(flag, retrieval_top_k) or explanation
             if explanation.is_fallback:
@@ -257,7 +261,8 @@ class ReviewOrchestrationService(ReviewOrchestrationServiceExceptions, ReviewSer
             if not chunks:
                 self._logging_broker.log_info("second opinion found no chunks for flag_id=%s", flag.id)
                 return None
-            second = self._generation_service.explain(flag, chunks[0])
+            # #64: same top-k grounding as the primary attempt above.
+            second = self._generation_service.explain(flag, chunks)
         except Exception as e:  # ponytail: best-effort -- any failure degrades to the original explanation
             self._logging_broker.log_info("second opinion failed for flag_id=%s: %s", flag.id, e)
             return None
