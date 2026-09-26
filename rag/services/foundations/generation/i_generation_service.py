@@ -22,7 +22,7 @@ specific name (ConversationSessionService) than its interface
 side instead.
 """
 
-from typing import Protocol
+from typing import List, Protocol
 
 from rag.models.foundations.generation import Explanation
 from rag.models.orchestrations.retrieval import ScoredChunk
@@ -42,15 +42,21 @@ class FlagLike(Protocol):
 class IGenerationService(Protocol):
     """External-facing contract for Generation's Foundation-tier service."""
 
-    def explain(self, flag: FlagLike, chunk: ScoredChunk) -> Explanation:
-        """Return a grounded explanation for `flag` using `chunk`'s content.
+    def explain(self, flag: FlagLike, chunks: List[ScoredChunk]) -> Explanation:
+        """Return a grounded explanation for `flag` using `chunks` (best-first).
 
-        A second broker call judges whether the draft explanation is
-        actually supported by `chunk`'s content before it is returned
-        (Review Mode only -- untimed, budgeted for the extra call). Never
-        raises GenerationError -- a broker failure, or a "not grounded"
-        verdict, is caught and replaced with a fixed fallback string. May
-        raise GenerationServiceException for anything else unexpected.
+        #64: grounds on the first EXPLAIN_TOP_K (env knob, default 3) of
+        `chunks`, not just the single top-ranked one -- the caller passes its
+        full retrieved list, non-empty (this contract has no Optional/empty
+        case; an empty list is a caller bug). A second broker call judges
+        whether the draft explanation is actually supported by that same
+        joined chunk content before it is returned (Review Mode only --
+        untimed, budgeted for the extra call). Never raises GenerationError --
+        a broker failure, or a "not grounded" verdict, is caught and replaced
+        with a fixed fallback string. The returned Explanation's
+        source_url/source_excerpt are always the top-ranked chunk's (a single
+        string field can't represent more than one chunk). May raise
+        GenerationServiceException for anything else unexpected.
         """
         ...
 

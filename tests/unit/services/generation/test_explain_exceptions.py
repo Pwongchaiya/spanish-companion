@@ -14,13 +14,13 @@ from rag.models.foundations.generation import FALLBACK_EXPLANATION, Explanation
 class TestGenerationServiceExplainExceptions:
 
     def test_should_return_fallback_explanation_when_broker_raises_generation_error(
-        self, service, mock_broker, flag, chunk
+        self, service, mock_broker, flag, chunk, chunks
     ):
         # given
         mock_broker.generate.side_effect = GenerationError("Gemini client call failed: boom")
 
         # when
-        result = service.explain(flag, chunk)
+        result = service.explain(flag, chunks)
 
         # then
         assert result == Explanation(
@@ -31,7 +31,7 @@ class TestGenerationServiceExplainExceptions:
         mock_broker.generate.assert_called_once()
 
     def test_should_return_fallback_explanation_when_judge_rules_draft_not_grounded(
-        self, service, mock_broker, flag, chunk
+        self, service, mock_broker, flag, chunk, chunks
     ):
         # given
         mock_broker.generate.side_effect = [
@@ -40,7 +40,7 @@ class TestGenerationServiceExplainExceptions:
         ]
 
         # when
-        result = service.explain(flag, chunk)
+        result = service.explain(flag, chunks)
 
         # then
         assert result == Explanation(
@@ -51,7 +51,7 @@ class TestGenerationServiceExplainExceptions:
         assert mock_broker.generate.call_count == 2
 
     def test_should_log_judge_verdict_when_draft_not_grounded(
-        self, service, mock_broker, mock_logging_broker, flag, chunk
+        self, service, mock_broker, mock_logging_broker, flag, chunks
     ):
         # given
         mock_broker.generate.side_effect = [
@@ -60,7 +60,7 @@ class TestGenerationServiceExplainExceptions:
         ]
 
         # when
-        service.explain(flag, chunk)
+        service.explain(flag, chunks)
 
         # then
         mock_logging_broker.log_info.assert_any_call(
@@ -68,7 +68,7 @@ class TestGenerationServiceExplainExceptions:
         )
 
     def test_should_return_fallback_explanation_when_judge_call_itself_raises_generation_error(
-        self, service, mock_broker, flag, chunk
+        self, service, mock_broker, flag, chunk, chunks
     ):
         # given -- draft succeeds, but the judge call fails; can't verify
         # groundedness so it's treated as not grounded, same fallback.
@@ -78,7 +78,7 @@ class TestGenerationServiceExplainExceptions:
         ]
 
         # when
-        result = service.explain(flag, chunk)
+        result = service.explain(flag, chunks)
 
         # then
         assert result == Explanation(
@@ -88,17 +88,17 @@ class TestGenerationServiceExplainExceptions:
         )
         assert mock_broker.generate.call_count == 2
 
-    def test_should_mark_fallback_explanation_as_fallback(self, service, mock_broker, flag, chunk):
+    def test_should_mark_fallback_explanation_as_fallback(self, service, mock_broker, flag, chunks):
         # given
         mock_broker.generate.side_effect = GenerationError("Gemini client call failed: boom")
 
         # when
-        result = service.explain(flag, chunk)
+        result = service.explain(flag, chunks)
 
         # then
         assert result.is_fallback is True
 
-    def test_should_not_mark_grounded_explanation_as_fallback(self, service, mock_broker, flag, chunk):
+    def test_should_not_mark_grounded_explanation_as_fallback(self, service, mock_broker, flag, chunks):
         # given
         mock_broker.generate.side_effect = [
             "Great question! 'Tengo' is the correct form.",
@@ -106,7 +106,7 @@ class TestGenerationServiceExplainExceptions:
         ]
 
         # when
-        result = service.explain(flag, chunk)
+        result = service.explain(flag, chunks)
 
         # then
         assert result.is_fallback is False

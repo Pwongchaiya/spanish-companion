@@ -18,6 +18,17 @@ the exact same except-GenerationError fallback path as a broker failure --
 one boolean decision, no new fallback mechanism, no scoring/threshold
 config. Review Mode only; never called from Conversation Mode's live path.
 
+#64: explain() used to ground on chunks[0] alone -- often the wrong section
+of the right topic (a corpus with several chunks per topic could return the
+retrieval-top chunk for a different subsection than the one the flag needs).
+It now takes the caller's full retrieved chunk list and grounds on the first
+EXPLAIN_TOP_K of them (env knob, default 3, read once at construction like
+IngestionOrchestrationService's _chunk_size) -- both the draft prompt and the
+grounding judge see the same joined chunk content. source_url/source_excerpt
+still return a single string, so they stay pinned to the top-ranked chunk
+(chunks[0] after slicing) -- picking "whichever chunk the explanation actually
+used" would need sentence-level attribution this feature doesn't have.
+
 Prompt templates (Tri-Nature gap analysis GAP 2 -- "Skills live in code, not
 Data") live as plain text files under rag/data/prompts/, loaded once at
 import time and filled in with str.format().
@@ -45,8 +56,10 @@ behind a separate `_do_thing` indirection layer.
 """
 
 from pathlib import Path
+from typing import List
 
 import rag
+from rag.brokers.configuration import ConfigurationBroker, EnvConfigurationBroker
 from rag.brokers.generation import GenerationBroker, GenerationError
 from rag.brokers.logging import LoggingBroker
 from rag.models.foundations.generation import FALLBACK_EXPLANATION, Explanation
@@ -91,16 +104,28 @@ class GenerationService(GenerationServiceExceptions, IGenerationService):
         broker: GenerationBroker,
         *,
         logging_broker: LoggingBroker,
+        configuration_broker: ConfigurationBroker = EnvConfigurationBroker(),
     ) -> None:
         self._broker = broker
         self._logging_broker = logging_broker
+        # #64: explain() used to ground on chunks[0] alone, often the wrong
+        # section of the right topic. Read once at construction, same
+        # pattern as IngestionOrchestrationService's _chunk_size.
+        self._explain_top_k = int(configuration_broker.get("EXPLAIN_TOP_K", "3"))
 
-    def explain(self, flag: FlagLike, chunk: ScoredChunk) -> Explanation:
+    def explain(self, flag: FlagLike, chunks: List[ScoredChunk]) -> Explanation:
         def action() -> Explanation:
-            prompt = self._build_prompt(flag, chunk)
+            # #64: ground on up to EXPLAIN_TOP_K of the caller's retrieved
+            # chunks (best-first), not just chunks[0] -- the top-ranked chunk
+            # is still the one whose content/URL are shown back as the
+            # source_excerpt/source_url (a single string field can't hold
+            # more than one chunk).
+            top_chunks = chunks[: self._explain_top_k]
+            top_chunk = top_chunks[0]
+            prompt = self._build_prompt(flag, top_chunks)
             try:
                 text = self._broker.generate(prompt)
-                if not self._is_grounded(text, chunk):
+                if not self._is_grounded(text, top_chunks):
                     raise GenerationError("draft explanation failed the grounding check")
             except GenerationError as e:
                 # Load-bearing log: this is the only signal distinguishing "Gemini
@@ -109,7 +134,7 @@ class GenerationService(GenerationServiceExceptions, IGenerationService):
                 # indistinguishable from logs alone.
                 self._logging_broker.log_info("generation failed, using fallback: %s", e)
                 text = FALLBACK_EXPLANATION
-            return Explanation(explanation=text, source_url=chunk.source_url, source_excerpt=chunk.content)
+            return Explanation(explanation=text, source_url=top_chunk.source_url, source_excerpt=top_chunk.content)
 
         return self._try_catch(action)
 
@@ -201,13 +226,17 @@ class GenerationService(GenerationServiceExceptions, IGenerationService):
             roleplay_context=roleplay_context,
         )
 
-    def _is_grounded(self, explanation: str, chunk: ScoredChunk) -> bool:
+    def _is_grounded(self, explanation: str, chunks: List[ScoredChunk]) -> bool:
         """Reflective judge (Ch.8): a second call to the same LLM reconsiders
         the draft before it can reach the user framed as "grounded, sourced".
         A broker failure on the judge call itself is treated as "not
         grounded" -- can't verify, so don't trust it.
+
+        #64: judges against the same top-k chunks the draft was built from,
+        never a single chunk alone -- a claim grounded in chunk[1] must still
+        pass.
         """
-        judge_prompt = self._build_judge_prompt(explanation, chunk)
+        judge_prompt = self._build_judge_prompt(explanation, chunks)
         try:
             verdict = self._broker.generate(judge_prompt)
         except GenerationError:
@@ -217,13 +246,20 @@ class GenerationService(GenerationServiceExceptions, IGenerationService):
             self._logging_broker.log_info("grounding judge verdict: %s", verdict.strip())
         return grounded
 
-    def _build_prompt(self, flag: FlagLike, chunk: ScoredChunk) -> str:
+    def _build_prompt(self, flag: FlagLike, chunks: List[ScoredChunk]) -> str:
         return _EXPLANATION_PROMPT.format(
             said=flag.said,
             corrected=flag.corrected,
             category=flag.category,
-            content=chunk.content,
+            content=self._join_chunk_content(chunks),
         )
 
-    def _build_judge_prompt(self, explanation: str, chunk: ScoredChunk) -> str:
-        return _GROUNDING_JUDGE_PROMPT.format(explanation=explanation, content=chunk.content)
+    def _build_judge_prompt(self, explanation: str, chunks: List[ScoredChunk]) -> str:
+        return _GROUNDING_JUDGE_PROMPT.format(explanation=explanation, content=self._join_chunk_content(chunks))
+
+    @staticmethod
+    def _join_chunk_content(chunks: List[ScoredChunk]) -> str:
+        # ponytail: plain double-newline join, no numbering/headers -- the
+        # prompt templates already introduce {content} as one grammar-content
+        # block, and both are prose paragraphs, not lists that need labels.
+        return "\n\n".join(c.content for c in chunks)

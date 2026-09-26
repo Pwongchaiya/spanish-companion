@@ -13,22 +13,26 @@ from rag.services.foundations.generation.generation_service import GenerationSer
 class TestGenerationServicePromptLoading:
 
     def test_should_build_explanation_prompt_from_data_file_with_flag_and_chunk_interpolated(
-        self, service, flag, chunk
+        self, service, flag, chunk, other_chunk, chunks
     ):
         # when
-        prompt = GenerationService._build_prompt(service, flag, chunk)
+        prompt = GenerationService._build_prompt(service, flag, chunks)
 
         # then
         assert repr(flag.said) in prompt
         assert repr(flag.corrected) in prompt
         assert flag.category in prompt
         assert chunk.content in prompt
+        assert other_chunk.content in prompt
 
-    def test_should_build_judge_prompt_from_data_file_with_explanation_and_chunk_interpolated(self, service, chunk):
+    def test_should_build_judge_prompt_from_data_file_with_explanation_and_chunk_interpolated(
+        self, service, chunk, other_chunk, chunks
+    ):
         # when
-        prompt = GenerationService._build_judge_prompt(service, "a draft explanation", chunk)
+        prompt = GenerationService._build_judge_prompt(service, "a draft explanation", chunks)
 
         # then
         assert "a draft explanation" in prompt
         assert chunk.content in prompt
+        assert other_chunk.content in prompt
         assert "YES" in prompt and "NO" in prompt

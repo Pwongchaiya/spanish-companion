@@ -1,4 +1,4 @@
-"""RAG eval harness for the Review Mode flow: retrieve(corrected) -> explain(flag, top chunk).
+"""RAG eval harness for the Review Mode flow: retrieve(corrected) -> explain(flag, chunks).
 
 Runs evals/questions.yaml against the real pipeline (real Postgres/pgvector, real Gemini),
 then writes evals/reports/<date>.json. Two layers, scored separately (rag-eval-skill.md):
@@ -12,7 +12,8 @@ Usage:
   python evals/run_eval.py --self-test              # scoring logic only, no DB/network
 
 Config (env / .env): DATABASE_URL, GEMINI_API_KEY, RETRIEVAL_TOP_K (3), RETRIEVAL_MAX_DISTANCE (0.65),
-EVAL_JUDGE_MODEL (defaults to GEMINI_MODEL), EVAL_REGRESSION_TOLERANCE (0.0).
+EXPLAIN_TOP_K (3, read by GenerationService itself -- #64), EVAL_JUDGE_MODEL (defaults to GEMINI_MODEL),
+EVAL_REGRESSION_TOLERANCE (0.0).
 """
 
 import argparse
@@ -151,7 +152,9 @@ def grade(q: dict, chunks: list, generation, judge) -> tuple[bool, str]:
     if not chunks:  # Review Mode's no-match path returns the fallback text
         return (q["expected_topic"] is None, "no chunks -> fallback")
     flag = SimpleNamespace(said=q["said"], corrected=q["corrected"], category=q["category"])
-    exp = generation.explain(flag, chunks[0])
+    # #64: pass the full retrieved list, same as Review -- GenerationService
+    # grounds on its own EXPLAIN_TOP_K slice, not just chunks[0].
+    exp = generation.explain(flag, chunks)
     if q["expected_topic"] is None:
         return (exp.is_fallback, "fallback" if exp.is_fallback else f"invented: {exp.explanation[:80]}")
     if exp.is_fallback:
@@ -160,7 +163,9 @@ def grade(q: dict, chunks: list, generation, judge) -> tuple[bool, str]:
         JUDGE_PROMPT.format(
             said=q["said"],
             corrected=q["corrected"],
-            excerpt=chunks[0].content,
+            # exp.source_excerpt, not chunks[0].content directly -- same value
+            # today, but stays correct if source_excerpt's chunk pick ever changes.
+            excerpt=exp.source_excerpt,
             explanation=exp.explanation,
             expected=q["expected_answer"],
         )
