@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { float32ToWav } from "./encodeWav";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { blobToWav16k, float32ToWav } from "./encodeWav";
 
 // jsdom's Blob has no arrayBuffer(); read via FileReader.
 function bytes(blob: Blob): Promise<DataView> {
@@ -36,5 +36,36 @@ describe("float32ToWav", () => {
     const s = (i: number) => wav.getInt16(44 + i * 2, true);
     expect([s(0), s(1), s(2), s(3)]).toEqual([32767, -32768, 32767, -32768]);
     expect(s(4)).toBe(Math.trunc(0.5 * 0x7fff));
+  });
+});
+
+describe("blobToWav16k", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("throws a friendly error and logs a diagnostic when decoding fails", async () => {
+    class FakeAudioContext {
+      decodeAudioData() {
+        return Promise.reject(new DOMException("Unable to decode audio data", "EncodingError"));
+      }
+      close() {
+        return Promise.resolve();
+      }
+    }
+    vi.stubGlobal("AudioContext", FakeAudioContext);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const blob = new Blob(["x"], { type: "audio/webm" });
+    await expect(blobToWav16k(blob)).rejects.toThrow(
+      "Couldn't process that recording — try again, holding a beat longer.",
+    );
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy).toHaveBeenCalledWith("blobToWav16k decode failed", {
+      size: blob.size,
+      type: blob.type,
+    });
+
+    warnSpy.mockRestore();
   });
 });

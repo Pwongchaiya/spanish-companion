@@ -26,12 +26,18 @@ export function float32ToWav(samples: Float32Array, sampleRate: number): Blob {
 }
 
 // Decode any browser-recorded blob, resample to 16 kHz mono, encode WAV.
-// Not unit-tested: jsdom has no AudioContext.
+// Decode-failure path is unit-tested (see encodeWav.test.ts); rest of the pipeline is not — jsdom has no AudioContext.
 export async function blobToWav16k(blob: Blob): Promise<Blob> {
   const ctx = new AudioContext();
   try {
     const bytes = await blob.arrayBuffer();
-    const decoded = await ctx.decodeAudioData(bytes);
+    let decoded;
+    try {
+      decoded = await ctx.decodeAudioData(bytes);
+    } catch {
+      console.warn("blobToWav16k decode failed", { size: bytes.byteLength, type: blob.type });
+      throw new Error("Couldn't process that recording — try again, holding a beat longer.");
+    }
     const length = Math.ceil(decoded.duration * TARGET_RATE);
     const offline = new OfflineAudioContext(1, length, TARGET_RATE);
     const src = offline.createBufferSource();
