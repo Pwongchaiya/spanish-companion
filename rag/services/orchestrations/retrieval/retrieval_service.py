@@ -53,7 +53,11 @@ from rag.services.orchestrations.retrieval.retrieval_service_validations import 
     HybridRetrievalOrchestrationServiceValidations,
 )
 from rag.services.orchestrations.retrieval.strategies.dense import RetrievalStrategy
-from rag.services.orchestrations.retrieval.strategies.filters import CategoryBoostFilter, ResultFilter
+from rag.services.orchestrations.retrieval.strategies.filters import (
+    CategoryBoostFilter,
+    ResultFilter,
+    category_matches_topic,
+)
 from rag.services.orchestrations.retrieval.strategies.fusion import RankFusionStrategy
 from rag.services.orchestrations.retrieval.strategies.lexical import TextRetrievalStrategy
 
@@ -80,6 +84,7 @@ class HybridRetrievalOrchestrationService(
         *,
         filters: Optional[Sequence[ResultFilter]] = None,
         alternate_strategy: Optional[TextRetrievalStrategy] = None,
+        candidate_pool: Optional[int] = None,
         logging_broker: LoggingBroker,
     ) -> None:
         self._embedding_model_service = embedding_model_service
@@ -92,6 +97,9 @@ class HybridRetrievalOrchestrationService(
         # Second-opinion search path (lexical). Only used when retrieve() is
         # called with alternate=True; never part of the default pipeline.
         self._alternate_strategy = alternate_strategy
+        # How many candidates each strategy is asked for before filtering
+        # (RETRIEVAL_CANDIDATE_POOL at the composition root). None = top_k.
+        self._candidate_pool = candidate_pool
 
     def retrieve(
         self, query: str, top_k: int, category: Optional[str] = None, alternate: bool = False
@@ -103,7 +111,8 @@ class HybridRetrievalOrchestrationService(
             top_k: maximum chunks to return. Owned by the caller (env-configured
                 at the edge), never defaulted here.
             category: optional known-good topic hint (a flag's category). When
-                given, chunks whose topic matches are floated to the front.
+                given, chunks whose topic matches skip the configured filters
+                and are floated to the front.
             alternate: when True, search with the alternate (lexical) strategy
                 instead of the default dense pipeline -- the second-opinion
                 pass. Skips embedding, fusion and the configured filters
@@ -154,17 +163,17 @@ class HybridRetrievalOrchestrationService(
             # _try_catch catches.
             query_embedding = self._embedding_model_service.embed([query])[0]
 
-            # ponytail: each strategy is asked for exactly top_k, so a chunk
-            # the category boost would have floated to rank 1 is invisible
-            # if dense search ranked it top_k+1. Fine at MVP scale (3-5
-            # topics, ~30 chunks). Upgrade path if Review Mode explanations
-            # cite the wrong page: over-fetch here (top_k * a small factor)
-            # and keep the final [:top_k] slice below exactly as it is.
+            # Over-fetch so a category-matching chunk that dense search ranked
+            # below top_k is still seen (2026-09-25 eval: learner sentences sit
+            # 0.7-0.9 from grammar prose, so the right chunk is rarely top 3).
+            # ponytail: pool is a flat count, fine for a ~40-chunk corpus; make it
+            # a top_k multiple if the corpus grows past a few hundred chunks.
             # No try/except here either: this chain bottoms out in
             # ChunkRepositoryService.search_by_vector(), which raises its own
             # wrapped ChunkRepositoryDependencyException for _try_catch to
             # catch.
-            candidate_lists = [strategy.search(query_embedding, top_k) for strategy in self._strategies]
+            fetch_k = max(top_k, self._candidate_pool or top_k)
+            candidate_lists = [strategy.search(query_embedding, fetch_k) for strategy in self._strategies]
 
             fused = self._fusion.fuse(candidate_lists)
 
@@ -185,16 +194,24 @@ class HybridRetrievalOrchestrationService(
                     set(c.embedding_model_version for c in mismatched),
                 )
 
-            # Configured filters first, then the per-call category boost —
-            # the caller's hint for this specific query gets the final say
-            # on order. CategoryBoostFilter is built per call rather than
-            # mutated, so no stage carries request state between calls.
-            pipeline: List[ResultFilter] = list(self._filters)
+            # Chunks matching the caller's category skip the configured
+            # (distance-based) filters: a learner sentence is always far from
+            # grammar prose, so MaxDistanceFilter dropped the right chunk along
+            # with the wrong ones. Unmatched chunks still face the filters,
+            # which is what keeps an uncovered category (vocabulary) at [].
+            matched: List[ScoredChunk] = []
             if category is not None:
-                pipeline.append(CategoryBoostFilter(category, logging_broker=self._logging_broker))
+                matched = [c for c in fused if category_matches_topic(c.topic, category)]
+                fused = [c for c in fused if not category_matches_topic(c.topic, category)]
 
-            for result_filter in pipeline:
+            for result_filter in self._filters:
                 fused = result_filter.apply(fused)
+            fused = matched + fused
+
+            # Per-call category boost gets the final say on order. Built per
+            # call rather than mutated, so no stage carries request state.
+            if category is not None:
+                fused = CategoryBoostFilter(category, logging_broker=self._logging_broker).apply(fused)
 
             results = fused[:top_k]
             self._logging_broker.log_info(

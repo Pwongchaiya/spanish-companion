@@ -120,6 +120,7 @@ def build_pipeline():
         fusion=PassThroughRankFusion(logging_broker=log),
         filters=[MaxDistanceFilter(float(os.getenv("RETRIEVAL_MAX_DISTANCE", "0.65")), logging_broker=log)],
         alternate_strategy=LexicalStrategy(chunks, logging_broker=log),
+        candidate_pool=int(os.getenv("RETRIEVAL_CANDIDATE_POOL", "50")),
         logging_broker=log,
     )
     generation = GenerationService(GeminiGenerationBroker(), logging_broker=log)

@@ -78,13 +78,14 @@ def service_factory(mock_embedding_model, mock_strategy, mock_logging_broker):
     Tests that need to prove fusion is actually invoked pass a mock.
     """
 
-    def build(strategies=None, fusion=None, filters=None, alternate_strategy=None):
+    def build(strategies=None, fusion=None, filters=None, alternate_strategy=None, candidate_pool=None):
         return HybridRetrievalOrchestrationService(
             embedding_model_service=mock_embedding_model,
             strategies=[mock_strategy] if strategies is None else strategies,
             fusion=PassThroughRankFusion(logging_broker=mock_logging_broker) if fusion is None else fusion,
             filters=filters,
             alternate_strategy=alternate_strategy,
+            candidate_pool=candidate_pool,
             logging_broker=mock_logging_broker,
         )
 
