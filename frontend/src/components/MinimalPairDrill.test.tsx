@@ -26,7 +26,7 @@ describe("MinimalPairDrill", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (apiClient.synthesizeSpeech as any).mockResolvedValue(new Blob(["audio"], { type: "audio/wav" }));
-    global.URL.createObjectURL = vi.fn(() => "blob:mock-url");
+    globalThis.URL.createObjectURL = vi.fn(() => "blob:mock-url");
   });
 
   it("renders both words of the picked pair as options", () => {

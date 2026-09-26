@@ -24,7 +24,7 @@ async function startExercise() {
 describe("DictationPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    global.URL.createObjectURL = vi.fn(() => "blob:mock-url");
+    globalThis.URL.createObjectURL = vi.fn(() => "blob:mock-url");
   });
 
   it("fetches nothing until the learner opts in", () => {
