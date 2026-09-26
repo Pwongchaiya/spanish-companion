@@ -11,7 +11,7 @@ Usage:
   python evals/run_eval.py --baseline evals/reports/2026-09-25.json   # exit 1 on regression
   python evals/run_eval.py --self-test              # scoring logic only, no DB/network
 
-Config (env / .env): DATABASE_URL, GEMINI_API_KEY, RETRIEVAL_TOP_K (3), RETRIEVAL_MAX_DISTANCE (0.65),
+Config (env / .env): DATABASE_URL, GEMINI_API_KEY, RETRIEVAL_TOP_K (3), RETRIEVAL_MAX_DISTANCE (0.59),
 EXPLAIN_TOP_K (3, read by GenerationService itself -- #64), EVAL_JUDGE_MODEL (defaults to GEMINI_MODEL),
 EVAL_REGRESSION_TOLERANCE (0.0).
 """
@@ -119,7 +119,7 @@ def build_pipeline():
         EmbeddingModelService(SentenceTransformerEmbeddingModelBroker(), logging_broker=log),
         strategies=[DenseVectorStrategy(chunks, logging_broker=log)],
         fusion=PassThroughRankFusion(logging_broker=log),
-        filters=[MaxDistanceFilter(float(os.getenv("RETRIEVAL_MAX_DISTANCE", "0.65")), logging_broker=log)],
+        filters=[MaxDistanceFilter(float(os.getenv("RETRIEVAL_MAX_DISTANCE", "0.59")), logging_broker=log)],
         alternate_strategy=LexicalStrategy(chunks, logging_broker=log),
         candidate_pool=int(os.getenv("RETRIEVAL_CANDIDATE_POOL", "50")),
         logging_broker=log,
