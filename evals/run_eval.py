@@ -178,9 +178,12 @@ def grade(q: dict, chunks: list, generation, judge) -> tuple[bool, str]:
         JUDGE_PROMPT.format(
             said=q["said"],
             corrected=q["corrected"],
-            # exp.source_excerpt, not chunks[0].content directly -- same value
-            # today, but stays correct if source_excerpt's chunk pick ever changes.
-            excerpt=exp.source_excerpt,
+            # #68: the draft (GenerationService.explain(), #64) was built from and
+            # grounded on the joined top EXPLAIN_TOP_K chunks, not just chunks[0] --
+            # judging against exp.source_excerpt (chunks[0] alone) produced false
+            # "not supported by the source excerpt" FAILs whenever the draft cited
+            # chunks[1:]. Join the same slice the draft actually saw instead.
+            excerpt="\n\n".join(c.content for c in chunks[: int(os.getenv("EXPLAIN_TOP_K", "3"))]),
             explanation=exp.explanation,
             expected=q["expected_answer"],
         )
