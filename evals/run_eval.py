@@ -12,9 +12,11 @@ Usage:
   python evals/run_eval.py --self-test              # scoring logic only, no DB/network
 
 Config (env / .env): DATABASE_URL, GEMINI_API_KEY, RETRIEVAL_TOP_K (3), RETRIEVAL_MAX_DISTANCE (0.59),
-EXPLAIN_TOP_K (3, read by GenerationService itself -- #64), EVAL_JUDGE_MODEL (defaults to GEMINI_MODEL),
-EVAL_JUDGE_TEMPERATURE (0 -- #68: pins the judge only, so its own sampling noise doesn't
-get scored as a retrieval/generation regression), EVAL_REGRESSION_TOLERANCE (0.0).
+EXPLAIN_TOP_K (3, read by GenerationService itself -- #64), GROUNDING_JUDGE_TEMPERATURE (0 -- #68:
+pins GenerationService's reflective grounding judge, same fix as api/app.py's Review wiring),
+EVAL_JUDGE_MODEL (defaults to GEMINI_MODEL), EVAL_JUDGE_TEMPERATURE (0 -- #68: pins this eval's
+own answer-quality judge only, so its sampling noise doesn't get scored as a retrieval/generation
+regression), EVAL_REGRESSION_TOLERANCE (0.0).
 """
 
 import argparse
@@ -125,9 +127,16 @@ def build_pipeline():
         candidate_pool=int(os.getenv("RETRIEVAL_CANDIDATE_POOL", "50")),
         logging_broker=log,
     )
-    generation = GenerationService(GeminiGenerationBroker(), logging_broker=log)
-    # #68: pin the judge to temperature 0 -- draft/grounding stays at the API default
-    # (unset), so only the judge's own noise is removed, not the pipeline's.
+    generation = GenerationService(
+        GeminiGenerationBroker(),
+        logging_broker=log,
+        # #68: same fix as api/app.py's Review wiring -- the reflective grounding
+        # judge randomly rejected good drafts at the default (nonzero) temperature
+        # it shared with the draft call itself.
+        judge_broker=GeminiGenerationBroker(temperature=float(os.getenv("GROUNDING_JUDGE_TEMPERATURE", "0"))),
+    )
+    # #68: pin the eval's own answer-quality judge to temperature 0 -- draft/grounding
+    # stay at the API default (unset), so only this judge's own noise is removed.
     judge = GeminiGenerationBroker(
         model_name=os.getenv("EVAL_JUDGE_MODEL") or None,
         temperature=float(os.getenv("EVAL_JUDGE_TEMPERATURE", "0")),

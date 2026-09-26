@@ -102,7 +102,13 @@ def create_public_app() -> Flask:
         candidate_pool=int(os.getenv("RETRIEVAL_CANDIDATE_POOL", "50")),
         logging_broker=logging_broker,
     )
-    generation_service = GenerationService(GeminiGenerationBroker(), logging_broker=logging_broker)
+    generation_service = GenerationService(
+        GeminiGenerationBroker(),
+        logging_broker=logging_broker,
+        # #68: reflective grounding judge randomly rejected good drafts at the
+        # default (nonzero) temperature it shared with the draft call itself.
+        judge_broker=GeminiGenerationBroker(temperature=float(os.getenv("GROUNDING_JUDGE_TEMPERATURE", "0"))),
+    )
     flag_service = FlagService(JsonFileFlagBroker(), logging_broker=logging_broker)
     practice_log_service = PracticeLogService(JsonLinesPracticeLogBroker(), logging_broker=logging_broker)
 

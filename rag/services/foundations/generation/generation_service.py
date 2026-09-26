@@ -105,6 +105,7 @@ class GenerationService(GenerationServiceExceptions, IGenerationService):
         *,
         logging_broker: LoggingBroker,
         configuration_broker: ConfigurationBroker = EnvConfigurationBroker(),
+        judge_broker: GenerationBroker | None = None,
     ) -> None:
         self._broker = broker
         self._logging_broker = logging_broker
@@ -112,6 +113,12 @@ class GenerationService(GenerationServiceExceptions, IGenerationService):
         # section of the right topic. Read once at construction, same
         # pattern as IngestionOrchestrationService's _chunk_size.
         self._explain_top_k = int(configuration_broker.get("EXPLAIN_TOP_K", "3"))
+        # #68: _is_grounded's reflective judge call used the same (default-temperature)
+        # broker as the draft, so it could randomly reject a good draft. None (the
+        # default) keeps today's behavior -- the draft's own broker judges itself --
+        # so every existing caller is unaffected; only a caller passing a dedicated,
+        # temperature-0 judge_broker gets the fix.
+        self._judge_broker = judge_broker if judge_broker is not None else broker
 
     def explain(self, flag: FlagLike, chunks: List[ScoredChunk]) -> Explanation:
         def action() -> Explanation:
@@ -235,10 +242,16 @@ class GenerationService(GenerationServiceExceptions, IGenerationService):
         #64: judges against the same top-k chunks the draft was built from,
         never a single chunk alone -- a claim grounded in chunk[1] must still
         pass.
+
+        #68: uses `self._judge_broker` (defaults to `self._broker` when no
+        dedicated judge_broker was passed) -- a caller can point this at its
+        own temperature-0 broker so the reflective judge stops randomly
+        rejecting a good draft on the same noisy default-temperature call
+        the draft itself used.
         """
         judge_prompt = self._build_judge_prompt(explanation, chunks)
         try:
-            verdict = self._broker.generate(judge_prompt)
+            verdict = self._judge_broker.generate(judge_prompt)
         except GenerationError:
             return False
         grounded = verdict.strip().upper().startswith("YES")
