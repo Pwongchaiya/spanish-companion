@@ -34,3 +34,153 @@
   category: "vocabulary"
   expected_topic: null
   expected_answer: "No corpus topic covers vocabulary; the fallback text is returned, not an invented explanation"
+
+- id: q004
+  said: "Cuando era niño, fui a la playa todos los veranos"
+  corrected: "Cuando era niño, iba a la playa todos los veranos"
+  category: "preterite vs imperfect"
+  expected_topic: preterite-vs-imperfect
+  expected_answer: "A habitual, repeated past action (todos los veranos) takes the imperfect, not the preterite"
+
+- id: q005
+  said: "Anoche estaba en casa cuando mi hermano me llamaba"
+  corrected: "Anoche estaba en casa cuando mi hermano me llamó"
+  category: "preterite vs imperfect"
+  expected_topic: preterite-vs-imperfect
+  expected_answer: "The imperfect sets the ongoing background; the single action that interrupts it takes the preterite"
+
+- id: q006
+  said: "Soy cansado hoy"
+  corrected: "Estoy cansado hoy"
+  category: "ser vs estar"
+  expected_topic: ser-vs-estar
+  expected_answer: "A temporary state or condition (being tired today) takes estar, not ser"
+
+- id: q007
+  said: "Mi madre está profesora"
+  corrected: "Mi madre es profesora"
+  category: "ser vs estar"
+  expected_topic: ser-vs-estar
+  expected_answer: "A noun attribute such as a profession takes ser; estar does not combine with a bare noun attribute"
+
+- id: q008
+  said: "La fiesta está en mi casa"
+  corrected: "La fiesta es en mi casa"
+  category: "ser vs estar"
+  expected_topic: ser-vs-estar
+  expected_answer: "The location of an event (where something takes place) uses ser, unlike the location of objects or people, which uses estar"
+
+- id: q009
+  said: "Quiero que tú vienes a la fiesta"
+  corrected: "Quiero que tú vengas a la fiesta"
+  category: "subjunctive"
+  expected_topic: subjunctive-basics
+  expected_answer: "A verb of wanting with a different subject in the que-clause requires the subjunctive (vengas)"
+
+- id: q010
+  said: "Espero que tienes un buen día"
+  corrected: "Espero que tengas un buen día"
+  category: "subjunctive"
+  expected_topic: subjunctive-basics
+  expected_answer: "Esperar que expresses a wish, so the subordinate verb goes in the subjunctive (tengas)"
+
+- id: q011
+  said: "No creo que es verdad"
+  corrected: "No creo que sea verdad"
+  category: "subjunctive"
+  expected_topic: subjunctive-basics
+  expected_answer: "A negated verb of belief (no creo que) takes the subjunctive in the subordinate clause"
+
+# Real flag from data/session_logs. The prompt labelled it gender agreement; the miss is number agreement too.
+- id: q012
+  said: "Bueno Dias"
+  corrected: "Buenos días"
+  category: "gender agreement"
+  expected_topic: gender-agreement
+  expected_answer: "The adjective agrees in gender and number with the noun: días is masculine plural, so bueno becomes buenos"
+
+- id: q013
+  said: "Tengo una mano pequeño"
+  corrected: "Tengo una mano pequeña"
+  category: "gender agreement"
+  expected_topic: gender-agreement
+  expected_answer: "Mano is feminine despite ending in -o, so the adjective takes the feminine form pequeña"
+
+- id: q014
+  said: "Este regalo es por mi madre"
+  corrected: "Este regalo es para mi madre"
+  category: "por vs para"
+  expected_topic: por-vs-para
+  expected_answer: "The recipient or destination of something is marked with para"
+
+- id: q015
+  said: "Gracias para tu ayuda"
+  corrected: "Gracias por tu ayuda"
+  category: "por vs para"
+  expected_topic: por-vs-para
+  expected_answer: "The cause or reason for thanks is marked with por"
+
+- id: q016
+  said: "Caminamos para el parque toda la tarde"
+  corrected: "Caminamos por el parque toda la tarde"
+  category: "por vs para"
+  expected_topic: por-vs-para
+  expected_answer: "Movement through or around a place uses por; para would mean heading toward it"
+
+- id: q017
+  said: "Me gusta café"
+  corrected: "Me gusta el café"
+  category: "articles"
+  expected_topic: articles
+  expected_answer: "A noun used in a general sense as the subject (of gustar) takes the definite article"
+
+- id: q018
+  said: "Mi hermano es un médico"
+  corrected: "Mi hermano es médico"
+  category: "articles"
+  expected_topic: articles
+  expected_answer: "An unmodified profession after ser normally goes without the indefinite article"
+
+- id: q019
+  said: "La agua está fría"
+  corrected: "El agua está fría"
+  category: "articles"
+  expected_topic: articles
+  expected_answer: "A feminine noun beginning with stressed a- takes el in the singular, though it stays feminine (fría)"
+
+- id: q020
+  said: "Lo di el libro a María"
+  corrected: "Le di el libro a María"
+  category: "object pronouns"
+  expected_topic: object-pronouns
+  expected_answer: "María is the indirect object (the receiver), so the pronoun is le, not the direct-object lo"
+
+- id: q021
+  said: "Compré las flores y lo puse en la mesa"
+  corrected: "Compré las flores y las puse en la mesa"
+  category: "object pronouns"
+  expected_topic: object-pronouns
+  expected_answer: "The direct-object pronoun agrees in gender and number with what it replaces: las flores becomes las"
+
+- id: q022
+  said: "El libro, le lo di a mi hermano"
+  corrected: "El libro, se lo di a mi hermano"
+  category: "object pronouns"
+  expected_topic: object-pronouns
+  expected_answer: "Le becomes se when it comes before the direct-object pronouns lo, la, los, las"
+
+# Real flag from data/session_logs: a word-choice error with no grammar rule behind it.
+- id: q023
+  said: "La quinta, por favor."
+  corrected: "La cuenta, por favor."
+  category: "vocabulary"
+  expected_topic: null
+  expected_answer: "No corpus topic covers vocabulary; the fallback text is returned, not an invented explanation"
+
+# Real flag from data/session_logs: a speech-recognition mishearing, not a grammar error.
+- id: q024
+  said: "Kiara UN cafe por favor"
+  corrected: "Quiero un café, por favor"
+  category: "pronunciation"
+  expected_topic: null
+  expected_answer: "No corpus topic covers pronunciation; the fallback text is returned, not an invented explanation"
