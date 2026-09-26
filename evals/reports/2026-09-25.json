@@ -1,0 +1,368 @@
+{
+  "date": "2026-09-25",
+  "retrieval_only": false,
+  "top_k": 3,
+  "summary": {
+    "overall": {
+      "n": 24,
+      "hit_rate": 0.9583333333333334,
+      "mrr": 1.0,
+      "answer_pass_rate": 0.4583333333333333
+    },
+    "by_topic": {
+      "articles": {
+        "n": 3,
+        "hit_rate": 1.0,
+        "mrr": 1.0,
+        "answer_pass_rate": 0.3333333333333333
+      },
+      "gender-agreement": {
+        "n": 3,
+        "hit_rate": 1.0,
+        "mrr": 1.0,
+        "answer_pass_rate": 0.3333333333333333
+      },
+      "null": {
+        "n": 3,
+        "hit_rate": 0.6666666666666666,
+        "mrr": 0.0,
+        "answer_pass_rate": 1.0
+      },
+      "object-pronouns": {
+        "n": 3,
+        "hit_rate": 1.0,
+        "mrr": 1.0,
+        "answer_pass_rate": 0.0
+      },
+      "por-vs-para": {
+        "n": 3,
+        "hit_rate": 1.0,
+        "mrr": 1.0,
+        "answer_pass_rate": 0.3333333333333333
+      },
+      "preterite-vs-imperfect": {
+        "n": 3,
+        "hit_rate": 1.0,
+        "mrr": 1.0,
+        "answer_pass_rate": 0.3333333333333333
+      },
+      "ser-vs-estar": {
+        "n": 3,
+        "hit_rate": 1.0,
+        "mrr": 1.0,
+        "answer_pass_rate": 0.6666666666666666
+      },
+      "subjunctive-basics": {
+        "n": 3,
+        "hit_rate": 1.0,
+        "mrr": 1.0,
+        "answer_pass_rate": 0.6666666666666666
+      }
+    }
+  },
+  "results": [
+    {
+      "id": "q001",
+      "expected_topic": "preterite-vs-imperfect",
+      "retrieved_topics": [
+        "preterite-vs-imperfect",
+        "preterite-vs-imperfect",
+        "preterite-vs-imperfect"
+      ],
+      "rank": 1,
+      "answer_pass": false,
+      "answer_reason": "fallback despite expected topic",
+      "error": ""
+    },
+    {
+      "id": "q002",
+      "expected_topic": "gender-agreement",
+      "retrieved_topics": [
+        "gender-agreement",
+        "gender-agreement"
+      ],
+      "rank": 1,
+      "answer_pass": true,
+      "answer_reason": "PASS: The explanation correctly conveys that \"problema\" is masculine despite ending in \"-a\" and takes \"el\", which aligns with the expected gist and is supported by the source excerpt's mention of grammatical gender and agreement.",
+      "error": ""
+    },
+    {
+      "id": "q003",
+      "expected_topic": null,
+      "retrieved_topics": [],
+      "rank": null,
+      "answer_pass": true,
+      "answer_reason": "no chunks -> fallback",
+      "error": ""
+    },
+    {
+      "id": "q004",
+      "expected_topic": "preterite-vs-imperfect",
+      "retrieved_topics": [
+        "preterite-vs-imperfect",
+        "preterite-vs-imperfect",
+        "preterite-vs-imperfect"
+      ],
+      "rank": 1,
+      "answer_pass": true,
+      "answer_reason": "PASS: The explanation correctly identifies that habitual past actions take the imperfect tense, which aligns with the source excerpt's discussion of past intervals, and makes no unsupported claims.",
+      "error": ""
+    },
+    {
+      "id": "q005",
+      "expected_topic": "preterite-vs-imperfect",
+      "retrieved_topics": [
+        "preterite-vs-imperfect",
+        "preterite-vs-imperfect",
+        "preterite-vs-imperfect"
+      ],
+      "rank": 1,
+      "answer_pass": false,
+      "answer_reason": "fallback despite expected topic",
+      "error": ""
+    },
+    {
+      "id": "q006",
+      "expected_topic": "ser-vs-estar",
+      "retrieved_topics": [
+        "ser-vs-estar",
+        "ser-vs-estar",
+        "ser-vs-estar"
+      ],
+      "rank": 1,
+      "answer_pass": true,
+      "answer_reason": "PASS: The explanation correctly identifies that being tired is a temporary state requiring \"estar\" instead of \"ser,\" which is supported by the source excerpt's mention of \"comportamiento momentáneo o circunstancial\" and temporary states.",
+      "error": ""
+    },
+    {
+      "id": "q007",
+      "expected_topic": "ser-vs-estar",
+      "retrieved_topics": [
+        "ser-vs-estar",
+        "ser-vs-estar",
+        "ser-vs-estar"
+      ],
+      "rank": 1,
+      "answer_pass": false,
+      "answer_reason": "FAIL: The explanation relies on the traditional \"permanent vs. temporary\" rule for ser and estar, which is not supported by the source excerpt and is widely considered a pedagogical oversimplification for noun attributes like professions.",
+      "error": ""
+    },
+    {
+      "id": "q008",
+      "expected_topic": "ser-vs-estar",
+      "retrieved_topics": [
+        "ser-vs-estar",
+        "ser-vs-estar",
+        "ser-vs-estar"
+      ],
+      "rank": 1,
+      "answer_pass": true,
+      "answer_reason": "PASS: The explanation correctly conveys that events use ser for location according to the source excerpt.",
+      "error": ""
+    },
+    {
+      "id": "q009",
+      "expected_topic": "subjunctive-basics",
+      "retrieved_topics": [
+        "subjunctive-basics",
+        "subjunctive-basics",
+        "subjunctive-basics"
+      ],
+      "rank": 1,
+      "answer_pass": true,
+      "answer_reason": "PASS: The explanation correctly identifies that verbs of wishing require the subjunctive rather than the indicative, aligning with the source excerpt's statement that the subjunctive represents desired states of things in subordinate clauses.",
+      "error": ""
+    },
+    {
+      "id": "q010",
+      "expected_topic": "subjunctive-basics",
+      "retrieved_topics": [
+        "subjunctive-basics",
+        "subjunctive-basics",
+        "subjunctive-basics"
+      ],
+      "rank": 1,
+      "answer_pass": false,
+      "answer_reason": "fallback despite expected topic",
+      "error": ""
+    },
+    {
+      "id": "q011",
+      "expected_topic": "subjunctive-basics",
+      "retrieved_topics": [
+        "subjunctive-basics",
+        "subjunctive-basics",
+        "subjunctive-basics"
+      ],
+      "rank": 1,
+      "answer_pass": true,
+      "answer_reason": "PASS: The explanation correctly identifies that a negated verb of belief takes the subjunctive, which aligns with the source excerpt's mention that the indicative presents things as known or certain while other possibilities include being denied, though the text itself is a general reference grammar on mood and subordination.",
+      "error": ""
+    },
+    {
+      "id": "q012",
+      "expected_topic": "gender-agreement",
+      "retrieved_topics": [
+        "gender-agreement",
+        "gender-agreement",
+        "articles"
+      ],
+      "rank": 1,
+      "answer_pass": false,
+      "answer_reason": "fallback despite expected topic",
+      "error": ""
+    },
+    {
+      "id": "q013",
+      "expected_topic": "gender-agreement",
+      "retrieved_topics": [
+        "gender-agreement",
+        "gender-agreement",
+        "por-vs-para"
+      ],
+      "rank": 1,
+      "answer_pass": false,
+      "answer_reason": "FAIL: The explanation relies on the fact that *mano* is feminine despite ending in -o (an exception to the typical gender rules), but the provided source excerpt does not contain any information about gender exceptions or the specific word *mano*.",
+      "error": ""
+    },
+    {
+      "id": "q014",
+      "expected_topic": "por-vs-para",
+      "retrieved_topics": [
+        "por-vs-para",
+        "por-vs-para",
+        "por-vs-para"
+      ],
+      "rank": 1,
+      "answer_pass": true,
+      "answer_reason": "PASS: The explanation correctly identifies that \"para\" is used for the recipient based on the source excerpt's support for destination and recipient (\"Lo compré para ella\").",
+      "error": ""
+    },
+    {
+      "id": "q015",
+      "expected_topic": "por-vs-para",
+      "retrieved_topics": [
+        "por-vs-para",
+        "por-vs-para",
+        "por-vs-para"
+      ],
+      "rank": 1,
+      "answer_pass": false,
+      "answer_reason": "fallback despite expected topic",
+      "error": ""
+    },
+    {
+      "id": "q016",
+      "expected_topic": "por-vs-para",
+      "retrieved_topics": [
+        "por-vs-para",
+        "por-vs-para",
+        "por-vs-para"
+      ],
+      "rank": 1,
+      "answer_pass": false,
+      "answer_reason": "fallback despite expected topic",
+      "error": ""
+    },
+    {
+      "id": "q017",
+      "expected_topic": "articles",
+      "retrieved_topics": [
+        "articles",
+        "articles",
+        "articles"
+      ],
+      "rank": 1,
+      "answer_pass": true,
+      "answer_reason": "PASS: The explanation correctly conveys that the definite article is required for nouns used in a general sense with \"gustar\" and does not make any unsupported claims.",
+      "error": ""
+    },
+    {
+      "id": "q018",
+      "expected_topic": "articles",
+      "retrieved_topics": [
+        "articles",
+        "articles",
+        "articles"
+      ],
+      "rank": 1,
+      "answer_pass": false,
+      "answer_reason": "fallback despite expected topic",
+      "error": ""
+    },
+    {
+      "id": "q019",
+      "expected_topic": "articles",
+      "retrieved_topics": [
+        "articles",
+        "articles",
+        "articles"
+      ],
+      "rank": 1,
+      "answer_pass": false,
+      "answer_reason": "fallback despite expected topic",
+      "error": ""
+    },
+    {
+      "id": "q020",
+      "expected_topic": "object-pronouns",
+      "retrieved_topics": [
+        "object-pronouns",
+        "object-pronouns",
+        "object-pronouns"
+      ],
+      "rank": 1,
+      "answer_pass": false,
+      "answer_reason": "fallback despite expected topic",
+      "error": ""
+    },
+    {
+      "id": "q021",
+      "expected_topic": "object-pronouns",
+      "retrieved_topics": [
+        "object-pronouns",
+        "object-pronouns",
+        "object-pronouns"
+      ],
+      "rank": 1,
+      "answer_pass": false,
+      "answer_reason": "fallback despite expected topic",
+      "error": ""
+    },
+    {
+      "id": "q022",
+      "expected_topic": "object-pronouns",
+      "retrieved_topics": [
+        "object-pronouns",
+        "object-pronouns",
+        "object-pronouns"
+      ],
+      "rank": 1,
+      "answer_pass": false,
+      "answer_reason": "fallback despite expected topic",
+      "error": ""
+    },
+    {
+      "id": "q023",
+      "expected_topic": null,
+      "retrieved_topics": [
+        "object-pronouns",
+        "articles",
+        "por-vs-para"
+      ],
+      "rank": null,
+      "answer_pass": true,
+      "answer_reason": "fallback",
+      "error": ""
+    },
+    {
+      "id": "q024",
+      "expected_topic": null,
+      "retrieved_topics": [],
+      "rank": null,
+      "answer_pass": true,
+      "answer_reason": "no chunks -> fallback",
+      "error": ""
+    }
+  ]
+}
