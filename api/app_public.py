@@ -91,7 +91,10 @@ def create_public_app() -> Flask:
         fusion=PassThroughRankFusion(logging_broker=logging_broker),
         filters=[
             MaxDistanceFilter(
-                float(os.getenv("RETRIEVAL_MAX_DISTANCE", "0.65")),
+                # #67: q023 ("La cuenta, por favor.") false-positived at 0.65 -- articles 0.5948,
+                # object-pronouns 0.6002 both cleared the old ceiling. 0.59 drops both; every
+                # real-topic eval question still hits at rank 1 (category match bypasses this filter).
+                float(os.getenv("RETRIEVAL_MAX_DISTANCE", "0.59")),
                 logging_broker=logging_broker,
             )
         ],
