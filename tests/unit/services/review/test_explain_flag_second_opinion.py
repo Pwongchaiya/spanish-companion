@@ -75,7 +75,8 @@ class TestReviewOrchestratorExplainFlagSecondOpinion:
             "alternate": True,
         }
         assert mock_generation_service.explain.call_count == 2
-        mock_generation_service.explain.assert_called_with(flag, lexical)
+        # #64: the full retrieved list ([lexical]), not the bare chunk.
+        mock_generation_service.explain.assert_called_with(flag, [lexical])
 
     def test_should_not_retry_when_first_verdict_is_grounded(
         self, enabled_service, mock_flag_service, mock_retrieval_service, mock_generation_service, make_flag, make_chunk
