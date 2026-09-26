@@ -13,7 +13,8 @@ Usage:
 
 Config (env / .env): DATABASE_URL, GEMINI_API_KEY, RETRIEVAL_TOP_K (3), RETRIEVAL_MAX_DISTANCE (0.59),
 EXPLAIN_TOP_K (3, read by GenerationService itself -- #64), EVAL_JUDGE_MODEL (defaults to GEMINI_MODEL),
-EVAL_REGRESSION_TOLERANCE (0.0).
+EVAL_JUDGE_TEMPERATURE (0 -- #68: pins the judge only, so its own sampling noise doesn't
+get scored as a retrieval/generation regression), EVAL_REGRESSION_TOLERANCE (0.0).
 """
 
 import argparse
@@ -125,7 +126,12 @@ def build_pipeline():
         logging_broker=log,
     )
     generation = GenerationService(GeminiGenerationBroker(), logging_broker=log)
-    judge = GeminiGenerationBroker(model_name=os.getenv("EVAL_JUDGE_MODEL") or None)
+    # #68: pin the judge to temperature 0 -- draft/grounding stays at the API default
+    # (unset), so only the judge's own noise is removed, not the pipeline's.
+    judge = GeminiGenerationBroker(
+        model_name=os.getenv("EVAL_JUDGE_MODEL") or None,
+        temperature=float(os.getenv("EVAL_JUDGE_TEMPERATURE", "0")),
+    )
     return retrieval, generation, judge
 
 
