@@ -103,7 +103,10 @@ def create_public_app() -> Flask:
         logging_broker=logging_broker,
     )
     generation_service = GenerationService(
-        GeminiGenerationBroker(),
+        # #86: pin the shared/draft broker too -- see api/app.py's identical wiring
+        # for the full rationale (affects explain()'s draft plus every other
+        # self._broker caller, all judgment/explanation calls).
+        GeminiGenerationBroker(temperature=float(os.getenv("GENERATION_TEMPERATURE", "0"))),
         logging_broker=logging_broker,
         # #68: reflective grounding judge randomly rejected good drafts at the
         # default (nonzero) temperature it shared with the draft call itself.

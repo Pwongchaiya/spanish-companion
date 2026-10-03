@@ -39,9 +39,11 @@ class GeminiGenerationBroker:
         resolved_api_key = api_key if api_key is not None else os.getenv("GEMINI_API_KEY")
         self._model_name = model_name if model_name is not None else os.getenv("GEMINI_MODEL", _DEFAULT_MODEL_NAME)
         self._client = genai.Client(api_key=resolved_api_key)
-        # #68: unset (None) keeps today's behavior -- no config passed, API's own
-        # default temperature. Set by the judge brokers (grounding judge in the
-        # composition roots, eval judge in evals/run_eval.py).
+        # #68/#86: unset (None) keeps today's behavior -- no config passed, API's own
+        # default temperature. Set by every composition root's broker instances:
+        # the shared/draft broker (GENERATION_TEMPERATURE, #86), the grounding judge
+        # broker (GROUNDING_JUDGE_TEMPERATURE, #68), and the eval judge broker
+        # (EVAL_JUDGE_TEMPERATURE, #68, evals/run_eval.py).
         self._temperature = temperature
 
     def generate(self, prompt: str) -> str:
