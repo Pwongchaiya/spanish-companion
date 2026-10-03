@@ -15,7 +15,8 @@ Config (env / .env): DATABASE_URL, GEMINI_API_KEY, RETRIEVAL_TOP_K (3), RETRIEVA
 EXPLAIN_TOP_K (3, read by GenerationService itself -- #64), GENERATION_TEMPERATURE (0 -- #86: pins
 the shared/draft broker so explain()'s draft stops varying run to run, same fix as api/app.py's
 Review wiring), GROUNDING_JUDGE_TEMPERATURE (0 -- #68: pins GenerationService's reflective grounding
-judge, same fix as api/app.py's Review wiring), EVAL_JUDGE_MODEL (defaults to GEMINI_MODEL),
+judge, same fix as api/app.py's Review wiring), GENERATION_RETRY_ATTEMPTS (5 -- #92: retries transient
+503/429s on all three Gemini brokers), EVAL_JUDGE_MODEL (defaults to GEMINI_MODEL),
 EVAL_JUDGE_TEMPERATURE (0 -- #68: pins this eval's own answer-quality judge only, so its sampling
 noise doesn't get scored as a retrieval/generation regression), EVAL_REGRESSION_TOLERANCE (0.15 --
 #68: measured 2026-10-02 on GENERATION_TEMPERATURE/GROUNDING_JUDGE_TEMPERATURE/EVAL_JUDGE_TEMPERATURE
@@ -135,18 +136,27 @@ def build_pipeline():
         # #86: same fix as api/app.py's Review wiring -- the shared/draft broker had
         # no temperature set, so explain()'s draft sampled at the API's default
         # (nonzero) temperature and varied run to run.
-        GeminiGenerationBroker(temperature=float(os.getenv("GENERATION_TEMPERATURE", "0"))),
+        # #92: same retry as api/app.py's Review wiring -- un-retried 503s were
+        # scored as fallbacks and blamed on the grounding judge.
+        GeminiGenerationBroker(
+            temperature=float(os.getenv("GENERATION_TEMPERATURE", "0")),
+            retry_attempts=int(os.getenv("GENERATION_RETRY_ATTEMPTS", "5")),
+        ),
         logging_broker=log,
         # #68: same fix as api/app.py's Review wiring -- the reflective grounding
         # judge randomly rejected good drafts at the default (nonzero) temperature
         # it shared with the draft call itself.
-        judge_broker=GeminiGenerationBroker(temperature=float(os.getenv("GROUNDING_JUDGE_TEMPERATURE", "0"))),
+        judge_broker=GeminiGenerationBroker(
+            temperature=float(os.getenv("GROUNDING_JUDGE_TEMPERATURE", "0")),
+            retry_attempts=int(os.getenv("GENERATION_RETRY_ATTEMPTS", "5")),
+        ),
     )
     # #68: pin the eval's own answer-quality judge to temperature 0 -- draft/grounding
     # stay at the API default (unset), so only this judge's own noise is removed.
     judge = GeminiGenerationBroker(
         model_name=os.getenv("EVAL_JUDGE_MODEL") or None,
         temperature=float(os.getenv("EVAL_JUDGE_TEMPERATURE", "0")),
+        retry_attempts=int(os.getenv("GENERATION_RETRY_ATTEMPTS", "5")),
     )
     return retrieval, generation, judge
 

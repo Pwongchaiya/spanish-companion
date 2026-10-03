@@ -35,10 +35,21 @@ class GeminiGenerationBroker:
         api_key: Optional[str] = None,
         model_name: Optional[str] = None,
         temperature: Optional[float] = None,
+        retry_attempts: Optional[int] = None,
     ) -> None:
         resolved_api_key = api_key if api_key is not None else os.getenv("GEMINI_API_KEY")
         self._model_name = model_name if model_name is not None else os.getenv("GEMINI_MODEL", _DEFAULT_MODEL_NAME)
-        self._client = genai.Client(api_key=resolved_api_key)
+        # #92: transient 503 "high demand" / 429 errors were the largest share of
+        # Review's fallbacks -- the SDK never retries unless retry_options is set.
+        # None keeps today's no-retry behavior: Voice Conversation's teardown calls
+        # must fit SESSION_GRACEFUL_TIMEOUT_SECONDS (5s), and the SDK's backoff
+        # (1, 2, 4, 8s on 408/429/5xx) would blow that budget during an outage.
+        http_options = (
+            genai.types.HttpOptions(retry_options=genai.types.HttpRetryOptions(attempts=retry_attempts))
+            if retry_attempts is not None
+            else None
+        )
+        self._client = genai.Client(api_key=resolved_api_key, http_options=http_options)
         # #68/#86: unset (None) keeps today's behavior -- no config passed, API's own
         # default temperature. Set by every composition root's broker instances:
         # the shared/draft broker (GENERATION_TEMPERATURE, #86), the grounding judge
@@ -89,6 +100,11 @@ def _self_test() -> None:
     assert (
         captured["config"] is not None and captured["config"].temperature == 0.0
     ), "temperature=0.0 must build a config"
+
+    # #92: retry_attempts=None must leave the SDK's never-retry default; an int must reach it.
+    assert GeminiGenerationBroker(api_key="x")._client._api_client._http_options.retry_options is None
+    retry = GeminiGenerationBroker(api_key="x", retry_attempts=4)._client._api_client._http_options.retry_options
+    assert retry is not None and retry.attempts == 4, "retry_attempts must reach the SDK's retry_options"
 
     print("self-test ok")
 
