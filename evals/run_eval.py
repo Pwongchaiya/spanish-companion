@@ -17,7 +17,10 @@ the shared/draft broker so explain()'s draft stops varying run to run, same fix 
 Review wiring), GROUNDING_JUDGE_TEMPERATURE (0 -- #68: pins GenerationService's reflective grounding
 judge, same fix as api/app.py's Review wiring), EVAL_JUDGE_MODEL (defaults to GEMINI_MODEL),
 EVAL_JUDGE_TEMPERATURE (0 -- #68: pins this eval's own answer-quality judge only, so its sampling
-noise doesn't get scored as a retrieval/generation regression), EVAL_REGRESSION_TOLERANCE (0.0).
+noise doesn't get scored as a retrieval/generation regression), EVAL_REGRESSION_TOLERANCE (0.15 --
+#68: measured 2026-10-02 on GENERATION_TEMPERATURE/GROUNDING_JUDGE_TEMPERATURE/EVAL_JUDGE_TEMPERATURE
+all pinned to 0 -- answer_pass_rate over 5 runs: 0.2917, 0.2917, 0.3333, 0.4167, 0.3333, spread
+(max-min) 0.125, rounded up to the next 0.05).
 """
 
 import argparse
@@ -244,7 +247,7 @@ def main() -> int:
 
     if args.baseline:
         baseline = json.loads(Path(args.baseline).read_text(encoding="utf-8"))["summary"]
-        bad = regressions(summary, baseline, float(os.getenv("EVAL_REGRESSION_TOLERANCE", "0.0")))
+        bad = regressions(summary, baseline, float(os.getenv("EVAL_REGRESSION_TOLERANCE", "0.15")))
         for line in bad:
             print("REGRESSION", line)
         return 1 if bad else 0
