@@ -274,7 +274,13 @@ def create_app() -> Flask:
         logging_broker=logging_broker,
     )
     generation_service = GenerationService(
-        GeminiGenerationBroker(),
+        # #86: the shared/draft broker had no temperature set, so explain()'s
+        # draft (and every other self._broker caller -- judge_practice_attempt(),
+        # estimate_cefr_level(), generate_text(), judge_task_outcome()) sampled at
+        # the API's default (nonzero) temperature. All are judgment/explanation
+        # calls, not creative generation, so low temperature is harmless everywhere
+        # it's used.
+        GeminiGenerationBroker(temperature=float(configuration_broker.get("GENERATION_TEMPERATURE", "0"))),
         logging_broker=logging_broker,
         # #68: reflective grounding judge randomly rejected good drafts at the
         # default (nonzero) temperature it shared with the draft call itself.

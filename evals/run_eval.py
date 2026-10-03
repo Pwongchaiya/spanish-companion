@@ -12,11 +12,12 @@ Usage:
   python evals/run_eval.py --self-test              # scoring logic only, no DB/network
 
 Config (env / .env): DATABASE_URL, GEMINI_API_KEY, RETRIEVAL_TOP_K (3), RETRIEVAL_MAX_DISTANCE (0.59),
-EXPLAIN_TOP_K (3, read by GenerationService itself -- #64), GROUNDING_JUDGE_TEMPERATURE (0 -- #68:
-pins GenerationService's reflective grounding judge, same fix as api/app.py's Review wiring),
-EVAL_JUDGE_MODEL (defaults to GEMINI_MODEL), EVAL_JUDGE_TEMPERATURE (0 -- #68: pins this eval's
-own answer-quality judge only, so its sampling noise doesn't get scored as a retrieval/generation
-regression), EVAL_REGRESSION_TOLERANCE (0.0).
+EXPLAIN_TOP_K (3, read by GenerationService itself -- #64), GENERATION_TEMPERATURE (0 -- #86: pins
+the shared/draft broker so explain()'s draft stops varying run to run, same fix as api/app.py's
+Review wiring), GROUNDING_JUDGE_TEMPERATURE (0 -- #68: pins GenerationService's reflective grounding
+judge, same fix as api/app.py's Review wiring), EVAL_JUDGE_MODEL (defaults to GEMINI_MODEL),
+EVAL_JUDGE_TEMPERATURE (0 -- #68: pins this eval's own answer-quality judge only, so its sampling
+noise doesn't get scored as a retrieval/generation regression), EVAL_REGRESSION_TOLERANCE (0.0).
 """
 
 import argparse
@@ -128,7 +129,10 @@ def build_pipeline():
         logging_broker=log,
     )
     generation = GenerationService(
-        GeminiGenerationBroker(),
+        # #86: same fix as api/app.py's Review wiring -- the shared/draft broker had
+        # no temperature set, so explain()'s draft sampled at the API's default
+        # (nonzero) temperature and varied run to run.
+        GeminiGenerationBroker(temperature=float(os.getenv("GENERATION_TEMPERATURE", "0"))),
         logging_broker=log,
         # #68: same fix as api/app.py's Review wiring -- the reflective grounding
         # judge randomly rejected good drafts at the default (nonzero) temperature
