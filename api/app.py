@@ -280,12 +280,18 @@ def create_app() -> Flask:
         # the API's default (nonzero) temperature. All are judgment/explanation
         # calls, not creative generation, so low temperature is harmless everywhere
         # it's used.
-        GeminiGenerationBroker(temperature=float(configuration_broker.get("GENERATION_TEMPERATURE", "0"))),
+        # #92: Review is untimed, so both brokers retry transient 503/429s instead
+        # of falling back on the first one.
+        GeminiGenerationBroker(
+            temperature=float(configuration_broker.get("GENERATION_TEMPERATURE", "0")),
+            retry_attempts=int(configuration_broker.get("GENERATION_RETRY_ATTEMPTS", "5")),
+        ),
         logging_broker=logging_broker,
         # #68: reflective grounding judge randomly rejected good drafts at the
         # default (nonzero) temperature it shared with the draft call itself.
         judge_broker=GeminiGenerationBroker(
-            temperature=float(configuration_broker.get("GROUNDING_JUDGE_TEMPERATURE", "0"))
+            temperature=float(configuration_broker.get("GROUNDING_JUDGE_TEMPERATURE", "0")),
+            retry_attempts=int(configuration_broker.get("GENERATION_RETRY_ATTEMPTS", "5")),
         ),
     )
     practice_log_service = PracticeLogService(JsonLinesPracticeLogBroker(), logging_broker=logging_broker)

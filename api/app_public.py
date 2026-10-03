@@ -106,11 +106,18 @@ def create_public_app() -> Flask:
         # #86: pin the shared/draft broker too -- see api/app.py's identical wiring
         # for the full rationale (affects explain()'s draft plus every other
         # self._broker caller, all judgment/explanation calls).
-        GeminiGenerationBroker(temperature=float(os.getenv("GENERATION_TEMPERATURE", "0"))),
+        # #92: retry transient 503/429s -- see api/app.py's identical wiring.
+        GeminiGenerationBroker(
+            temperature=float(os.getenv("GENERATION_TEMPERATURE", "0")),
+            retry_attempts=int(os.getenv("GENERATION_RETRY_ATTEMPTS", "5")),
+        ),
         logging_broker=logging_broker,
         # #68: reflective grounding judge randomly rejected good drafts at the
         # default (nonzero) temperature it shared with the draft call itself.
-        judge_broker=GeminiGenerationBroker(temperature=float(os.getenv("GROUNDING_JUDGE_TEMPERATURE", "0"))),
+        judge_broker=GeminiGenerationBroker(
+            temperature=float(os.getenv("GROUNDING_JUDGE_TEMPERATURE", "0")),
+            retry_attempts=int(os.getenv("GENERATION_RETRY_ATTEMPTS", "5")),
+        ),
     )
     flag_service = FlagService(JsonFileFlagBroker(), logging_broker=logging_broker)
     practice_log_service = PracticeLogService(JsonLinesPracticeLogBroker(), logging_broker=logging_broker)
