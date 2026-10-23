@@ -38,7 +38,7 @@ Live conversation must stay fast and natural, so all grounding and correction wo
 
 ## Architecture
 
-The backend follows [The Standard](https://github.com/hassanhabib/The-Standard)'s layered pattern, split into two packages. `api` (sessions, voice, review, progress) depends on `rag` (ingestion, retrieval, generation) and never the reverse. Layers inside a package only call downward.
+The backend is a modular micro-service-style architecture, split into two packages. `api` (sessions, voice, review, progress) depends on `rag` (ingestion, retrieval, generation) and never the reverse. Layers inside a package only call downward.
 
 ```mermaid
 flowchart LR
