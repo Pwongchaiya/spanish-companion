@@ -82,6 +82,10 @@ The frontend mirrors this with React hooks per feature (`frontend/src/hooks/`).
 
 Retrieval finds the right passage on every question. Generating a grounded answer from it is the open work: pass rate varies by topic and is 0.00 on articles. The eval runs from `evals/run_eval.py`.
 
+## Known limitations
+
+- **Live voice does not run in Docker.** Conversation Mode captures audio from the host microphone through pipecat's local audio transport, and a container has no audio device. Docker images serve every other view. Voice needs the app run directly on the host; a browser-based (WebRTC) transport would be needed to move it into a container.
+
 ## Repository layout
 
 ```
