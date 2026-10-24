@@ -5,6 +5,11 @@ updates:
     schedule:
       interval: weekly
     groups:
+      # Dependabot assigns a dependency to the first group that matches, so this one must come
+      # before the catch-all. These three change runtime behavior (voice pipeline, ORM, LLM client),
+      # so a risky bump should not hold up the routine ones.
+      runtime:
+        patterns: ["pipecat-ai*", "sqlalchemy", "google-genai"]
       pip:
         patterns: ["*"]
   - package-ecosystem: npm
@@ -21,3 +26,8 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+  # Base images in Dockerfile (node, python).
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
