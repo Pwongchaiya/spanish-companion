@@ -9,7 +9,7 @@
 # to bind via the $PORT env var (default 10000 if unset -- render.com/docs/web-services).
 
 # --- Stage 1: frontend (Review UI only, no Voice Conversation tab) ---
-FROM node:22-alpine AS frontend-build
+FROM node:25-alpine AS frontend-build
 WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci

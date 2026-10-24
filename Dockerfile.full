@@ -11,7 +11,7 @@
 #   docker run -d --name sc-full -p 10000:10000 --env-file .env.docker spanish-companion-full
 
 # --- Stage 1: frontend (full build, all tabs) ---
-FROM node:22-alpine AS frontend-build
+FROM node:25-alpine AS frontend-build
 WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
