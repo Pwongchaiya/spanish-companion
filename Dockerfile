@@ -54,6 +54,7 @@ ENV HF_HUB_OFFLINE=1
 
 COPY api/ api/
 COPY rag/ rag/
+COPY common/ common/
 COPY alembic/ alembic/
 COPY alembic.ini .
 COPY data/demo_flags.json data/demo_flags.json
