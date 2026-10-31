@@ -17,7 +17,7 @@ COPY frontend/ ./
 RUN npm run build:public
 
 # --- Stage 2: Python runtime ---
-FROM python:3.12-slim AS runtime
+FROM python:3.15-slim AS runtime
 WORKDIR /app
 
 # pipecat-ai[local,google] pulls in pyaudio, which has no prebuilt Linux
